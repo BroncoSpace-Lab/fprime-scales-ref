@@ -1,6 +1,6 @@
 [submodule "lib/fprime"]
 	path = lib/fprime
 	url = https://github.com/nasa/fprime.git
-[submodule "lib/scales-fprime-lib"]
-	path = lib/scales-fprime-lib
-	url = https://github.com/BroncoSpace-Lab/scales-fprime-lib.git
+[submodule "lib/fprime-scales"]
+	path = lib/fprime-scales
+	url = https://github.com/BroncoSpace-Lab/fprime-scales.git
