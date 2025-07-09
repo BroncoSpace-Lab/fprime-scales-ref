@@ -1,4 +1,5 @@
 module JetsonDeployment {
+  constant CMD_SPLITTER_OFFSET = 0x10000
 
   # ----------------------------------------------------------------------
   # Defaults
@@ -87,6 +88,16 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 96
 
+  # instance lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
+  #   queue size Default.QUEUE_SIZE \
+  #   stack size Default.STACK_SIZE \
+  #   priority 99
+  
+  instance mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
@@ -99,7 +110,7 @@ module JetsonDeployment {
   # ----------------------------------------------------------------------
 
   @ Communications driver. May be swapped with other com drivers like UART or TCP
-  instance comDriver: Drv.TcpClient base id 0x4000
+  instance comDriver: Drv.TcpServer base id 0x4000
 
   instance framer: Svc.Framer base id 0x4100
 
@@ -120,5 +131,15 @@ module JetsonDeployment {
   instance systemResources: Svc.SystemResources base id 0x4A00
 
   instance comStub: Svc.ComStub base id 0x4B00
+
+  instance hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x9000
+
+  instance hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x9100
+  
+  instance hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x9200
+
+  instance hubDeframer: Svc.Deframer base id CMD_SPLITTER_OFFSET + 0x9300
+
+  instance hubFramer: Svc.Framer base id CMD_SPLITTER_OFFSET + 0x9400
 
 }
