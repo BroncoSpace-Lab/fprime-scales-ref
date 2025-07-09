@@ -104,13 +104,13 @@ module JetsonDeployment {
 
       # Rate group 1
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> rateGroup1.CycleIn
-      rateGroup1.RateGroupMemberOut[0] -> tlmSend.Run
+      # rateGroup1.RateGroupMemberOut[0] -> tlmSend.Run
       rateGroup1.RateGroupMemberOut[1] -> fileDownlink.Run
       rateGroup1.RateGroupMemberOut[2] -> systemResources.run
 
       # Rate group 2
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
-      rateGroup2.RateGroupMemberOut[0] -> cmdSeq.schedIn
+      # rateGroup2.RateGroupMemberOut[0] -> cmdSeq.schedIn
 
       # Rate group 3
       rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> rateGroup3.CycleIn
