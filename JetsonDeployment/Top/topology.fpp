@@ -47,7 +47,7 @@ module JetsonDeployment {
     instance hubDeframer
     instance hubFramer
 
-    # instance lucidCamera
+    instance lucidCamera
     instance mlManager
 
     # ----------------------------------------------------------------------
