@@ -88,10 +88,10 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 96
 
-  # instance lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
-  #   queue size Default.QUEUE_SIZE \
-  #   stack size Default.STACK_SIZE \
-  #   priority 99
+  instance lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
   
   instance mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
     queue size Default.QUEUE_SIZE \

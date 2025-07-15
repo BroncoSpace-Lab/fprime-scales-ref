@@ -29,6 +29,8 @@ Some lines need to be commented in `lib/fprime/cmake/API.cmake` in order to use 
 
 ## JetsonDeployment Build Configuration
 
+You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
+
 Your `settings.ini` should look like this:
 
 ```
@@ -73,7 +75,7 @@ add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
 # add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
 ```
 
-After all of this, you should be able to `fprime-util generate && fprime-util build` for the JetsonDeployment.
+After all of this, **on the Jetson** you should be able to `fprime-util generate aarch64-linux && fprime-util build aarch64-linux -j20` for the JetsonDeployment.
 
 ## ImxDeployment
 
