@@ -26,3 +26,16 @@ setup: #Set up the repo
 	@echo "Finished setup."
 	@echo "     Don't forget to source your fprime environment with
 	    source fprime-venv/bin/activate"
+
+.PHONY: arena-init
+.ONESHELL:
+arena-init: #Set up the Arena SDK
+	@echo "Extracting the tarball..."
+	cd lib/ArenaSDK
+	tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
+	@echo "Moving the files..."
+	cd ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64
+	cp -r * ~/fprime-scales-ref/lib/ArenaSDK/
+	cd ../..
+	rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
+	@echo "Finished setting up"
