@@ -16,8 +16,8 @@ setup: ## Set up the repo
 	cd lib && git submodule init && git submodule update
 	cd lib/fprime-python && git submodule init && git submodule update
 	cd $(PROJECT_ROOT)/Components/MLComponent && git submodule init && git submodule update
-	@echo "Activating venv and installing Python requirements..."
-	. fprime-venv/bin/activate && pip install -r lib/fprime/requirements.txt
+	@echo "Installing Python requirements into venv..."
+	fprime-venv/bin/pip install -r lib/fprime/requirements.txt
 	@echo "Finished setup."
 
 .PHONY: arena-init
