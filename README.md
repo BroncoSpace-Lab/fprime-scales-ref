@@ -7,7 +7,7 @@ There are a few git submodules used here, so when cloning be sure to init and up
 ```
 git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
 cd fprime-scales-ref
-git checkout kellydev
+git checkout main
 python3.11 -m venv fprime-venv
 source fprime-venv/bin/activate
 cd libs
