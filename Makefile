@@ -12,10 +12,8 @@ setup: ## Set up the repo
 	git checkout kellydev
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
-	@echo "Updating the git submodules..."
-	cd lib && git submodule init && git submodule update
-	cd lib/fprime-python && git submodule init && git submodule update
-	cd $(PROJECT_ROOT)/Components/MLComponent && git submodule init && git submodule update
+	@echo "Initializing and updating all git submodules recursively..."
+	git submodule update --init --recursive
 	@echo "Installing Python requirements into venv..."
 	fprime-venv/bin/pip install -r lib/fprime/requirements.txt
 	@echo "Finished setup."
