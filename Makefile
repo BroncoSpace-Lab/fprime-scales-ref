@@ -29,3 +29,12 @@ arena-init: ## Set up the Arena SDK
 	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
 	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
 	@echo "Finished setting up"
+
+.PHONY: clean
+clean: ## Remove venv and reset submodules
+	@echo "Removing fprime virtual environment..."
+	rm -rf fprime-venv
+	@echo "Resetting git submodules..."
+	git submodule deinit -f .
+	git submodule update --init --recursive
+	@echo "Clean complete. You can now run 'make setup' again."
