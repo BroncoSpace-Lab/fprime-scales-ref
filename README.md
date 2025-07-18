@@ -2,23 +2,16 @@
 
 ## How to Clone
 
-There are a few git submodules used here, so when cloning be sure to init and update them.
+There are a few git submodules used here, so when cloning be sure to init and update them. We have a Makefile that does all this for you! Simply run the following to set up the repo.
 
 ```
-git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
-cd fprime-scales-ref
-git checkout main
-python3.11 -m venv fprime-venv
+make setup
+```
+
+After that, you just have to source the fprime virtual environment and you are good to go!
+
+```
 source fprime-venv/bin/activate
-cd lib
-git submodule init && git submodule update
-pip install -r fprime/requirements.txt
-cd fprime-python/fprime-python
-git submodule init && git submodule update
-cd ../../..
-cd Components/MLComponent
-git submodule init && git submodule update
-cd ../..
 ```
 
 ### Necessary Changes
@@ -27,54 +20,12 @@ Some lines need to be commented in `lib/fprime/cmake/API.cmake` in order to use 
 
 ---
 
-## JetsonDeployment Build Configuration
-
-You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
-
-Your `settings.ini` should look like this:
-
-```
-[fprime]
-project_root: .
-framework_path:     ./lib/fprime
-; uncomment this line for JetsonDeployment
-library_locations:  ./lib/fprime-python:./lib/fprime-scales
-; uncomment this line for ImxDeployment
-; library_locations:  ./lib/fprime-scales:
-
-default_cmake_options:  FPRIME_ENABLE_FRAMEWORK_UTS=OFF
-                        FPRIME_ENABLE_AUTOCODER_UTS=OFF
-```
-
-Your `project.cmake` should look like this:
-
-```
-# This CMake file is intended to register project-wide objects.
-# This allows for reuse between deployments, or other projects.
-
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ImxDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/JetsonDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-scales/scales/scalesSvc")
-```
-
-Your `CMakeLists.txt` in the root project directory should have line 17 containing `register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")` **uncommented**.
-
-Your `Components/CMakeLists.txt` should look like this:
-
-```
-# Include project-wide components here
-
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/StandardBlankComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PythonComponent/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
-```
-
-After all of this, **on the Jetson** you should be able to `fprime-util generate aarch64-linux && fprime-util build aarch64-linux -j20` for the JetsonDeployment.
-
 ## ImxDeployment
+
+This should all be set up for you in the `imx8x` branch. Simply `git checkout imx8x` to have the correct build configuration.
+
+<details>
+<sumary>Click to view build configuration details for ImxDeployment
 
 To correctly generate and build for the IMX, you need to have the build environment on your machine. Refer to [this guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/#building-the-bsp) we made on our docs for how to set up the IMX SDK.
 
@@ -122,6 +73,8 @@ Your `Components/CMakeLists.txt` should look like this:
 ```
 
 After all of this, you should be able to `fprime-util generate imx8x && fprime-util build imx8x` for the ImxDeployment.
+
+</details>
 
 **Other Important Notes**
 
