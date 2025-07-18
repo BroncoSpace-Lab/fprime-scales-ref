@@ -57,10 +57,12 @@ module JetsonDeployment {
     command connections instance cmdDisp
 
     event connections instance eventLogger
+    # event connections instance hub
 
     param connections instance prmDb
 
     telemetry connections instance tlmSend
+    # telemetry connections instance hub
 
     text event connections instance textLogger
 

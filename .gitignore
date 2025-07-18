@@ -4,6 +4,7 @@ cmake-build-*
 build-artifacts/
 build-fprime-*
 build-python-*
+build-python-fprime/
 *-template
 *.template.cpp
 *.template.hpp
