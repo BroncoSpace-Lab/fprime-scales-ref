@@ -17,6 +17,15 @@ setup: ## Set up the repo
 	@echo "Installing Python requirements into venv..."
 	fprime-venv/bin/pip install -r lib/fprime/requirements.txt
 	@echo "Finished setup."
+	@echo ""
+	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
+	@echo "██╔════╝██╔════╝██╔══██╗██║     ██╔════╝██╔════╝"
+	@echo "███████╗██║     ███████║██║     █████╗  ███████╗"
+	@echo "╚════██║██║     ██╔══██║██║     ██╔══╝  ╚════██║"
+	@echo "███████║╚██████╗██║  ██║███████╗███████╗███████║"
+	@echo "╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝"
+	@echo "                                                "
+	@echo ""
 
 .PHONY: arena-init
 .ONESHELL:
