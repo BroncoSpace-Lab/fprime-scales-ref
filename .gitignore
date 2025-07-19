@@ -3,6 +3,8 @@ logs/
 cmake-build-*
 build-artifacts/
 build-fprime-*
+build-python-*
+build-python-fprime/
 *-template
 *.template.cpp
 *.template.hpp
@@ -14,3 +16,6 @@ build-fprime-*
 /.vscode/
 .DS_Store
 *.gcov
+
+# Ignore all XML files in the GDS-Dictionary folder
+GDS-Dictionary/*.xml

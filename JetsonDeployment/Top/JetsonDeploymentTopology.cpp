@@ -26,6 +26,12 @@ Fw::MallocAllocator mallocator;
 // framing and deframing implementations.
 Svc::FprimeFraming framing;
 Svc::FprimeDeframing deframing;
+Svc::FprimeFraming hubFraming;
+Svc::FprimeDeframing hubDeframing;
+
+const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
+// const char* REMOTE_HUIP_ADDRESS = "192.168.0.66"; // ip of CPP IMX
+const U32 REMOTE_HUPORT = 50500;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
@@ -95,6 +101,8 @@ void configureTopology(const TopologyState& state) {
     // Framer and Deframer components need to be passed a protocol handler
     framer.setup(framing);
     deframer.setup(deframing);
+    hubFramer.setup(hubFraming);
+    hubDeframer.setup(hubDeframing);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
@@ -159,6 +167,10 @@ void setupTopology(const TopologyState& state) {
         // Uplink is configured for receive so a socket task is started
         comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
+    Os::TaskString hubName("hub");
+    hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 // Variables used for cycle simulation
@@ -195,6 +207,8 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
     comDriver.stop();
     (void)comDriver.join();
+    hubComDriver.stop();
+    (void)hubComDriver.join();
 
     // Resource deallocation
     cmdSeq.deallocateBuffer(mallocator);

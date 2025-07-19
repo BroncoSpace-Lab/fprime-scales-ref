@@ -16,49 +16,56 @@ module ImxDeployment {
     # Instances used in the topology
     # ----------------------------------------------------------------------
 
-    instance $health
-    instance blockDrv
-    instance tlmSend
-    instance cmdDisp
-    instance cmdSeq
-    instance comDriver
-    instance comQueue
-    instance comStub
-    instance deframer
-    instance eventLogger
-    instance fatalAdapter
-    instance fatalHandler
-    instance fileDownlink
-    instance fileManager
-    instance fileUplink
-    instance bufferManager
-    instance framer
-    instance chronoTime
-    instance prmDb
-    instance rateGroup1
-    instance rateGroup2
-    instance rateGroup3
-    instance rateGroupDriver
-    instance textLogger
-    instance systemResources
+    instance imx_health
+    instance imx_blockDrv
+    instance imx_tlmSend
+    instance imx_cmdDisp
+    instance imx_cmdSeq
+    instance imx_comDriver
+    instance imx_comQueue
+    instance imx_comStub
+    instance imx_deframer
+    instance imx_eventLogger
+    instance imx_fatalAdapter
+    instance imx_fatalHandler
+    instance imx_fileDownlink
+    instance imx_fileManager
+    instance imx_fileUplink
+    instance imx_bufferManager
+    instance imx_framer
+    instance imx_chronoTime
+    instance imx_prmDb
+    instance imx_rateGroup1
+    instance imx_rateGroup2
+    instance imx_rateGroup3
+    instance imx_rateGroupDriver
+    instance imx_textLogger
+    instance imx_systemResources
+
+    instance imx_hubComDriver
+    instance imx_hub
+    instance imx_hubDeframer
+    instance imx_hubFramer
+    instance imx_cmdSplitter
+    
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
     # ----------------------------------------------------------------------
 
-    command connections instance cmdDisp
+    command connections instance imx_cmdDisp
 
-    event connections instance eventLogger
+    event connections instance imx_eventLogger
 
-    param connections instance prmDb
+    param connections instance imx_prmDb
 
-    telemetry connections instance tlmSend
+    telemetry connections instance imx_tlmSend
 
-    text event connections instance textLogger
+    text event connections instance imx_textLogger
 
-    time connections instance chronoTime
+    time connections instance imx_chronoTime
 
-    health connections instance $health
+    health connections instance imx_health
 
     # ----------------------------------------------------------------------
     # Direct graph specifiers
@@ -66,75 +73,111 @@ module ImxDeployment {
 
     connections Downlink {
 
-      eventLogger.PktSend -> comQueue.comQueueIn[0]
-      tlmSend.PktSend -> comQueue.comQueueIn[1]
-      fileDownlink.bufferSendOut -> comQueue.buffQueueIn[0]
+      imx_eventLogger.PktSend -> imx_comQueue.comQueueIn[0]
+      imx_tlmSend.PktSend -> imx_comQueue.comQueueIn[1]
+      imx_fileDownlink.bufferSendOut -> imx_comQueue.buffQueueIn[0]
 
-      comQueue.comQueueSend -> framer.comIn
-      comQueue.buffQueueSend -> framer.bufferIn
+      imx_comQueue.comQueueSend -> imx_framer.comIn
+      imx_comQueue.buffQueueSend -> imx_framer.bufferIn
 
-      framer.framedAllocate -> bufferManager.bufferGetCallee
-      framer.framedOut -> comStub.comDataIn
-      framer.bufferDeallocate -> fileDownlink.bufferReturn
+      imx_framer.framedAllocate -> imx_bufferManager.bufferGetCallee
+      imx_framer.framedOut -> imx_comStub.comDataIn
+      imx_framer.bufferDeallocate -> imx_fileDownlink.bufferReturn
 
-      comDriver.deallocate -> bufferManager.bufferSendIn
-      comDriver.ready -> comStub.drvConnected
+      imx_comDriver.deallocate -> imx_bufferManager.bufferSendIn
+      imx_comDriver.ready -> imx_comStub.drvConnected
 
-      comStub.comStatus -> framer.comStatusIn
-      framer.comStatusOut -> comQueue.comStatusIn
-      comStub.drvDataOut -> comDriver.$send
+      imx_comStub.comStatus -> imx_framer.comStatusIn
+      imx_framer.comStatusOut -> imx_comQueue.comStatusIn
+      imx_comStub.drvDataOut -> imx_comDriver.$send
 
     }
 
     connections FaultProtection {
-      eventLogger.FatalAnnounce -> fatalHandler.FatalReceive
+      imx_eventLogger.FatalAnnounce -> imx_fatalHandler.FatalReceive
     }
 
     connections RateGroups {
       # Block driver
-      blockDrv.CycleOut -> rateGroupDriver.CycleIn
+      imx_blockDrv.CycleOut -> imx_rateGroupDriver.CycleIn
 
       # Rate group 1
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> rateGroup1.CycleIn
-      rateGroup1.RateGroupMemberOut[0] -> tlmSend.Run
-      rateGroup1.RateGroupMemberOut[1] -> fileDownlink.Run
-      rateGroup1.RateGroupMemberOut[2] -> systemResources.run
+      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn
+      imx_rateGroup1.RateGroupMemberOut[0] -> imx_tlmSend.Run
+      imx_rateGroup1.RateGroupMemberOut[1] -> imx_fileDownlink.Run
+      # imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
 
       # Rate group 2
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rateGroup2.CycleIn
-      rateGroup2.RateGroupMemberOut[0] -> cmdSeq.schedIn
+      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
+      imx_rateGroup2.RateGroupMemberOut[0] -> imx_cmdSeq.schedIn
 
       # Rate group 3
-      rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> rateGroup3.CycleIn
-      rateGroup3.RateGroupMemberOut[0] -> $health.Run
-      rateGroup3.RateGroupMemberOut[1] -> blockDrv.Sched
-      rateGroup3.RateGroupMemberOut[2] -> bufferManager.schedIn
+      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
+      imx_rateGroup3.RateGroupMemberOut[0] -> imx_health.Run
+      imx_rateGroup3.RateGroupMemberOut[1] -> imx_blockDrv.Sched
+      imx_rateGroup3.RateGroupMemberOut[2] -> imx_bufferManager.schedIn
     }
 
-    connections Sequencer {
-      cmdSeq.comCmdOut -> cmdDisp.seqCmdBuff
-      cmdDisp.seqCmdStatus -> cmdSeq.cmdResponseIn
-    }
+    # connections Sequencer {
+    #   # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
+    #   imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff
+    #   imx_cmdSplitter.forwardSeqCmdStatus -> imx_cmdSeq.cmdResponseIn
+    #   imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+    # }
 
     connections Uplink {
 
-      comDriver.allocate -> bufferManager.bufferGetCallee
-      comDriver.$recv -> comStub.drvDataIn
-      comStub.comDataOut -> deframer.framedIn
+      imx_comDriver.allocate -> imx_bufferManager.bufferGetCallee
+      imx_comDriver.$recv -> imx_comStub.drvDataIn
+      imx_comStub.comDataOut -> imx_deframer.framedIn
 
-      deframer.framedDeallocate -> bufferManager.bufferSendIn
-      deframer.comOut -> cmdDisp.seqCmdBuff
+      imx_deframer.framedDeallocate -> imx_bufferManager.bufferSendIn
+      # imx_deframer.comOut -> imx_cmdDisp.seqCmdBuff
+      imx_deframer.comOut -> imx_cmdSplitter.CmdBuff
+      imx_cmdSplitter.LocalCmd -> imx_cmdDisp.seqCmdBuff
 
-      cmdDisp.seqCmdStatus -> deframer.cmdResponseIn
+      # imx_cmdDisp.seqCmdStatus -> imx_deframer.cmdResponseIn
+      imx_cmdDisp.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus
+      imx_cmdSplitter.forwardSeqCmdStatus -> imx_deframer.cmdResponseIn
 
-      deframer.bufferAllocate -> bufferManager.bufferGetCallee
-      deframer.bufferOut -> fileUplink.bufferSendIn
-      deframer.bufferDeallocate -> bufferManager.bufferSendIn
-      fileUplink.bufferSendOut -> bufferManager.bufferSendIn
+      imx_deframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
+      imx_deframer.bufferOut -> imx_fileUplink.bufferSendIn
+      imx_deframer.bufferDeallocate -> imx_bufferManager.bufferSendIn
+      imx_fileUplink.bufferSendOut -> imx_bufferManager.bufferSendIn
     }
 
     connections ImxDeployment {
       # Add here connections to user-defined components
+    }
+
+    connections send_hub {
+      imx_hub.dataOut -> imx_hubFramer.bufferIn
+      imx_hub.dataOutAllocate -> imx_bufferManager.bufferGetCallee
+
+      imx_hubFramer.framedOut -> imx_hubComDriver.$send
+      imx_hubFramer.bufferDeallocate -> imx_bufferManager.bufferSendIn
+      imx_hubFramer.framedAllocate -> imx_bufferManager.bufferGetCallee
+
+      imx_hubComDriver.deallocate -> imx_bufferManager.bufferSendIn
+    }
+
+    connections recv_hub {
+      imx_hubComDriver.$recv -> imx_hubDeframer.framedIn
+      imx_hubComDriver.allocate -> imx_bufferManager.bufferGetCallee
+      
+      imx_hubDeframer.bufferOut -> imx_hub.dataIn 
+      imx_hubDeframer.framedDeallocate -> imx_bufferManager.bufferSendIn
+      imx_hubDeframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
+
+      imx_hub.dataInDeallocate -> imx_bufferManager.bufferSendIn
+    }
+
+    connections hub {
+      imx_hub.LogSend -> imx_eventLogger.LogRecv
+      imx_hub.TlmSend -> imx_tlmSend.TlmRecv
+      
+      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.portIn[0]
+      imx_hub.portOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
     }
 
   }

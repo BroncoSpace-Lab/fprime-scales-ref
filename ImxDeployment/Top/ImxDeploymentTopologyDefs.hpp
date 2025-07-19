@@ -47,40 +47,40 @@ struct TopologyState {
  * ```
  */
 namespace PingEntries {
-namespace ImxDeployment_blockDrv {
+namespace ImxDeployment_imx_blockDrv {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_tlmSend {
+namespace ImxDeployment_imx_tlmSend {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_cmdDisp {
+namespace ImxDeployment_imx_cmdDisp {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_cmdSeq {
+namespace ImxDeployment_imx_cmdSeq {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_eventLogger {
+namespace ImxDeployment_imx_eventLogger {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_fileDownlink {
+namespace ImxDeployment_imx_fileDownlink {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_fileManager {
+namespace ImxDeployment_imx_fileManager {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_fileUplink {
+namespace ImxDeployment_imx_fileUplink {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_prmDb {
+namespace ImxDeployment_imx_prmDb {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_rateGroup1 {
+namespace ImxDeployment_imx_rateGroup1 {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_rateGroup2 {
+namespace ImxDeployment_imx_rateGroup2 {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace ImxDeployment_rateGroup3 {
+namespace ImxDeployment_imx_rateGroup3 {
 enum { WARN = 3, FATAL = 5 };
 }
 }  // namespace PingEntries

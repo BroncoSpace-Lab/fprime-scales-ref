@@ -14,6 +14,8 @@
 // Used for printf functions
 #include <cstdlib>
 
+#include <pybind11/pybind11.h>
+
 /**
  * \brief print command line help message
  *
@@ -47,33 +49,33 @@ static void signalHandler(int signum) {
  * @param argv: argument values supplied to program
  * @return: 0 on success, something else on failure
  */
-int main(int argc, char* argv[]) {
+int main() {
     I32 option = 0;
-    CHAR* hostname = nullptr;
-    U16 port_number = 0;
+    CHAR* hostname = "127.0.0.1";
+    U16 port_number = 50000;
     Os::init();
 
     // Loop while reading the getopt supplied options
-    while ((option = getopt(argc, argv, "hp:a:")) != -1) {
-        switch (option) {
-            // Handle the -a argument for address/hostname
-            case 'a':
-                hostname = optarg;
-                break;
-            // Handle the -p port number argument
-            case 'p':
-                port_number = static_cast<U16>(atoi(optarg));
-                break;
-            // Cascade intended: help output
-            case 'h':
-            // Cascade intended: help output
-            case '?':
-            // Default case: output help and exit
-            default:
-                print_usage(argv[0]);
-                return (option == 'h') ? 0 : 1;
-        }
-    }
+    // while ((option = getopt(argc, argv, "hp:a:")) != -1) {
+    //     switch (option) {
+    //         // Handle the -a argument for address/hostname
+    //         case 'a':
+    //             hostname = optarg;
+    //             break;
+    //         // Handle the -p port number argument
+    //         case 'p':
+    //             port_number = static_cast<U16>(atoi(optarg));
+    //             break;
+    //         // Cascade intended: help output
+    //         case 'h':
+    //         // Cascade intended: help output
+    //         case '?':
+    //         // Default case: output help and exit
+    //         default:
+    //             print_usage(argv[0]);
+    //             return (option == 'h') ? 0 : 1;
+    //     }
+    // }
     // Object for communicating state to the reference topology
     JetsonDeployment::TopologyState inputs;
     inputs.hostname = hostname;
@@ -86,8 +88,12 @@ int main(int argc, char* argv[]) {
 
     // Setup, cycle, and teardown topology
     JetsonDeployment::setupTopology(inputs);
-    JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
-    JetsonDeployment::teardownTopology(inputs);
-    (void)printf("Exiting...\n");
-    return 0;
+    // JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    // JetsonDeployment::teardownTopology(inputs);
+    // (void)printf("Exiting...\n");
+    // return 0;
+}
+
+PYBIND11_MODULE(python_extension, m) {
+    m.def("main", &main, "Entry point of the FSW");
 }

@@ -26,6 +26,8 @@ Fw::MallocAllocator mallocator;
 // framing and deframing implementations.
 Svc::FprimeFraming framing;
 Svc::FprimeDeframing deframing;
+Svc::FprimeFraming hubFraming;
+Svc::FprimeDeframing hubDeframing;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
@@ -59,18 +61,18 @@ enum TopologyConstants {
 
 // Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
 Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::ImxDeployment_blockDrv::WARN, PingEntries::ImxDeployment_blockDrv::FATAL, "blockDrv"},
-    {PingEntries::ImxDeployment_tlmSend::WARN, PingEntries::ImxDeployment_tlmSend::FATAL, "chanTlm"},
-    {PingEntries::ImxDeployment_cmdDisp::WARN, PingEntries::ImxDeployment_cmdDisp::FATAL, "cmdDisp"},
-    {PingEntries::ImxDeployment_cmdSeq::WARN, PingEntries::ImxDeployment_cmdSeq::FATAL, "cmdSeq"},
-    {PingEntries::ImxDeployment_eventLogger::WARN, PingEntries::ImxDeployment_eventLogger::FATAL, "eventLogger"},
-    {PingEntries::ImxDeployment_fileDownlink::WARN, PingEntries::ImxDeployment_fileDownlink::FATAL, "fileDownlink"},
-    {PingEntries::ImxDeployment_fileManager::WARN, PingEntries::ImxDeployment_fileManager::FATAL, "fileManager"},
-    {PingEntries::ImxDeployment_fileUplink::WARN, PingEntries::ImxDeployment_fileUplink::FATAL, "fileUplink"},
-    {PingEntries::ImxDeployment_prmDb::WARN, PingEntries::ImxDeployment_prmDb::FATAL, "prmDb"},
-    {PingEntries::ImxDeployment_rateGroup1::WARN, PingEntries::ImxDeployment_rateGroup1::FATAL, "rateGroup1"},
-    {PingEntries::ImxDeployment_rateGroup2::WARN, PingEntries::ImxDeployment_rateGroup2::FATAL, "rateGroup2"},
-    {PingEntries::ImxDeployment_rateGroup3::WARN, PingEntries::ImxDeployment_rateGroup3::FATAL, "rateGroup3"},
+    {PingEntries::ImxDeployment_imx_blockDrv::WARN, PingEntries::ImxDeployment_imx_blockDrv::FATAL, "imx_blockDrv"},
+    {PingEntries::ImxDeployment_imx_tlmSend::WARN, PingEntries::ImxDeployment_imx_tlmSend::FATAL, "imx_chanTlm"},
+    {PingEntries::ImxDeployment_imx_cmdDisp::WARN, PingEntries::ImxDeployment_imx_cmdDisp::FATAL, "imx_cmdDisp"},
+    {PingEntries::ImxDeployment_imx_cmdSeq::WARN, PingEntries::ImxDeployment_imx_cmdSeq::FATAL, "imx_cmdSeq"},
+    {PingEntries::ImxDeployment_imx_eventLogger::WARN, PingEntries::ImxDeployment_imx_eventLogger::FATAL, "imx_eventLogger"},
+    {PingEntries::ImxDeployment_imx_fileDownlink::WARN, PingEntries::ImxDeployment_imx_fileDownlink::FATAL, "imx_fileDownlink"},
+    {PingEntries::ImxDeployment_imx_fileManager::WARN, PingEntries::ImxDeployment_imx_fileManager::FATAL, "imx_fileManager"},
+    {PingEntries::ImxDeployment_imx_fileUplink::WARN, PingEntries::ImxDeployment_imx_fileUplink::FATAL, "imx_fileUplink"},
+    {PingEntries::ImxDeployment_imx_prmDb::WARN, PingEntries::ImxDeployment_imx_prmDb::FATAL, "imx_prmDb"},
+    {PingEntries::ImxDeployment_imx_rateGroup1::WARN, PingEntries::ImxDeployment_imx_rateGroup1::FATAL, "imx_rateGroup1"},
+    {PingEntries::ImxDeployment_imx_rateGroup2::WARN, PingEntries::ImxDeployment_imx_rateGroup2::FATAL, "imx_rateGroup2"},
+    {PingEntries::ImxDeployment_imx_rateGroup3::WARN, PingEntries::ImxDeployment_imx_rateGroup3::FATAL, "imx_rateGroup3"},
 };
 
 /**
@@ -90,33 +92,35 @@ void configureTopology(const TopologyState& state) {
     upBuffMgrBins.bins[1].numBuffers = DEFRAMER_BUFFER_COUNT;
     upBuffMgrBins.bins[2].bufferSize = COM_DRIVER_BUFFER_SIZE;
     upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
+    imx_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
 
     // Framer and Deframer components need to be passed a protocol handler
-    framer.setup(framing);
-    deframer.setup(deframing);
+    imx_framer.setup(framing);
+    imx_deframer.setup(deframing);
+    imx_hubFramer.setup(hubFraming);
+    imx_hubDeframer.setup(hubDeframing);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
+    imx_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
 
     // Rate group driver needs a divisor list
-    rateGroupDriver.configure(rateGroupDivisorsSet);
+    imx_rateGroupDriver.configure(rateGroupDivisorsSet);
 
     // Rate groups require context arrays.
-    rateGroup1.configure(rateGroup1Context, FW_NUM_ARRAY_ELEMENTS(rateGroup1Context));
-    rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
-    rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
+    imx_rateGroup1.configure(rateGroup1Context, FW_NUM_ARRAY_ELEMENTS(rateGroup1Context));
+    imx_rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
+    imx_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
+    imx_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
                            FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
-    prmDb.configure("PrmDb.dat");
-    prmDb.readParamFile();
+    imx_prmDb.configure("PrmDb.dat");
+    imx_prmDb.readParamFile();
 
     // Health is supplied a set of ping entires.
-    health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
+    imx_health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
 
     // Note: Uncomment when using Svc:TlmPacketizer
     // tlmSend.setPacketList(ImxDeploymentPacketsPkts, ImxDeploymentPacketsIgnore, 1);
@@ -128,9 +132,9 @@ void configureTopology(const TopologyState& state) {
     // File Downlink
     configurationTable.entries[2] = {.depth = 100, .priority = 1};
     // Allocation identifier is 0 as the MallocAllocator discards it
-    comQueue.configure(configurationTable, 0, mallocator);
+    imx_comQueue.configure(configurationTable, 0, mallocator);
     if (state.hostname != nullptr && state.port != 0) {
-        comDriver.configure(state.hostname, state.port);
+        imx_comDriver.configure(state.hostname, state.port);
     }
 }
 
@@ -157,8 +161,14 @@ void setupTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         Os::TaskString name("ReceiveTask");
         // Uplink is configured for receive so a socket task is started
-        comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
+        imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    imx_hubComDriver.configure("0.0.0.0", 50500);
+    imx_cmdSplitter.configure(0x10000);
+    Os::TaskString hubName("hub");
+    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+
 }
 
 // Variables used for cycle simulation
@@ -172,7 +182,7 @@ void startSimulatedCycle(Fw::TimeInterval interval) {
 
     // Main loop
     while (cycling) {
-        ImxDeployment::blockDrv.callIsr();
+        ImxDeployment::imx_blockDrv.callIsr();
         Os::Task::delay(interval);
 
         cycleLock.lock();
@@ -193,11 +203,13 @@ void teardownTopology(const TopologyState& state) {
     freeThreads(state);
 
     // Other task clean-up.
-    comDriver.stop();
-    (void)comDriver.join();
+    imx_comDriver.stop();
+    (void)imx_comDriver.join();
+    imx_hubComDriver.stop();
+    (void)imx_hubComDriver.join();
 
     // Resource deallocation
-    cmdSeq.deallocateBuffer(mallocator);
-    bufferManager.cleanup();
+    imx_cmdSeq.deallocateBuffer(mallocator);
+    imx_bufferManager.cleanup();
 }
 };  // namespace ImxDeployment

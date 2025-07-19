@@ -16,7 +16,8 @@ set(MOD_DEPS
   Fw/Logger
   # Communication Implementations
   Drv/Udp
-  Drv/TcpClient
+  Drv/TcpServer
+  pybind
 )
 
 register_fprime_module()
