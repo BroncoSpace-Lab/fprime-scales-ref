@@ -9,7 +9,7 @@ help: ## Display this help.
 .ONESHELL:
 setup: ## Set up the repo
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout kellydev
+	git checkout main
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Initializing and updating all git submodules recursively..."
