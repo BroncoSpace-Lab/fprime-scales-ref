@@ -6,13 +6,14 @@
 # the list below.
 #
 #####
-
+restrict_platforms(aarch64-linux)
 include(implementation)
 
 ###
 # Topology and Components
 ###
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
 # register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
 
 
