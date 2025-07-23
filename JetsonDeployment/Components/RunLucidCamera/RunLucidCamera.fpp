@@ -5,7 +5,7 @@ module Components {
         # One async command/port is required for active components
         # This should be overridden by the developers with a useful command/port
         @ TODO
-        async command TODO opcode 0
+        async command SAVE_PNG opcode 0
 
         async command SETUP_CAMERA opcode 1
         

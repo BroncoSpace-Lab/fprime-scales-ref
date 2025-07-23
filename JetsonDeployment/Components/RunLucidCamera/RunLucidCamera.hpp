@@ -38,7 +38,7 @@ namespace Components {
       //! Handler implementation for command TODO
       //!
       //! TODO
-      void TODO_cmdHandler(
+      void SAVE_PNG_cmdHandler(
           FwOpcodeType opCode, //!< The opcode
           U32 cmdSeq //!< The command sequence number
       ) override;

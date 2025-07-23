@@ -159,7 +159,7 @@ You are now ready to run the demo!
 
 6. Once the camera is connected, run the `lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. You can also `lucidCamera.SET_EXPOSURE` for the camera, too.
 
-7. To take a picture with the camera, run the `lucidCamera.TODO` command. Images will be saved in `build-python-fprime-aarch64-linux/Components/RunLucidCamera/Images` folder, which is also linked to `build-python-fprime-aarch64-linux/Images`. 
+7. To take a picture with the camera, run the `lucidCamera.SAVE_PNG` command. Images will be saved in `build-python-fprime-aarch64-linux/Components/RunLucidCamera/Images` folder, which is also linked to `build-python-fprime-aarch64-linux/Images`. 
 
 8. To run ML on the images, run the `mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
 

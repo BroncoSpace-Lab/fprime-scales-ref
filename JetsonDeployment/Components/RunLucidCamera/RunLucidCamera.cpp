@@ -152,7 +152,7 @@ Arena::IDevice* pDevice;
   // ----------------------------------------------------------------------
 
   void Components::RunLucidCamera ::
-    TODO_cmdHandler(
+    SAVE_PNG_cmdHandler(
         FwOpcodeType opCode,
         U32 cmdSeq
     )
