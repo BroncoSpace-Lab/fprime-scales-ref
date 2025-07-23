@@ -4,7 +4,7 @@
 // \brief  cpp file for RunLucidCamera component implementation class
 // ======================================================================
 
-#include "Components/RunLucidCamera/RunLucidCamera.hpp"
+#include "JetsonDeployment/Components/RunLucidCamera/RunLucidCamera.hpp"
 #include "FpConfig.hpp"
 #include "ArenaApi.h"
 #include <stdio.h>

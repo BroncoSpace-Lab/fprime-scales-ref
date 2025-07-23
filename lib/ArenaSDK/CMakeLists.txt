@@ -10,7 +10,7 @@ target_include_directories(${MODULE_NAME} INTERFACE
 
 target_link_libraries(${MODULE_NAME} INTERFACE
     # Your existing libraries
-    Components_RunLucidCamera
+    JetsonDeployment_Components_RunLucidCamera
     
     # Arena SDK libraries - provide full paths to .so or .a files
     ${CMAKE_CURRENT_LIST_DIR}/lib/libarena.so          # Core Arena library

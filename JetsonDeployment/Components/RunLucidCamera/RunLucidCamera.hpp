@@ -7,7 +7,7 @@
 #ifndef Components_RunLucidCamera_HPP
 #define Components_RunLucidCamera_HPP
 
-#include "Components/RunLucidCamera/RunLucidCameraComponentAc.hpp"
+#include "JetsonDeployment/Components/RunLucidCamera/RunLucidCameraComponentAc.hpp"
 
 namespace Components {
 
