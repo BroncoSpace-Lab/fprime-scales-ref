@@ -170,9 +170,23 @@ module JetsonDeployment {
     }
 
     connections hub {
-      jetson_hub.portOut[0] -> jetson_cmdDisp.seqCmdBuff
+      # jetson_hub.portOut[0] -> jetson_cmdDisp.seqCmdBuff
       
-      jetson_cmdDisp.seqCmdStatus -> jetson_hub.portIn[0]
+      # jetson_cmdDisp.seqCmdStatus -> jetson_hub.portIn[0]
+
+      # jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
+
+      jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
+      jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
+
+      jetson_proxyGroundInterface.comCmdOut -> jetson_cmdDisp.seqCmdBuff
+      jetson_proxySequencer.comCmdOut -> jetson_cmdDisp.seqCmdBuff
+      
+      jetson_cmdDisp.seqCmdStatus -> jetson_proxyGroundInterface.cmdResponseIn
+      jetson_cmdDisp.seqCmdStatus -> jetson_proxySequencer.cmdResponseIn
+
+      jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.portIn[0]
+      jetson_proxySequencer.seqCmdStatus -> jetson_hub.portIn[1]
 
       jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
     }

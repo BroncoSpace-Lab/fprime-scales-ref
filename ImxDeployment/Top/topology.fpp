@@ -177,7 +177,9 @@ module ImxDeployment {
       imx_hub.TlmSend -> imx_tlmSend.TlmRecv
       
       imx_cmdSplitter.RemoteCmd[0] -> imx_hub.portIn[0]
+      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.portIn[1]
       imx_hub.portOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_hub.portOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
     }
 
   }
