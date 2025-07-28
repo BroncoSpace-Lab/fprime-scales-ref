@@ -44,8 +44,12 @@ module JetsonDeployment {
 
     instance jetson_hub
     instance jetson_hubComDriver
+    instance jetson_hubComStub
+    instance jetson_hubComQueue
     instance jetson_hubDeframer
     instance jetson_hubFramer
+    instance jetson_proxyGroundInterface
+    instance jetson_proxySequencer
 
     instance jetson_lucidCamera
     instance jetson_mlManager
@@ -121,10 +125,10 @@ module JetsonDeployment {
       jetson_rateGroup3.RateGroupMemberOut[2] -> jetson_bufferManager.schedIn
     }
 
-    # connections Sequencer {
-    #   cmdSeq.comCmdOut -> cmdDisp.seqCmdBuff
-    #   cmdDisp.seqCmdStatus -> cmdSeq.cmdResponseIn
-    # }
+    connections Sequencer {
+      jetson_cmdSeq.comCmdOut -> jetson_cmdDisp.seqCmdBuff
+      jetson_cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
+    }
 
     connections Uplink {
 

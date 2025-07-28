@@ -105,7 +105,7 @@ void configureTopology(const TopologyState& state) {
     jetson_hubDeframer.setup(hubDeframing);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
+    // jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
 
     // Rate group driver needs a divisor list
     jetson_rateGroupDriver.configure(rateGroupDivisorsSet);
@@ -137,6 +137,8 @@ void configureTopology(const TopologyState& state) {
     configurationTable.entries[2] = {.depth = 100, .priority = 1};
     // Allocation identifier is 0 as the MallocAllocator discards it
     jetson_comQueue.configure(configurationTable, 0, mallocator);
+    jetson_hubComQueue.configure(configurationTable, 0, mallocator);
+
     if (state.hostname != nullptr && state.port != 0) {
         jetson_comDriver.configure(state.hostname, state.port);
     }
@@ -165,6 +167,7 @@ void setupTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         Os::TaskString name("ReceiveTask");
         // Uplink is configured for receive so a socket task is started
+        jetson_comDriver.configure(state.hostname, state.port);
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
@@ -184,7 +187,7 @@ void startSimulatedCycle(Fw::TimeInterval interval) {
 
     // Main loop
     while (cycling) {
-        JetsonDeployment::blockDrv.callIsr();
+        JetsonDeployment::jetson_blockDrv.callIsr();
         Os::Task::delay(interval);
 
         cycleLock.lock();

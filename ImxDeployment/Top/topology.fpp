@@ -42,12 +42,16 @@ module ImxDeployment {
     instance imx_textLogger
     instance imx_systemResources
 
-    instance imx_hubComDriver
     instance imx_hub
+    instance imx_hubComDriver
+    instance imx_hubComStub
+    instance imx_hubComQueue
     instance imx_hubDeframer
     instance imx_hubFramer
     instance imx_cmdSplitter
     
+    instance imx_proxySequencer
+    instance imx_proxyGroundInterface
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -105,11 +109,11 @@ module ImxDeployment {
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn
       imx_rateGroup1.RateGroupMemberOut[0] -> imx_tlmSend.Run
       imx_rateGroup1.RateGroupMemberOut[1] -> imx_fileDownlink.Run
-      # imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
+      imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
-      imx_rateGroup2.RateGroupMemberOut[0] -> imx_cmdSeq.schedIn
+      imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -118,12 +122,12 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[2] -> imx_bufferManager.schedIn
     }
 
-    # connections Sequencer {
-    #   # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
-    #   imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff
-    #   imx_cmdSplitter.forwardSeqCmdStatus -> imx_cmdSeq.cmdResponseIn
-    #   imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
-    # }
+    connections Sequencer {
+      # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
+      imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff[1]
+      imx_cmdSplitter.forwardSeqCmdStatus[1] -> imx_cmdSeq.cmdResponseIn
+      # imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+    }
 
     connections Uplink {
 
@@ -133,12 +137,21 @@ module ImxDeployment {
 
       imx_deframer.framedDeallocate -> imx_bufferManager.bufferSendIn
       # imx_deframer.comOut -> imx_cmdDisp.seqCmdBuff
-      imx_deframer.comOut -> imx_cmdSplitter.CmdBuff
-      imx_cmdSplitter.LocalCmd -> imx_cmdDisp.seqCmdBuff
+      imx_deframer.comOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.LocalCmd[0] -> imx_proxyGroundInterface.seqCmdBuf
+      imx_cmdSplitter.LocalCmd[1] -> imx_proxySequencer.seqCmdBuf
+
+      imx_proxyGroundInterface.comCmdOut -> imx_cmdDisp.seqCmdBuff
+      imx_proxySequencer.comCmdOut -> imx_cmdDisp.seqCmdBuff
 
       # imx_cmdDisp.seqCmdStatus -> imx_deframer.cmdResponseIn
-      imx_cmdDisp.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus
-      imx_cmdSplitter.forwardSeqCmdStatus -> imx_deframer.cmdResponseIn
+      imx_cmdDisp.seqCmdStatus -> imx_proxyGroundInterface.cmdResponseIn
+      imx_cmdDisp.seqCmdStatus -> imx_proxySequencer.cmdResponseIn
+
+      imx_proxyGroundInterface.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_proxySequencer.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[1]
+
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> imx_deframer.cmdResponseIn
 
       imx_deframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
       imx_deframer.bufferOut -> imx_fileUplink.bufferSendIn
