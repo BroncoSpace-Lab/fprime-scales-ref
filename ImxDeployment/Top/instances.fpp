@@ -87,7 +87,7 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 96
 
-  instance imx_hubComQueue: Svc.PrmDb base id 0x4500 \
+  instance imx_hubComQueue: Svc.ComQueue base id 0x4500 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 100
