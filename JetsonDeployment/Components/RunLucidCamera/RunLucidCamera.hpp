@@ -8,6 +8,7 @@
 #define Components_RunLucidCamera_HPP
 
 #include "JetsonDeployment/Components/RunLucidCamera/RunLucidCameraComponentAc.hpp"
+#include <Fw/Types/FileNameString.hpp>
 
 namespace Components {
 
@@ -62,6 +63,9 @@ namespace Components {
         U32 cmdSeq, //!< The command sequence number
         F64 param_name
       ) override;
+
+      Fw::FileNameString m_filename;
+
   };
 
 }

@@ -11,6 +11,15 @@ module Components {
         
         event DebugLogEvent(message: string size 100) severity activity high id 0 format "{}"
 
+        event FileSendError(
+                            file: string size 80 @< The file
+                            stat: Svc.SendFileStatus
+                          ) \
+            severity warning high \
+            id 42 \
+            format "Error sending DP file {}, stat {}. Halting xmit." \
+            throttle 10
+
         async command SET_EXPOSURE(param_name: F64)
 
         async command SET_GAIN(param_name: F64)
@@ -33,6 +42,9 @@ module Components {
 
         # @ Example parameter
         # param PARAMETER_NAME: U32
+
+        @ downlink images
+        output port sendFile: Svc.SendFileRequest
 
         ###############################################################################
         # Standard AC Ports: Required for Channels, Events, Commands, and Parameters  #
