@@ -81,6 +81,24 @@ module JetsonDeployment {
 
     connections Downlink {
 
+      # jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
+      # jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
+      # jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+
+      # jetson_comQueue.comQueueSend -> jetson_framer.comIn
+      # jetson_comQueue.buffQueueSend -> jetson_framer.bufferIn
+
+      # jetson_framer.framedAllocate -> jetson_bufferManager.bufferGetCallee
+      # jetson_framer.framedOut -> jetson_comStub.comDataIn
+      # jetson_framer.bufferDeallocate -> jetson_fileDownlink.bufferReturn
+
+      # jetson_comDriver.deallocate -> jetson_bufferManager.bufferSendIn
+      # jetson_comDriver.ready -> jetson_comStub.drvConnected
+
+      # jetson_comStub.comStatus -> jetson_framer.comStatusIn
+      # jetson_framer.comStatusOut -> jetson_comQueue.comStatusIn
+      # jetson_comStub.drvDataOut -> jetson_comDriver.$send
+
       jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
       jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
       #jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]

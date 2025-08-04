@@ -28,7 +28,7 @@ set(SOURCE_FILES
 # )
 
 register_fprime_module()
-register_python_component("${CMAKE_BINARY_DIR}/JetsonDeployment/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
+register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
 
 
 ### Unit Tests ###
