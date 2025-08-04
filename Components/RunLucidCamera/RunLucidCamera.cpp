@@ -4,7 +4,7 @@
 // \brief  cpp file for RunLucidCamera component implementation class
 // ======================================================================
 
-#include "JetsonDeployment/Components/RunLucidCamera/RunLucidCamera.hpp"
+#include "Components/RunLucidCamera/RunLucidCamera.hpp"
 #include <Svc/FileDownlink/FileDownlink.hpp>
 #include <Fw/Types/ExternalString.hpp>
 #include "FpConfig.hpp"
@@ -145,6 +145,7 @@ Arena::IDevice* pDevice;
 
   Components::RunLucidCamera ::
     ~RunLucidCamera()
+
   {
     pSystem->DestroyDevice(pDevice);
     Arena::CloseSystem(pSystem);
@@ -159,6 +160,7 @@ Arena::IDevice* pDevice;
         FwOpcodeType opCode,
         U32 cmdSeq
     )
+
   {
     // TODO
     // flag to track when an exception has been thrown
