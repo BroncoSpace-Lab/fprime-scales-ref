@@ -10,10 +10,11 @@ May or may not be required, but this is what we found best to use for developmen
 
 - Ubuntu 22.04 host machine
 - python3.11
+- git lfs (install [here](https://git-lfs.com/))
 
 ## How to Clone
 
-Use the commands below in terminal to clone and set up the repository. Make sur to source the fprime-venv before you continue developing!
+Use the commands below in terminal to clone and set up the repository. Make sure to source the fprime-venv before you continue developing! **Make sure you have [git lfs](https://git-lfs.com/) installed before proceeding.**
 
 ```
 git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
@@ -68,6 +69,13 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
 
     ```
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip of imx>:~/.
+    ```
+
+3. Copy the binary files for the sequences to the IMX.
+
+    ```
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/snap-n-save.bin root@<ip of imx>:~/.
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Zip-n-send.bin root@<ip of imx>:~/.
     ```
 
 ## Jetson Setup
