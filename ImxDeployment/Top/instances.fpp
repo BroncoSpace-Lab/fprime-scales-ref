@@ -102,6 +102,11 @@ module ImxDeployment {
       stack size Default.STACK_SIZE \
       priority 100 \
 
+  instance imx_hubFileUplink: Svc.FileUplink base id 0x4900 \
+    queue size 30 \
+    stack size Default.STACK_SIZE \
+    priority 100
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------

@@ -102,12 +102,12 @@ module JetsonDeployment {
       jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
       jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
 
-      jetson_comQueue.comQueueSend -> jetson_framer.comIn
-      jetson_comQueue.buffQueueSend -> jetson_framer.bufferIn
+      jetson_comQueue.comQueueSend -> jetson_hubFramer.comIn
+      jetson_comQueue.buffQueueSend -> jetson_hubFramer.bufferIn
 
-      jetson_framer.framedAllocate -> jetson_bufferManager.bufferGetCallee
-      jetson_framer.framedOut -> jetson_comStub.comDataIn
-      jetson_framer.bufferDeallocate -> jetson_fileDownlink.bufferReturn
+      jetson_hubFramer.framedAllocate -> jetson_bufferManager.bufferGetCallee
+      jetson_hubFramer.framedOut -> jetson_comStub.comDataIn
+      jetson_hubFramer.bufferDeallocate -> jetson_fileDownlink.bufferReturn
 
       jetson_comDriver.deallocate -> jetson_bufferManager.bufferSendIn
       jetson_comDriver.ready -> jetson_comStub.drvConnected

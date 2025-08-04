@@ -49,6 +49,7 @@ module ImxDeployment {
     instance imx_hubDeframer
     instance imx_hubFramer
     instance imx_cmdSplitter
+    instance imx_hubFileUplink
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
@@ -193,6 +194,9 @@ module ImxDeployment {
       imx_cmdSplitter.RemoteCmd[1] -> imx_hub.portIn[1]
       imx_hub.portOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
       imx_hub.portOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
+
+      imx_hub.buffersOut[0] -> imx_hubFileUplink.bufferSendIn
+      imx_hubFileUplink.bufferSendOut -> imx_bufferManager.bufferSendIn
     }
 
   }

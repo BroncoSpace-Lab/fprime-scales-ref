@@ -36,7 +36,7 @@ arena-init: ## Set up the Arena SDK
 	@echo "Moving the files..."
 	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
 	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up"
+	@echo "Finished setting up ArenaSDK"
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules
