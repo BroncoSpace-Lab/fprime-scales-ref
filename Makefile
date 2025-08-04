@@ -38,6 +38,17 @@ arena-init: ## Set up the Arena SDK
 	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
 	@echo "Finished setting up ArenaSDK"
 
+.PHONY: build-jetson
+.ONESHELL:
+build-jetson: ## Build fprime for the Jetson
+	@echo "Building aarch64-linux..."
+	fprime-util build aarch64-linux -j999
+	./jetson-python.sh
+	@echo "Making the Images folder..."
+	cd build-python-fprime-aarch64-linux
+	mkdir Images
+	@echo "make build-jetson Done"
+
 .PHONY: clean
 clean: ## Remove venv and reset submodules
 	@echo "Removing fprime virtual environment..."

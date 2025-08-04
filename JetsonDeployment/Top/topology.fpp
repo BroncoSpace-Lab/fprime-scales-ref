@@ -50,6 +50,7 @@ module JetsonDeployment {
     instance jetson_hubFramer
     instance jetson_proxyGroundInterface
     instance jetson_proxySequencer
+    instance jetson_timer
 
     instance jetson_lucidCamera
     instance jetson_mlManager
@@ -97,10 +98,17 @@ module JetsonDeployment {
       # jetson_comStub.comStatus -> jetson_framer.comStatusIn
       # jetson_framer.comStatusOut -> jetson_comQueue.comStatusIn
       # jetson_comStub.drvDataOut -> jetson_comDriver.$send
+<<<<<<< HEAD
+
+      jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
+      jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
+      #jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+=======
       
       jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
       jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
       jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+>>>>>>> 8c3dcb4c7dbd6e78eb1818b658493725b5e51351
 
       jetson_comQueue.comQueueSend -> jetson_hubFramer.comIn
       jetson_comQueue.buffQueueSend -> jetson_hubFramer.bufferIn
@@ -124,7 +132,7 @@ module JetsonDeployment {
 
     connections RateGroups {
       # Block driver
-      jetson_blockDrv.CycleOut -> jetson_rateGroupDriver.CycleIn
+      jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
@@ -167,6 +175,9 @@ module JetsonDeployment {
 
     connections JetsonDeployment {
       # Add here connections to user-defined components
+
+      jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
+
     }
 
     connections send_hub {
@@ -178,6 +189,7 @@ module JetsonDeployment {
       jetson_hubFramer.framedAllocate -> jetson_bufferManager.bufferGetCallee
       
       jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
+
     }
 
     connections recv_hub {
@@ -192,6 +204,9 @@ module JetsonDeployment {
     }
 
     connections hub {
+      jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
+      jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
+
       jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
       jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
 
