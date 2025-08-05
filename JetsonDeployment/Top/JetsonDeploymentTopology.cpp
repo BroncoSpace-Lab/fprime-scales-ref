@@ -30,7 +30,7 @@ Svc::FprimeFraming hubFraming;
 Svc::FprimeDeframing hubDeframing;
 
 const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
-// const char* REMOTE_HUIP_ADDRESS = "192.168.0.66"; // ip of CPP IMX
+// const char* REMOTE_HUIP_ADDRESS = "192.168.0.132"; // ip of CPP IMX
 const U32 REMOTE_HUPORT = 50500;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
@@ -65,18 +65,18 @@ enum TopologyConstants {
 
 // Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
 Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::JetsonDeployment_blockDrv::WARN, PingEntries::JetsonDeployment_blockDrv::FATAL, "blockDrv"},
-    {PingEntries::JetsonDeployment_tlmSend::WARN, PingEntries::JetsonDeployment_tlmSend::FATAL, "chanTlm"},
-    {PingEntries::JetsonDeployment_cmdDisp::WARN, PingEntries::JetsonDeployment_cmdDisp::FATAL, "cmdDisp"},
-    {PingEntries::JetsonDeployment_cmdSeq::WARN, PingEntries::JetsonDeployment_cmdSeq::FATAL, "cmdSeq"},
-    {PingEntries::JetsonDeployment_eventLogger::WARN, PingEntries::JetsonDeployment_eventLogger::FATAL, "eventLogger"},
-    {PingEntries::JetsonDeployment_fileDownlink::WARN, PingEntries::JetsonDeployment_fileDownlink::FATAL, "fileDownlink"},
-    {PingEntries::JetsonDeployment_fileManager::WARN, PingEntries::JetsonDeployment_fileManager::FATAL, "fileManager"},
-    {PingEntries::JetsonDeployment_fileUplink::WARN, PingEntries::JetsonDeployment_fileUplink::FATAL, "fileUplink"},
-    {PingEntries::JetsonDeployment_prmDb::WARN, PingEntries::JetsonDeployment_prmDb::FATAL, "prmDb"},
-    {PingEntries::JetsonDeployment_rateGroup1::WARN, PingEntries::JetsonDeployment_rateGroup1::FATAL, "rateGroup1"},
-    {PingEntries::JetsonDeployment_rateGroup2::WARN, PingEntries::JetsonDeployment_rateGroup2::FATAL, "rateGroup2"},
-    {PingEntries::JetsonDeployment_rateGroup3::WARN, PingEntries::JetsonDeployment_rateGroup3::FATAL, "rateGroup3"},
+    {PingEntries::JetsonDeployment_jetson_blockDrv::WARN, PingEntries::JetsonDeployment_jetson_blockDrv::FATAL, "blockDrv"},
+    {PingEntries::JetsonDeployment_jetson_tlmSend::WARN, PingEntries::JetsonDeployment_jetson_tlmSend::FATAL, "chanTlm"},
+    {PingEntries::JetsonDeployment_jetson_cmdDisp::WARN, PingEntries::JetsonDeployment_jetson_cmdDisp::FATAL, "cmdDisp"},
+    {PingEntries::JetsonDeployment_jetson_cmdSeq::WARN, PingEntries::JetsonDeployment_jetson_cmdSeq::FATAL, "cmdSeq"},
+    {PingEntries::JetsonDeployment_jetson_eventLogger::WARN, PingEntries::JetsonDeployment_jetson_eventLogger::FATAL, "eventLogger"},
+    {PingEntries::JetsonDeployment_jetson_fileDownlink::WARN, PingEntries::JetsonDeployment_jetson_fileDownlink::FATAL, "fileDownlink"},
+    {PingEntries::JetsonDeployment_jetson_fileManager::WARN, PingEntries::JetsonDeployment_jetson_fileManager::FATAL, "fileManager"},
+    {PingEntries::JetsonDeployment_jetson_fileUplink::WARN, PingEntries::JetsonDeployment_jetson_fileUplink::FATAL, "fileUplink"},
+    {PingEntries::JetsonDeployment_jetson_prmDb::WARN, PingEntries::JetsonDeployment_jetson_prmDb::FATAL, "prmDb"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup1::WARN, PingEntries::JetsonDeployment_jetson_rateGroup1::FATAL, "rateGroup1"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup2::WARN, PingEntries::JetsonDeployment_jetson_rateGroup2::FATAL, "rateGroup2"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup3::WARN, PingEntries::JetsonDeployment_jetson_rateGroup3::FATAL, "rateGroup3"},
 };
 
 /**
@@ -96,35 +96,35 @@ void configureTopology(const TopologyState& state) {
     upBuffMgrBins.bins[1].numBuffers = DEFRAMER_BUFFER_COUNT;
     upBuffMgrBins.bins[2].bufferSize = COM_DRIVER_BUFFER_SIZE;
     upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
+    jetson_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
 
     // Framer and Deframer components need to be passed a protocol handler
-    framer.setup(framing);
-    deframer.setup(deframing);
-    hubFramer.setup(hubFraming);
-    hubDeframer.setup(hubDeframing);
+    jetson_framer.setup(framing);
+    jetson_deframer.setup(deframing);
+    jetson_hubFramer.setup(hubFraming);
+    jetson_hubDeframer.setup(hubDeframing);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
+    // jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
 
     // Rate group driver needs a divisor list
-    rateGroupDriver.configure(rateGroupDivisorsSet);
+    jetson_rateGroupDriver.configure(rateGroupDivisorsSet);
 
     // Rate groups require context arrays.
-    rateGroup1.configure(rateGroup1Context, FW_NUM_ARRAY_ELEMENTS(rateGroup1Context));
-    rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
-    rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
+    jetson_rateGroup1.configure(rateGroup1Context, FW_NUM_ARRAY_ELEMENTS(rateGroup1Context));
+    jetson_rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
+    jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
+    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
                            FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
-    prmDb.configure("PrmDb.dat");
-    prmDb.readParamFile();
+    jetson_prmDb.configure("PrmDb.dat");
+    jetson_prmDb.readParamFile();
 
     // Health is supplied a set of ping entires.
-    health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
+    jetson_health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
 
     // Note: Uncomment when using Svc:TlmPacketizer
     // tlmSend.setPacketList(JetsonDeploymentPacketsPkts, JetsonDeploymentPacketsIgnore, 1);
@@ -136,9 +136,11 @@ void configureTopology(const TopologyState& state) {
     // File Downlink
     configurationTable.entries[2] = {.depth = 100, .priority = 1};
     // Allocation identifier is 0 as the MallocAllocator discards it
-    comQueue.configure(configurationTable, 0, mallocator);
+    jetson_comQueue.configure(configurationTable, 0, mallocator);
+    jetson_hubComQueue.configure(configurationTable, 0, mallocator);
+
     if (state.hostname != nullptr && state.port != 0) {
-        comDriver.configure(state.hostname, state.port);
+        jetson_comDriver.configure(state.hostname, state.port);
     }
 }
 
@@ -165,12 +167,13 @@ void setupTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         Os::TaskString name("ReceiveTask");
         // Uplink is configured for receive so a socket task is started
-        comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
+        jetson_comDriver.configure(state.hostname, state.port);
+        jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
+    jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
     Os::TaskString hubName("hub");
-    hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 // Variables used for cycle simulation
@@ -184,7 +187,7 @@ void startSimulatedCycle(Fw::TimeInterval interval) {
 
     // Main loop
     while (cycling) {
-        JetsonDeployment::blockDrv.callIsr();
+        JetsonDeployment::jetson_blockDrv.callIsr();
         Os::Task::delay(interval);
 
         cycleLock.lock();
@@ -205,13 +208,13 @@ void teardownTopology(const TopologyState& state) {
     freeThreads(state);
 
     // Other task clean-up.
-    comDriver.stop();
-    (void)comDriver.join();
-    hubComDriver.stop();
-    (void)hubComDriver.join();
+    jetson_comDriver.stop();
+    (void)jetson_comDriver.join();
+    jetson_hubComDriver.stop();
+    (void)jetson_hubComDriver.join();
 
     // Resource deallocation
-    cmdSeq.deallocateBuffer(mallocator);
-    bufferManager.cleanup();
+    jetson_cmdSeq.deallocateBuffer(mallocator);
+    jetson_bufferManager.cleanup();
 }
 };  // namespace JetsonDeployment

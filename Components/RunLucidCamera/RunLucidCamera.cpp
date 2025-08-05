@@ -36,7 +36,7 @@ static int imageCounter = 0;
 // function to gneerate fileName
 std::string generatefileName(){
   std::ostringstream oss;
-  oss << "Components/RunLucidCamera/Images/image_" << std::setw(4) << std::setfill('0') << imageCounter++ << ".png";
+  oss << "Images/image_" << std::setw(4) << std::setfill('0') << imageCounter++ << ".png";
   return oss.str();
 }
 

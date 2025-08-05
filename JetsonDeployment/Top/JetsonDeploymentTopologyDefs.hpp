@@ -47,40 +47,40 @@ struct TopologyState {
  * ```
  */
 namespace PingEntries {
-namespace JetsonDeployment_blockDrv {
+namespace JetsonDeployment_jetson_blockDrv {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_tlmSend {
+namespace JetsonDeployment_jetson_tlmSend {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_cmdDisp {
+namespace JetsonDeployment_jetson_cmdDisp {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_cmdSeq {
+namespace JetsonDeployment_jetson_cmdSeq {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_eventLogger {
+namespace JetsonDeployment_jetson_eventLogger {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_fileDownlink {
+namespace JetsonDeployment_jetson_fileDownlink {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_fileManager {
+namespace JetsonDeployment_jetson_fileManager {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_fileUplink {
+namespace JetsonDeployment_jetson_fileUplink {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_prmDb {
+namespace JetsonDeployment_jetson_prmDb {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_rateGroup1 {
+namespace JetsonDeployment_jetson_rateGroup1 {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_rateGroup2 {
+namespace JetsonDeployment_jetson_rateGroup2 {
 enum { WARN = 3, FATAL = 5 };
 }
-namespace JetsonDeployment_rateGroup3 {
+namespace JetsonDeployment_jetson_rateGroup3 {
 enum { WARN = 3, FATAL = 5 };
 }
 }  // namespace PingEntries
