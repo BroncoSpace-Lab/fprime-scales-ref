@@ -88,7 +88,7 @@ int main() {
 
     // Setup, cycle, and teardown topology
     JetsonDeployment::setupTopology(inputs);
-    // JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
     // JetsonDeployment::teardownTopology(inputs);
     // (void)printf("Exiting...\n");
     // return 0;

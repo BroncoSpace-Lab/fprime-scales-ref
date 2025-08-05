@@ -4,7 +4,7 @@
 // \brief  cpp file for RunLucidCamera component implementation class
 // ======================================================================
 
-#include "JetsonDeployment/Components/RunLucidCamera/RunLucidCamera.hpp"
+#include "Components/RunLucidCamera/RunLucidCamera.hpp"
 #include <Svc/FileDownlink/FileDownlink.hpp>
 #include <Fw/Types/ExternalString.hpp>
 #include "FpConfig.hpp"

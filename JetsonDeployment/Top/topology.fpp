@@ -83,7 +83,7 @@ module JetsonDeployment {
 
       jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
       jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
-      jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+      #jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
 
       jetson_comQueue.comQueueSend -> jetson_framer.comIn
       jetson_comQueue.buffQueueSend -> jetson_framer.bufferIn
@@ -107,7 +107,6 @@ module JetsonDeployment {
 
     connections RateGroups {
       # Block driver
-      jetson_blockDrv.CycleOut -> jetson_rateGroupDriver.CycleIn
       jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
@@ -151,7 +150,9 @@ module JetsonDeployment {
 
     connections JetsonDeployment {
       # Add here connections to user-defined components
-      jetson lucidCamera.sendFile -> jetson_fileDownlink.SendFile
+
+      jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
+
     }
 
     connections send_hub {
@@ -163,6 +164,7 @@ module JetsonDeployment {
       jetson_hubFramer.framedAllocate -> jetson_bufferManager.bufferGetCallee
       
       jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
+
     }
 
     connections recv_hub {
