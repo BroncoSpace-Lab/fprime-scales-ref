@@ -82,7 +82,7 @@ module JetsonDeployment {
 
       jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
       jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
-      jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+      #jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
 
       jetson_comQueue.comQueueSend -> jetson_framer.comIn
       jetson_comQueue.buffQueueSend -> jetson_framer.bufferIn

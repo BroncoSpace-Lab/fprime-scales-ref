@@ -30,12 +30,15 @@ setup: ## Set up the repo
 .PHONY: arena-init
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
+	@echo "Fetching LFS files..."
+	git lfs pull
 	@echo "Extracting the tarball..."
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
-	@echo "Moving the files..."
-	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up"
+	tar -xvf lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64.tar.xz -C lib/ArenaSDK
+	@echo "Moving the files..."    
+	EXTRACTED_DIR=$$(find lib/ArenaSDK -maxdepth 1 -type d -name 'ArenaSDK_v0.1.77_Linux_ARM64*')    
+	cp -r $$EXTRACTED_DIR/ArenaSDK_Linux_ARM64/* $(PROJECT_ROOT)/lib/ArenaSDK/    
+	rm -rf $$EXTRACTED_DIR
+	@echo "Finished setting up Arena SDK"
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules
