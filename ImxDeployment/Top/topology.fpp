@@ -47,6 +47,9 @@ module ImxDeployment {
     instance imx_hubDeframer
     instance imx_hubFramer
     instance imx_cmdSplitter
+
+    instance imx_proxySequencer
+    instance imx_proxyGroundInterface
     
 
     # ----------------------------------------------------------------------
@@ -118,12 +121,12 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[2] -> imx_bufferManager.schedIn
     }
 
-    # connections Sequencer {
-    #   # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
-    #   imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff
-    #   imx_cmdSplitter.forwardSeqCmdStatus -> imx_cmdSeq.cmdResponseIn
-    #   imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
-    # }
+    connections Sequencer {
+      # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
+      imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff[1]
+      imx_cmdSplitter.forwardSeqCmdStatus[1] -> imx_cmdSeq.cmdResponseIn
+      # imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+    }
 
     connections Uplink {
 

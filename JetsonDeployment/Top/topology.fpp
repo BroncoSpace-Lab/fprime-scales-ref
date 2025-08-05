@@ -50,6 +50,9 @@ module JetsonDeployment {
     instance lucidCamera
     instance mlManager
 
+    instance jetson_proxyGroundInterface
+    instance jetson_proxySequencer
+
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
     # ----------------------------------------------------------------------
@@ -121,10 +124,10 @@ module JetsonDeployment {
       rateGroup3.RateGroupMemberOut[2] -> bufferManager.schedIn
     }
 
-    # connections Sequencer {
-    #   cmdSeq.comCmdOut -> cmdDisp.seqCmdBuff
-    #   cmdDisp.seqCmdStatus -> cmdSeq.cmdResponseIn
-    # }
+    connections Sequencer {
+      cmdSeq.comCmdOut -> cmdDisp.seqCmdBuff
+      cmdDisp.seqCmdStatus -> cmdSeq.cmdResponseIn
+    }
 
     connections Uplink {
 

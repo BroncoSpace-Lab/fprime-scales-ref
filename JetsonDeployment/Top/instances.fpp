@@ -98,6 +98,16 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance jetson_proxySequencer: Components.CmdSequenceForwarder base id CMD_SPLITTER_OFFSET + 0x9700 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 100 \
+
+  instance jetson_proxyGroundInterface: Components.CmdSequenceForwarder base id CMD_SPLITTER_OFFSET + 0x9800 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 100 \
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
