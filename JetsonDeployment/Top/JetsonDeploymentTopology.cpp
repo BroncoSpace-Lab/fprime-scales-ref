@@ -30,7 +30,7 @@ Svc::FprimeFraming hubFraming;
 Svc::FprimeDeframing hubDeframing;
 
 const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
-// const char* REMOTE_HUIP_ADDRESS = "192.168.0.132"; // ip of CPP IMX
+// const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
 const U32 REMOTE_HUPORT = 50500;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
@@ -174,6 +174,8 @@ void setupTopology(const TopologyState& state) {
     jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+
+    jetson_timer.startTimer(1000);
 }
 
 // Variables used for cycle simulation

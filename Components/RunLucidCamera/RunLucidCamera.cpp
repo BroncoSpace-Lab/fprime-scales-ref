@@ -4,7 +4,9 @@
 // \brief  cpp file for RunLucidCamera component implementation class
 // ======================================================================
 
-#include "Components/RunLucidCamera/RunLucidCamera.hpp"
+#include "JetsonDeployment/Components/RunLucidCamera/RunLucidCamera.hpp"
+#include <Svc/FileDownlink/FileDownlink.hpp>
+#include <Fw/Types/ExternalString.hpp>
 #include "FpConfig.hpp"
 #include "ArenaApi.h"
 #include <stdio.h>
@@ -12,6 +14,7 @@
 #include <string>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 
 
@@ -27,7 +30,7 @@
 #define EXPOSURE_TIME 5000.0
 
 // file name
-//#define FILE_NAME "Components/RunLucidCamera/Images/image.png" //make parameter later
+//#define FILE_NAME "Images/image.png" //make parameter later
 //also change to make a new image each time and not just replace the previous one
 
 
@@ -152,7 +155,7 @@ Arena::IDevice* pDevice;
   // ----------------------------------------------------------------------
 
   void Components::RunLucidCamera ::
-    TODO_cmdHandler(
+    SAVE_PNG_cmdHandler(
         FwOpcodeType opCode,
         U32 cmdSeq
     )
@@ -174,7 +177,23 @@ Arena::IDevice* pDevice;
       //SaveImage(pImage, FILE_NAME);
       std::string filename = generatefileName();
       SaveImage(pImage, filename.c_str());
-      std::cout << "Saved Image to:" << filename << std::endl;
+      printf("Saved Image to: %s\n",filename.c_str());
+
+      std::string imageDisp = "<img src={% static %}{{"+filename+"}}/>";
+      const char* imageDispchar = imageDisp.c_str();
+
+      this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(imageDispchar));
+
+      const char* filepathchar = filename.c_str();
+      this->m_filename=filepathchar;
+      Fw::FileNameString destination("./image.png");
+      
+      Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
+            if (resp.getstatus() != Svc::SendFileStatus::STATUS_OK) {
+                // warn, but keep going since it may be an issue with this file but others could
+                // make it
+                this->log_WARNING_HI_FileSendError(this->m_filename,resp.getstatus());
+            }
 
       std::cout << "\nExample complete\n";
 
@@ -304,4 +323,3 @@ Arena::IDevice* pDevice;
     this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Set Gain To High"));
   
   }
-

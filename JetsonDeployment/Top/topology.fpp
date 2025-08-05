@@ -50,6 +50,7 @@ module JetsonDeployment {
     instance jetson_hubFramer
     instance jetson_proxyGroundInterface
     instance jetson_proxySequencer
+    instance jetson_timer
 
     instance jetson_lucidCamera
     instance jetson_mlManager
@@ -107,6 +108,7 @@ module JetsonDeployment {
     connections RateGroups {
       # Block driver
       jetson_blockDrv.CycleOut -> jetson_rateGroupDriver.CycleIn
+      jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
@@ -149,6 +151,7 @@ module JetsonDeployment {
 
     connections JetsonDeployment {
       # Add here connections to user-defined components
+      jetson lucidCamera.sendFile -> jetson_fileDownlink.SendFile
     }
 
     connections send_hub {
@@ -174,11 +177,8 @@ module JetsonDeployment {
     }
 
     connections hub {
-      # jetson_hub.portOut[0] -> jetson_cmdDisp.seqCmdBuff
-      
-      # jetson_cmdDisp.seqCmdStatus -> jetson_hub.portIn[0]
-
-      # jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
+      jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
+      jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
 
       jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
       jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
