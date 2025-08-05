@@ -32,14 +32,18 @@ class MLComponent(fprime_pybind.MLComponentBase):
 
     def SET_ML_PATH_cmdHandler(self, opCode, cmdSeq, path):
         """ Command handler for SET_ML_PATH """
-        try:
-            self.model = importlib.import_module(path)
-        except Exception as e:
-            self.cmdResponse_out(opCode, cmdSeq, Fw.CmdResponse.COMMAND_VALIDATION_ERROR)
-            return
-        
-        self.log_ACTIVITY_HI_MLSet(Fw.LogStringArg(path))
         self.cmdResponse_out(opCode, cmdSeq, Fw.CmdResponse.COMMAND_OK)
+        # print("starting set ml path command")
+        # try:
+        #     print("before importlib")
+        #     self.model = importlib.import_module(path)
+        #     print("after importlib")
+        # except Exception as e:
+        #     self.cmdResponse_out(opCode, cmdSeq, Fw.CmdResponse.COMMAND_VALIDATION_ERROR)
+        #     return
+        
+        # self.log_ACTIVITY_HI_MLSet(Fw.LogStringArg(path))
+        # self.cmdResponse_out(opCode, cmdSeq, Fw.CmdResponse.COMMAND_OK)
 
     def SET_INFERENCE_PATH_cmdHandler(self, opCode, cmdSeq, path):
         """ Command handler for SET_INFERENCE_PATH """

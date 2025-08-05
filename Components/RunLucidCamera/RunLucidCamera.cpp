@@ -181,11 +181,6 @@ Arena::IDevice* pDevice;
       SaveImage(pImage, filename.c_str());
       printf("Saved Image to: %s\n",filename.c_str());
 
-      std::string imageDisp = "<img src={% static %}{{"+filename+"}}/>";
-      const char* imageDispchar = imageDisp.c_str();
-
-      this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(imageDispchar));
-
       const char* filepathchar = filename.c_str();
       this->m_filename=filepathchar;
       Fw::FileNameString destination("./image.png");
