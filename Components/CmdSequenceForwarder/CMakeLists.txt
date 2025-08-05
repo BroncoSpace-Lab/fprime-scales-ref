@@ -9,11 +9,10 @@
 # https://fprime.jpl.nasa.gov/latest/documentation/reference
 #
 ####
-restrict_platforms(aarch64-linux)
 
 set(SOURCE_FILES
-  "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
-  # "${CMAKE_CURRENT_LIST_DIR}/MLComponent.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.fpp"
+  "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.cpp"
 )
 
 # Uncomment and add any modules that this component depends on, else
@@ -29,14 +28,13 @@ set(SOURCE_FILES
 # )
 
 register_fprime_module()
-register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
 
 
 ### Unit Tests ###
 # set(UT_SOURCE_FILES
-#   "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
-#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/MLComponentTestMain.cpp"
-#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/MLComponentTester.cpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.fpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/CmdSequenceForwarderTestMain.cpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/CmdSequenceForwarderTester.cpp"
 # )
 # set(UT_MOD_DEPS
 #   STest

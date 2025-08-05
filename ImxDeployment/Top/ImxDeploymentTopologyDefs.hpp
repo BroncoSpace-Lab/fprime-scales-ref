@@ -83,6 +83,9 @@ enum { WARN = 3, FATAL = 5 };
 namespace ImxDeployment_imx_rateGroup3 {
 enum { WARN = 3, FATAL = 5 };
 }
+namespace ImxDeployment_imx_hubFileUplink {
+enum { WARN = 3, FATAL = 5 };
+}
 }  // namespace PingEntries
 }  // namespace ImxDeployment
 #endif

@@ -1,6 +1,6 @@
 # Libraries
 
-To update the submodules, run the following command in the `fprime-scales-ref/lib` folder. This process is also included in the root README.
+This should be handled by the `make setup` command used when cloning the repo, but if you ever need to update the submodules here, run the following command in the `fprime-scales-ref/lib` folder.
 
 ```
 git submodule init && git submodule update
@@ -11,6 +11,12 @@ git submodule init && git submodule update
 Libraries from the Arena SDK provided by LUCID Vision Labs to use the ethernet camera in the initial SCALES demo. There is also a tarball to extract the correct version of the ArenaSDK.
 
 ### How to Set Up ArenaSDK
+
+In the root project folder, you can `make arena` to set up the ArenaSDK. If you would like to do it manually, please see the toggle below:
+
+<details>
+
+<summary> How to Manually Set Up the ArenaSDK </summary>
 
 In `lib/ArenaSDK` there is a file called `ArenaSDK_v0.1.77_Linux_ARM64.tar.xz`. Use the following commands to extract the tarball and move the required folders to the correct directory.
 
@@ -32,6 +38,8 @@ These commands will copy over all files and folders from `ArenaSDK_v0.1.77_Linux
 cd ../..
 rm -rf ArenaSDK_v0.1.77_Linux_ARM64
 ```
+
+</details>
 
 ## fprime
 

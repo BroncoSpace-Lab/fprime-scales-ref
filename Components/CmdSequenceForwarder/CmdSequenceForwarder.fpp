@@ -1,50 +1,27 @@
 module Components {
-    @ Component to run a LUCID Ethernet Camera
-    active component RunLucidCamera {
+    @ Acts as a proxy sequencer or ground interface for use in remote hubs
+    active component CmdSequenceForwarder {
 
         # One async command/port is required for active components
         # This should be overridden by the developers with a useful command/port
         @ TODO
-        async command SAVE_PNG opcode 0
-
-        async command SETUP_CAMERA opcode 1
-        
-        event DebugLogEvent(message: string size 100) severity activity high id 0 format "{}"
-
-        event FileSendError(
-                            file: string size 80 @< The file
-                            stat: Svc.SendFileStatus
-                          ) \
-            severity warning high \
-            id 42 \
-            format "Error sending DP file {}, stat {}. Halting xmit." \
-            throttle 10
-
-        async command SET_EXPOSURE(param_name: F64)
-
-        async command SET_GAIN(param_name: F64)
+        async command TODO opcode 0
 
         ##############################################################################
-        #### Uncomment the following examples to start customizing your component ####
+        #### General Ports ####
         ##############################################################################
 
-        # @ Example async command
-        # async command COMMAND_NAME(param_name: U32)
+        @ Port for receiving seqCmdBuf from hub (Remote)
+        async input port seqCmdBuf: Fw.Com
 
-        # @ Example telemetry counter
-        # telemetry ExampleCounter: U64
+        @ Port for forwarding comCmdOut (Local)
+        output port comCmdOut: Fw.Com
 
-        # @ Example event
-        # event ExampleStateEvent(example_state: Fw.On) severity activity high id 0 format "State set to {}"
+        @ Port for receiving cmdResponseIn (Local)
+        async input port cmdResponseIn: Fw.CmdResponse
 
-        # @ Example port: receiving calls from the rate group
-        # sync input port run: Svc.Sched
-
-        # @ Example parameter
-        # param PARAMETER_NAME: U32
-
-        @ downlink images
-        output port sendFile: Svc.SendFileRequest
+        @ Port for forwarding seqCmdStatus to hub (Remote)
+        output port seqCmdStatus: Fw.CmdResponse
 
         ###############################################################################
         # Standard AC Ports: Required for Channels, Events, Commands, and Parameters  #

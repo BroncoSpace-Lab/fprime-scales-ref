@@ -87,11 +87,31 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 96
 
+  instance imx_hubComQueue: Svc.ComQueue base id 0x4500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 100
+
+  instance imx_proxySequencer: Components.CmdSequenceForwarder base id 0x4700 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 100 \
+
+  instance imx_proxyGroundInterface: Components.CmdSequenceForwarder base id 0x4800 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 100 \
+
+  instance imx_hubFileUplink: Svc.FileUplink base id 0x4900 \
+    queue size 30 \
+    stack size Default.STACK_SIZE \
+    priority 100
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
 
-  instance imx_health: Svc.Health base id 0x2000 \
+  instance imx_health: Svc.Health base id 0x1000 \
     queue size 25
 
   # ----------------------------------------------------------------------
@@ -99,36 +119,38 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
 
   @ Communications driver. May be swapped with other com drivers like UART or TCP
-  instance imx_comDriver: Drv.TcpServer base id 0x4000
+  instance imx_comDriver: Drv.TcpServer base id 0x2000
 
-  instance imx_framer: Svc.Framer base id 0x4100
+  instance imx_framer: Svc.Framer base id 0x2100
 
-  instance imx_fatalAdapter: Svc.AssertFatalAdapter base id 0x4200
+  instance imx_fatalAdapter: Svc.AssertFatalAdapter base id 0x2200
 
-  instance imx_fatalHandler: Svc.FatalHandler base id 0x4300
+  instance imx_fatalHandler: Svc.FatalHandler base id 0x2300
 
-  instance imx_bufferManager: Svc.BufferManager base id 0x4400
+  instance imx_bufferManager: Svc.BufferManager base id 0x2400
 
-  instance imx_chronoTime: Svc.ChronoTime base id 0x4500
+  instance imx_chronoTime: Svc.ChronoTime base id 0x2500
 
-  instance imx_rateGroupDriver: Svc.RateGroupDriver base id 0x4600
+  instance imx_rateGroupDriver: Svc.RateGroupDriver base id 0x2600
 
-  instance imx_textLogger: Svc.PassiveTextLogger base id 0x4800
+  instance imx_textLogger: Svc.PassiveTextLogger base id 0x2800
 
-  instance imx_deframer: Svc.Deframer base id 0x4900
+  instance imx_deframer: Svc.Deframer base id 0x2900
 
-  instance imx_systemResources: Svc.SystemResources base id 0x4A00
+  instance imx_systemResources: Svc.SystemResources base id 0x2A00
 
-  instance imx_comStub: Svc.ComStub base id 0x4B00
+  instance imx_comStub: Svc.ComStub base id 0x2B00
 
-  instance imx_hub: Svc.GenericHub base id 0x5000
+  instance imx_hub: Svc.GenericHub base id 0x4000
 
-  instance imx_hubComDriver: Drv.TcpServer base id 0x5100
+  instance imx_hubComDriver: Drv.TcpServer base id 0x4100
 
-  instance imx_hubDeframer: Svc.Deframer base id 0x5200
+  instance imx_hubComStub: Svc.ComStub base id 0x4200
 
-  instance imx_hubFramer: Svc.Framer base id 0x5300
+  instance imx_hubDeframer: Svc.Deframer base id 0x4300
 
-  instance imx_cmdSplitter: Svc.CmdSplitter base id 0x5400
+  instance imx_hubFramer: Svc.Framer base id 0x4400
+
+  instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
 }
