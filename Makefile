@@ -31,12 +31,14 @@ setup: ## Set up the repo
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
 	@echo "Extracting the tarball..."
-	git lfs pull
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
+	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz --strip-components=1
 	@echo "Moving the files..."
-	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up ArenaSDK"
+	cd ArenaSDK_Linux_ARM64
+	cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
+	cd ..
+	rm -rf ArenaSDK_Linux_ARM64/
+	sudo sh Arena_SDK_ARM64.conf
+	@echo "Finished setting up"
 
 .PHONY: build-jetson
 .ONESHELL:
