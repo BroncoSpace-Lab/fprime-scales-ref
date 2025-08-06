@@ -43,7 +43,7 @@ arena-init: ## Set up the Arena SDK
 .PHONY: build-jetson
 build-jetson: ## Build fprime for the Jetson
 	@echo "Building aarch64-linux..."
-	fprime-util build arch64-linux -j999
+	fprime-util build aarch64-linux -j999
 	./jetson-python.sh
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux

@@ -13,6 +13,7 @@
 #include <getopt.h>
 // Used for printf functions
 #include <cstdlib>
+#include <Os/Task.hpp>
 
 #include <pybind11/pybind11.h>
 
@@ -38,6 +39,7 @@ void print_usage(const char* app) {
 static void signalHandler(int signum) {
     JetsonDeployment::stopSimulatedCycle();
 }
+
 
 /**
  * \brief execute the program
@@ -88,7 +90,9 @@ int main() {
 
     // Setup, cycle, and teardown topology
     JetsonDeployment::setupTopology(inputs);
-    JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+
+
+    //JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
     // JetsonDeployment::teardownTopology(inputs);
     // (void)printf("Exiting...\n");
     // return 0;
