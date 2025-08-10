@@ -28,12 +28,6 @@ After this, you should be good to go!
 
 You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
 
-If you want to build JetsonDeployment, checkout the jetson branch for the correct build configuration preset.
-
-```
-git checkout jetson
-```
-
 <details>
 
 <summary> JetsonDeployment Build Configuration Details </summary>
@@ -83,19 +77,21 @@ add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
 
 After all of this, **on the Jetson** you should be able to generate and build the JetsonDeployment.
 
+To generate: 
+
 ```
-fprime-util generate aarch64-linux && fprime-util build aarch64-linux
+fprime-util generate aarch64-linux -f
+```
+
+To build and set up the build environment:
+
+```
+make build-jetson
 ```
 
 ## ImxDeployment
 
 To correctly generate and build for the IMX, you need to have the build environment on your machine. Refer to [this guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/#building-the-bsp) we made on our docs for how to set up the IMX SDK.
-
-If you want to build ImxDeployment, checkout the imx8x branch for the correct build configuration preset.
-
-```
-git checkout imx8x
-```
 
 <details>
 
@@ -149,59 +145,17 @@ Your `Components/CMakeLists.txt` should look like this:
 
 After all of this, you should be able to generate and build the ImxDeployment on your host machine.
 
-```
-fprime-util generate imx8x && fprime-util build imx8x
-```
-
-### To Re-Create the Error (from the [GitHub Issue](https://github.com/nasa/fprime/issues/3869))
-
-Your `settings.ini` should look like this:
+To generate: 
 
 ```
-[fprime]
-project_root: .
-framework_path:     ./lib/fprime
-; uncomment this line for JetsonDeployment
-library_locations:  ./lib/fprime-python:./lib/fprime-scales
-; uncomment this line for ImxDeployment
-; library_locations:  ./lib/fprime-scales:
-
-default_cmake_options:  FPRIME_ENABLE_FRAMEWORK_UTS=OFF
-                        FPRIME_ENABLE_AUTOCODER_UTS=OFF
+fprime-util generate imx8x -f
 ```
 
-Your `project.cmake` should look like this:
+To build:
 
 ```
-# This CMake file is intended to register project-wide objects.
-# This allows for reuse between deployments, or other projects.
-
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ImxDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/JetsonDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-scales/scales/scalesSvc")
+fprime-util build imx8x
 ```
-
-Your `CMakeLists.txt` in the root project directory should have line 17 containing `register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")` **uncommented**.
-
-Your `Components/CMakeLists.txt` should look like this:
-
-```
-# Include project-wide components here
-
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PythonComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/StandardBlankComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PythonComponent/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
-```
-
-After all of this, you should be able to `fprime-util generate imx8x && fprime-util build imx8x` to re-create the error for the ImxDeployment.
-
----
 
 # To Run the SCALES Demo
 
@@ -235,13 +189,13 @@ After all of this, you should be able to `fprime-util generate imx8x && fprime-u
 3. Rebuild JetsonDeployment.
 
     ```
-    fprime-util build aarch64-linux -j20
+    make build-jetson
     ```
 
-4. After a successful build, run the Jetson Setup script to prepare the python environment. This will generate a build directory called `build-python-fprime-aarch64-linux`.
+4. Run the following command to make a linked folder to where the images will be saved. This is to ensure the fprime-gds commands have short file paths to the images.
 
     ```
-    ./jetson-python.sh
+    sudo ln ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images ./Images
     ```
 
 ## Host Setup
@@ -259,13 +213,13 @@ After all of this, you should be able to `fprime-util generate imx8x && fprime-u
     cp ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyAppDictionary.xml ~/fprime-scales-ref/GDS-Dictionary/.
     ```
 
-3. Copy the JetsonDeployment dictionary from the Jetson to the host machine.
+3. Copy the JetsonDeployment dictionary from the Jetson to the host machine. Run this command on the host machine.
 
     ```
     scp <jetson name>@<jetson IP>:~/fprime-scales-ref/build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyAppDictionary.xml ~/fprime-scales-ref/GDS-Dictionary/.
     ```
 
-6. Combine the GDS dictionaries with the `merger.py` script.
+6. Combine the GDS dictionaries with the `merger.py` script. Run this command on the host machine.
 
     ```
     python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
@@ -301,21 +255,15 @@ You are now ready to run the demo!
     python_extension.main()
     ```
 
-4. In another terminal on the Jetson, run another instance of the fprime-gds to see the events on the Jetson's side. Yes, you can see them in terminal so this is optional but nicer for debugging.
+4. On the host machine, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You can see both events and their status in the "Events" tab of the GDS.
 
-    ```
-    cd fprime-scales-ref
-    source fprime-venv/bin/activate
-    fprime-gds -n --dictionary build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyDictionary.json --ip-client
-    ```
+5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
 
-5. On the host machine, use the fprime-gds to run the `cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`.
+6. To take a picture with the camera, run the `imx_RUN` command in the fprime-gds with argument `save-png.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS.
 
-6. Once the camera is connected, run the `lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. You can also `lucidCamera.SET_EXPOSURE` for the camera, too.
+7. If you would like to send a batch of saved images from the Jetson to the Host, run the `imx_RUN` command with argument `batch-send-img.bin`. This sequence will zip the saved images on the Jetson into a folder, downlink that zipped folder to the IMX and then again to the Host. You can download the zipped Images folder from the `Downlink` tab in the GDS.
 
-7. To take a picture with the camera, run the `lucidCamera.TODO` command. Images will be saved in `build-python-fprime-aarch64-linux/Components/RunLucidCamera/Images` folder, which is also linked to `build-python-fprime-aarch64-linux/Images`. 
-
-8. To run ML on the images, run the `mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
+8. To run ML on the images, run the `jetson_mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `jetson_mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `jetson_mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
 
 That's how to run the SCALES demo!
 
