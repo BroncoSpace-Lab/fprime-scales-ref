@@ -44,6 +44,16 @@ NATIVE_INT_TYPE rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = 
 NATIVE_INT_TYPE rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 NATIVE_INT_TYPE rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
+
+Os::Task rateTask;
+/**
+ * Task function to drive rate groups
+ */
+void rateGroups(void *) {
+    jetson_timer.startTimer(1000);
+}
+
+
 // A number of constants are needed for construction of the topology. These are specified here.
 enum TopologyConstants {
     CMD_SEQ_BUFFER_SIZE = 5 * 1024,
@@ -175,7 +185,11 @@ void setupTopology(const TopologyState& state) {
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 
-    jetson_timer.startTimer(1000);
+    Os::TaskString taskName("RateGroupTask");
+    Os::TaskInterface::Arguments taskArgs(taskName, rateGroups, nullptr, 99, 32*1024);
+    rateTask.start(taskArgs); 
+  
+//    
 }
 
 // Variables used for cycle simulation
