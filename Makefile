@@ -31,11 +31,24 @@ setup: ## Set up the repo
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
 	@echo "Extracting the tarball..."
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
+	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz --strip-components=1
 	@echo "Moving the files..."
-	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up"
+	cd ArenaSDK_Linux_ARM64
+	cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
+	cd ..
+	rm -rf ArenaSDK_Linux_ARM64/
+	sudo sh Arena_SDK_ARM64.conf
+	@echo "Finished setting up ArenaSDK"
+
+.PHONY: build-jetson
+build-jetson: ## Build fprime for the Jetson
+	@echo "Building aarch64-linux..."
+	fprime-util build aarch64-linux -j999
+	./jetson-python.sh
+	@echo "Making the Images folder..."
+	cd build-python-fprime-aarch64-linux
+	mkdir Images
+	@echo "make build-jetson Complete"
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

@@ -10,11 +10,9 @@
 #
 ####
 
-restrict_platforms(aarch64-linux)
-
 set(SOURCE_FILES
-  "${CMAKE_CURRENT_LIST_DIR}/PythonComponent.fpp"
-  # "${CMAKE_CURRENT_LIST_DIR}/PythonComponent.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.fpp"
+  "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.cpp"
 )
 
 # Uncomment and add any modules that this component depends on, else
@@ -34,17 +32,12 @@ register_fprime_module()
 
 ### Unit Tests ###
 # set(UT_SOURCE_FILES
-#   "${CMAKE_CURRENT_LIST_DIR}/PythonComponent.fpp"
-#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/PythonComponentTestMain.cpp"
-#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/PythonComponentTester.cpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/CmdSequenceForwarder.fpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/CmdSequenceForwarderTestMain.cpp"
+#   "${CMAKE_CURRENT_LIST_DIR}/test/ut/CmdSequenceForwarderTester.cpp"
 # )
 # set(UT_MOD_DEPS
 #   STest
 # )
 # set(UT_AUTO_HELPERS ON)
 # register_fprime_ut()
-
-register_fprime_module()
-# register_fprime_target("${CMAKE_CURRENT_SOURCE_DIR}/fprime-python/cmake/target/pybind.cmake")
-register_python_component("${CMAKE_BINARY_DIR}/Components/PythonComponent/PythonComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/PythonComponent.py")
-
