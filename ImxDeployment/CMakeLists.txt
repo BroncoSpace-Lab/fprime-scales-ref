@@ -8,7 +8,7 @@
 #####
 restrict_platforms(imx8x)
 set_target_properties(fprime-python_FprimePy PROPERTIES EXCLUDE_FROM_ALL TRUE)
-settarget_properties(pybind PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(pybind PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ###
 # Topology and Components
 ###

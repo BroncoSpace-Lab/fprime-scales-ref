@@ -173,6 +173,13 @@ fprime-util build imx8x
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip of imx>:~/.
     ```
 
+3. Copy the binary files for the sequences to the IMX.
+
+    ```
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/save-png.bin root@<ip of imx>:~/.
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/batch-send-img.bin root@<ip of imx>:~/.
+    ```
+
 ## Jetson Setup
 
 1. On the Jetson, follow the above directions to generate and build JetsonDeployment.
@@ -192,11 +199,13 @@ fprime-util build imx8x
     make build-jetson
     ```
 
-4. Run the following command to make a linked folder to where the images will be saved. This is to ensure the fprime-gds commands have short file paths to the images.
+4. **For first time setup only:** Make a folder with a symbolic link to where the camera images are saved. This is done to assure the paths for commands in the fprime-gds are not too long.
 
     ```
-    sudo ln ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images ./Images
+    sudo ln -s ~/fprime-scales-ref/build-pyhon-fprime-aarch64-linux/Images/ ./Images
     ```
+
+    The `Images` folder will be created in your root directory.
 
 ## Host Setup
 

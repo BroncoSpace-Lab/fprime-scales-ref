@@ -7,6 +7,8 @@
 #
 #####
 
+restrict_platforms("aarch64-linux")
+
 include(implementation)
 
 ###
