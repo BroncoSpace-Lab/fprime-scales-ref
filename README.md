@@ -272,7 +272,7 @@ You are now ready to run the demo!
 
 7. If you would like to send a batch of saved images from the Jetson to the Host, run the `imx_RUN` command with argument `batch-send-img.bin`. This sequence will zip the saved images on the Jetson into a folder, downlink that zipped folder to the IMX and then again to the Host. You can download the zipped Images folder from the `Downlink` tab in the GDS.
 
-8. To run ML on the images, run the `jetson_mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `jetson_mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `jetson_mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
+8. To run ML on the images, run the `jetson_mlManager.SET_ML_PATH` command with argument `resnet_inference`. Then, set the inference path to where the images are stored with the `jetson_mlManager.SET_INFERENCE_PATH` command with argument `../Images`. Finally, run the ML model with command `jetson_mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
 
 That's how to run the SCALES demo!
 
