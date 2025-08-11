@@ -1,3 +1,3 @@
-R00:00:00 jetson_fileManager.ShellCommand "tar -czhf /tmp/Images.tgz /Images" "/tmp/idc"
+R00:00:00 jetson_fileManager.ShellCommand "tar -czhf /tmp/Images.tgz ./Images" "/tmp/idc"
 R00:00:00 jetson_fileDownlink.SendFile "/tmp/Images.tgz" "Images.tgz"
 R00:00:10 imx_fileDownlink.SendFile "Images.tgz" "Images.tgz"
