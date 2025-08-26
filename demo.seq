@@ -1,0 +1,6 @@
+R00:00:00 jetson_lucidCamera.SAVE_PNG
+R00:00:03 imx_fileDownlink.SendFile, "image.png", "image.png"
+R00:00:05 jetson_mlManager.SET_ML_PATH, "resnet_inference"
+R00:00:07 jetson_mlManager.SET_INFERENCE_PATH, "./Images"
+R00:00:09 jetson_mlManager.MULTI_INFERENCE
+R00:00:11 jetson_fileManager.ShellCommand, "rm -rf ./Images/*", "test.txt"

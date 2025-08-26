@@ -5,6 +5,8 @@
 # MOD_DEPS: (optional) module dependencies
 ####
 
+restrict_platforms(aarch64-linux)
+
 set(SOURCE_FILES
   "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
   # Note: Uncomment when using Svc:TlmPacketizer

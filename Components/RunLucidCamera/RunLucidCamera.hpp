@@ -8,6 +8,7 @@
 #define Components_RunLucidCamera_HPP
 
 #include "Components/RunLucidCamera/RunLucidCameraComponentAc.hpp"
+#include <Fw/Types/FileNameString.hpp>
 
 namespace Components {
 
@@ -38,7 +39,7 @@ namespace Components {
       //! Handler implementation for command TODO
       //!
       //! TODO
-      void TODO_cmdHandler(
+      void SAVE_PNG_cmdHandler(
           FwOpcodeType opCode, //!< The opcode
           U32 cmdSeq //!< The command sequence number
       ) override;
@@ -62,6 +63,9 @@ namespace Components {
         U32 cmdSeq, //!< The command sequence number
         F64 param_name
       ) override;
+
+      Fw::FileNameString m_filename;
+
   };
 
 }

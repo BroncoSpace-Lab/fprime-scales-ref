@@ -10,6 +10,8 @@
 #
 ####
 
+restrict_platforms(aarch64-linux)
+
 set(SOURCE_FILES
   "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
   # "${CMAKE_CURRENT_LIST_DIR}/MLComponent.cpp"
