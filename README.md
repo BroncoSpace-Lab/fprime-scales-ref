@@ -268,11 +268,7 @@ You are now ready to run the demo!
 
 5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
 
-6. To take a picture with the camera, run the `imx_RUN` command in the fprime-gds with argument `save-png.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS.
-
-7. If you would like to send a batch of saved images from the Jetson to the Host, run the `imx_RUN` command with argument `batch-send-img.bin`. This sequence will zip the saved images on the Jetson into a folder, downlink that zipped folder to the IMX and then again to the Host. You can download the zipped Images folder from the `Downlink` tab in the GDS.
-
-8. To run ML on the images, run the `jetson_mlManager.SET_ML_PATH` command with argument `resnet_inference`. Then, set the inference path to where the images are stored with the `jetson_mlManager.SET_INFERENCE_PATH` command with argument `../Images`. Finally, run the ML model with command `jetson_mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
+6. To take a picture with the camera, run the `imx_cmdSeq.CD_RUN` command in the fprime-gds with argument `demo.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS. This sequence will also run a resnet ML model to identify what is in the image. The output will be displayed in the Events tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you wish to take more images.
 
 That's how to run the SCALES demo!
 
