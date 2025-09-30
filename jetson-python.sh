@@ -12,6 +12,10 @@ fi
 
 find ./Components/ -type f -name "*Component.py" | xargs cp -t $PYTHON_BUILD
 find ./Components/ -type f -name "*resnet*.py" | xargs cp -t $PYTHON_BUILD
+find ./Components/ -type f -name "yolo_main.py" | xargs cp -t $PYTHON_BUILD
+find ./Components/ -type f -name "yolo_test.py" | xargs cp -t $PYTHON_BUILD
+
+
 cp $BUILD_AUTOMATIC/fprime_pybind.py $PYTHON_BUILD
 
 cp $BUILD_AUTOMATIC/lib/aarch64-linux/libpython_extension.so $PYTHON_BUILD
