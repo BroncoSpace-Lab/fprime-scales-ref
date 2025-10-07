@@ -1,0 +1,3 @@
+R00:00:00 jetson_mlManager.SET_ML_PATH, "resnet_inference"
+R00:00:02 jetson_mlManager.SET_INFERENCE_PATH, "../test-imagery"
+R00:00:04 jetson_mlManager.MULTI_INFERENCE
