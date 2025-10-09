@@ -16,6 +16,7 @@ build-python-fprime/
 /.vscode/
 .DS_Store
 *.gcov
+/Images
 
 # Ignore all XML files in the GDS-Dictionary folder
 GDS-Dictionary/*.xml

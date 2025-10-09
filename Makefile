@@ -9,7 +9,7 @@ help: ## Display this help.
 .ONESHELL:
 setup: ## Set up the repo
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout main
+	git checkout kellydev
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Initializing and updating all git submodules recursively..."
@@ -31,16 +31,15 @@ setup: ## Set up the repo
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
 	@echo "Extracting the tarball..."
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz --strip-components=1
+	git lfs pull
+	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
 	@echo "Moving the files..."
-	cd ArenaSDK_Linux_ARM64
-	cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd ..
-	rm -rf ArenaSDK_Linux_ARM64/
-	sudo sh Arena_SDK_ARM64.conf
+	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
+	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
 	@echo "Finished setting up ArenaSDK"
 
 .PHONY: build-jetson
+.ONESHELL:
 build-jetson: ## Build fprime for the Jetson
 	@echo "Building aarch64-linux..."
 	fprime-util build aarch64-linux -j999
@@ -48,7 +47,7 @@ build-jetson: ## Build fprime for the Jetson
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux
 	mkdir Images
-	@echo "make build-jetson Complete"
+	@echo "make build-jetson Done"
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

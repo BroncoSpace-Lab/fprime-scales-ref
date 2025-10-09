@@ -4,9 +4,17 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 
 Check out our [docs page](https://scales-docs.readthedocs.io/en/latest/)!
 
+### Development Environment
+
+May or may not be required, but this is what we found best to use for development:
+
+- Ubuntu 22.04 host machine
+- python3.11
+- git lfs (install [here for amd64](https://git-lfs.com/) and [here for arm64](https://github.com/git-lfs/git-lfs/releases/download/v3.7.0/git-lfs-linux-arm64-v3.7.0.tar.gz))
+
 ## How to Clone
 
-There are a few git submodules used here, so when cloning be sure to init and update them.
+Use the commands below in terminal to clone and set up the repository. Make sure to source the fprime-venv before you continue developing! **Make sure you have [git lfs](https://git-lfs.com/) installed before proceeding.**
 
 ```
 git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
@@ -273,6 +281,18 @@ You are now ready to run the demo!
 That's how to run the SCALES demo!
 
 Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1XDO)!
+
+# To Run Scales-ML
+
+[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/e3aa59f606e9325cd198b787543cea0341d9a19a)
+
+1. Follow the setup described in previous sections for the IMX, Jetson, and Host Machine.
+
+2. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with argument `test-resnet.bin`. This sequence will:
+
+    - Set the ML path to a resnet model
+    - Set the inference path to a folder called `test-imagery` with example images
+    - Execute the `MULTI_INFERENCE` command to inference on all images in that folder.
 
 ---
 
