@@ -145,6 +145,7 @@ Arena::IDevice* pDevice;
 
   Components::RunLucidCamera ::
     ~RunLucidCamera()
+
   {
     pSystem->DestroyDevice(pDevice);
     Arena::CloseSystem(pSystem);
@@ -159,6 +160,7 @@ Arena::IDevice* pDevice;
         FwOpcodeType opCode,
         U32 cmdSeq
     )
+
   {
     // TODO
     // flag to track when an exception has been thrown

@@ -9,6 +9,7 @@
 # https://fprime.jpl.nasa.gov/latest/documentation/reference
 #
 ####
+restrict_platforms(aarch64-linux)
 
 restrict_platforms(aarch64-linux)
 

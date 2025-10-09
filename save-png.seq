@@ -1,2 +1,0 @@
-R00:00:00 jetson_lucidCamera.SAVE_PNG
-R00:00:05 imx_fileDownlink.SendFile, "image.png", "image.png"
