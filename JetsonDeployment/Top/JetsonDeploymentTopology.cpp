@@ -29,8 +29,13 @@ Svc::FprimeDeframing deframing;
 Svc::FprimeFraming hubFraming;
 Svc::FprimeDeframing hubDeframing;
 
+<<<<<<< HEAD
 const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
 // const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
+=======
+// const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
+const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
+>>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 const U32 REMOTE_HUPORT = 50500;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
@@ -185,11 +190,15 @@ void setupTopology(const TopologyState& state) {
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 
+<<<<<<< HEAD
     Os::TaskString taskName("RateGroupTask");
     Os::TaskInterface::Arguments taskArgs(taskName, rateGroups, nullptr, 99, 32*1024);
     rateTask.start(taskArgs); 
   
 //    
+=======
+    jetson_timer.startTimer(1000);
+>>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 }
 
 // Variables used for cycle simulation
