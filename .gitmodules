@@ -9,4 +9,4 @@
 	url = https://github.com/fprime-community/fprime-python.git
 [submodule "Components/MLComponent/Scales-ML"]
 	path = Components/MLComponent/Scales-ML
-	url = https://github.com/BroncoSpace-Lab/Scales-ML.git
+	url = https://github.com/BroncoSpace-Lab/Scales-ML
