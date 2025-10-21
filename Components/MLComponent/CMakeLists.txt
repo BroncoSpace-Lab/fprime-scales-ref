@@ -9,13 +9,9 @@
 # https://fprime.jpl.nasa.gov/latest/documentation/reference
 #
 ####
-<<<<<<< HEAD
 
 restrict_platforms(aarch64-linux)
 
-=======
-restrict_platforms(aarch64-linux)
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 set(SOURCE_FILES
   "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
   # "${CMAKE_CURRENT_LIST_DIR}/MLComponent.cpp"

@@ -156,11 +156,6 @@ module JetsonDeployment {
   instance jetson_hubDeframer: Svc.Deframer base id CMD_SPLITTER_OFFSET + 0x9300
 
   instance jetson_hubFramer: Svc.Framer base id CMD_SPLITTER_OFFSET + 0x9400
-<<<<<<< HEAD
-=======
-
-  instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x11000
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
