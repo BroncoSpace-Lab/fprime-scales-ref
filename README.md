@@ -173,12 +173,12 @@ To build:
 
 ```
 fprime-util build imx8x
-=======
+```
+
 Generate and build the ImxDeployment on your host machine with the commands below:
 
 ```
 fprime-util generate imx8x -f && fprime-util build imx8x -j20
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 ```
 
 # To Run the SCALES Demo
@@ -202,13 +202,10 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
 3. Copy the binary files for the sequences to the IMX.
 
     ```
-<<<<<<< HEAD
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/save-png.bin root@<ip of imx>:~/.
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/batch-send-img.bin root@<ip of imx>:~/.
-=======
-    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/snap-n-save.bin root@<ip of imx>:~/.
-    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Zip-n-send.bin root@<ip of imx>:~/.
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/demo.bin root@<ip of imx>:~/.
+
     ```
 
 ## Jetson Setup
@@ -220,7 +217,7 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
     ```
     // line 32
     const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
-    // const char* REMOTE_HUIP_ADDRESS = "192.168.0.66"; // ip of CPP IMX
+    // const char* REMOTE_HUIP_ADDRESS = "10.3.2.5"; // ip of CPP IMX
     const U32 REMOTE_HUPORT = 50500;
     ```
 
@@ -233,11 +230,7 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
 4. **For first time setup only:** Make a folder with a symbolic link to where the camera images are saved. This is done to assure the paths for commands in the fprime-gds are not too long.
 
     ```
-<<<<<<< HEAD
     sudo ln -s ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images/ ./Images
-=======
-    sudo ln -s ~/fprime-scales-ref/build-pyhon-fprime-aarch64-linux/Images/ ./Images
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
     ```
 
     The `Images` folder will be created in your root directory.
@@ -305,13 +298,12 @@ You are now ready to run the demo!
     imx_cmdSeq.CS_RUN, "snap-n-save.bin", BLOCK
     ```
 
-<<<<<<< HEAD
 4. On the host machine, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You can see both events and their status in the "Events" tab of the GDS.
 
 5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
 
 6. To take a picture with the camera, run the `imx_cmdSeq.CD_RUN` command in the fprime-gds with argument `demo.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS. This sequence will also run a resnet ML model to identify what is in the image. The output will be displayed in the Events tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you wish to take more images.
-=======
+
     <div style="text-align: center;">
     <img src="docs/Images/run_seq.png" alt="fprime-gds to run sequence" width="600" margin="center">
     </div>
