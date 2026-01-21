@@ -6,13 +6,7 @@
 # the list below.
 #
 #####
-<<<<<<< HEAD
-
-restrict_platforms("aarch64-linux")
-
-=======
 restrict_platforms(aarch64-linux)
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 include(implementation)
 
 ###

@@ -150,11 +150,6 @@ module ImxDeployment {
   instance imx_hubDeframer: Svc.Deframer base id 0x4300
 
   instance imx_hubFramer: Svc.Framer base id 0x4400
-<<<<<<< HEAD
-=======
-
-  instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
->>>>>>> d6b4fd2b8701b9c2bc49f92a1064cec42ceb1590
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
