@@ -87,7 +87,7 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
     ```
     // line 32
     const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
-    // const char* REMOTE_HUIP_ADDRESS = "192.168.0.66"; // ip of CPP IMX
+    // const char* REMOTE_HUIP_ADDRESS = "10.3.2.5"; // ip of CPP IMX
     const U32 REMOTE_HUPORT = 50500;
     ```
 
