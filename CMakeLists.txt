@@ -14,7 +14,7 @@ add_compile_options(-fPIC)
 include("${CMAKE_CURRENT_LIST_DIR}/lib/fprime/cmake/FPrime.cmake")
 
 # Comment this line out in order to create new deployment or component
-#register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
+register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
 # NOTE: register custom targets between these two lines
 fprime_setup_included_code()
 

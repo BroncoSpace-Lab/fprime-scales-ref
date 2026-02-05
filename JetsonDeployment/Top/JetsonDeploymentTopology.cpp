@@ -185,7 +185,11 @@ void setupTopology(const TopologyState& state) {
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 
-    jetson_timer.startTimer(1000);
+    Os::TaskString taskName("RateGroupTask");
+    Os::TaskInterface::Arguments taskArgs(taskName, rateGroups, nullptr, 99, 3*1024);
+    rateTask.start(taskArgs);
+
+    // jetson_timer.startTimer(1000);
 }
 
 // Variables used for cycle simulation
