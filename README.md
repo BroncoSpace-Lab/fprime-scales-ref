@@ -30,6 +30,20 @@ Some lines need to be commented in `lib/fprime/cmake/API.cmake` in order to use 
 
 After this, you should be good to go!
 
+## Hardware Setup
+
+These directions are currently only for the FlatSat, not the custom boards the SCALES team has developed.
+
+Make sure your hardware is configured as follows:
+
+<div style="text-align: center;">
+    <img src="docs/Images/hardware_setup_diagram.png" alt="Hardware Setup Block Diagram" width="600" margin="center">
+    </div>
+
+<div style="text-align: center;">
+    <img src="docs/Images/hardware_setup_diagram.png" alt="Hardware Setup Block Diagram" width="600" margin="center">
+    </div>
+
 ## How to Build JetsonDeployment
 
 You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
@@ -204,6 +218,8 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Sequences/snap-n-save.bin root@<ip of imx>:~/.
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Sequences/Zip-n-send.bin root@<ip of imx>:~/.
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Sequences/test-resnet.bin root@<ip of imx>:~/.
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Sequences/demo.bin root@<ip of imx>:~/.
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/Sequences/run-ml.bin root@<ip of imx>:~/.
     ```
 
 ## Jetson Setup
@@ -289,17 +305,7 @@ You are now ready to run the demo!
 
 4. **On the host machine**, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You should be able to see that both events completed in the "Events" tab of the gds.
 
-5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime.
-
-6. To take a picture with the Ethernet Camera, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command on the fprime-gds with fileName argument `snap-n-save.bin`. The Command String is as follows:
-
-    ```
-    imx_cmdSeq.CS_RUN, "snap-n-save.bin", BLOCK
-    ```
-
-4. On the host machine, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You can see both events and their status in the "Events" tab of the GDS.
-
-5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
+5. Once the camera is connected (flashing green light on camera), run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
 
 6. To take a picture with the camera, run the `imx_cmdSeq.CD_RUN` command in the fprime-gds with argument `demo.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS. This sequence will also run a resnet ML model to identify what is in the image. The output will be displayed in the Events tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you wish to take more images.
 
@@ -315,7 +321,9 @@ You are now ready to run the demo!
 
     Click the `Download` button in the `Downlink` tab of the fprime-gds to download the zipped Image folder to the host machine. You can then unzip the folder and view the images from the Jetson!
 
-7. If you would like to send a batch of images from the Jetson to the Host Machine, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command on the fprime-gds with fileName argument `send.bin`. The Command String is as follows:
+### Alternative Commands
+
+1.  If you would like to send a batch of images from the Jetson to the Host Machine, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command on the fprime-gds with fileName argument `send.bin`. The Command String is as follows:
 
     ```
     imx_cmdSeq.CS_RUN, "send.bin", BLOCK
@@ -333,7 +341,7 @@ You are now ready to run the demo!
 
     Click the `Download` button in the `Downlink` tab of the fprime-gds to download the zipped Image folder to the host machine. You can then unzip the folder and view the images from the Jetson!
 
-7. To run ML on the images, run the `mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
+2.  To run ML on the images, run the `mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
 
 That's how to run the SCALES demo!
 
@@ -350,6 +358,30 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
     - Set the ML path to a resnet model
     - Set the inference path to a folder called `test-imagery` with example images
     - Execute the `MULTI_INFERENCE` command to inference on all images in that folder.
+
+# Troubleshooting
+
+When trying to run the SCALES demo, you may encounter a few issues.
+
+### Hanging/Crashing During Downlink
+
+This is because there is an exisiting file on the IMX names `image.png` from a previous, incomplete run of the demo. Just delete the `image.png` file from the IMX with `rm image.png` and try running the demo again.
+
+This also may be due to an issue with the `Images/` folder on the Jetson. Return to step 4 in Jetson Setup to make sure you have the `Images/` folder set up correctly.
+
+### fprime-gds Crashes on Jetson When Trying to Connect
+
+Instead of doing the shortened command to connect to the gds from the Jetson, try entering the python environment first and then running `import python_extension` and `python_extension.main()` one at a time.
+
+### Inferencing Error
+
+When trying to run the `MULTI_INFERENCE` command on the Jetson, you may experience an error similar to:
+
+```
+'(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /microsoft/resnet-18/resolve/main/preprocessor_config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0xffff3bf23450>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution'))"), '(Request ID: 6d6a5cec-e762-484c-a97a-1e1d9748bcba)')' thrown while requesting HEAD https://huggingface.co/microsoft/resnet-18/resolve/main/preprocessor_config.json
+```
+
+Make sure the Jetson is connected to WiFi and try again. This is a new issue we have encountered that we are still trying to find the root cause of, but a WiFi connection fixes the issue.
 
 ---
 
