@@ -11,6 +11,7 @@ May or may not be required, but this is what we found best to use for developmen
 - Ubuntu 22.04 host machine
 - python3.11
 - git lfs (install [here for amd64](https://git-lfs.com/) and [here for arm64](https://github.com/git-lfs/git-lfs/releases/download/v3.7.0/git-lfs-linux-arm64-v3.7.0.tar.gz))
+- IMX8X BSP set up on your host machine ([instructions here](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/))
 
 ## How to Clone
 
@@ -20,7 +21,6 @@ Use the commands below in terminal to clone and set up the repository. Make sure
 git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
 cd fprime-scales-ref
 make setup
-make arena-init
 source fprime-venv/bin/activate
 ```
 
@@ -41,10 +41,16 @@ Make sure your hardware is configured as follows:
     </div>
 
 <div style="text-align: center;">
-    <img src="docs/Images/hardware_setup_diagram.png" alt="Hardware Setup Block Diagram" width="600" margin="center">
+    <img src="docs/Images/scales-demo-flatsat.png" alt="Hardware Setup" width="600" margin="center">
     </div>
 
 ## How to Build JetsonDeployment
+
+**First time setup only:** Set up the Arena SDK for the Ethernet camera. Run this command **on the Jetson.**
+
+```
+make arena-init
+```
 
 You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
 
@@ -305,11 +311,7 @@ You are now ready to run the demo!
 
 4. **On the host machine**, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You should be able to see that both events completed in the "Events" tab of the gds.
 
-<<<<<<< HEAD
 5. Once the camera is connected (flashing green light on camera), run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
-=======
-5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime.
->>>>>>> a393dba22d0b2675bb93e46a55c9709354b68ad9
 
 6. To take a picture with the camera, run the `imx_cmdSeq.CD_RUN` command in the fprime-gds with argument `demo.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS. This sequence will also run a resnet ML model to identify what is in the image. The output will be displayed in the Events tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you wish to take more images.
 
