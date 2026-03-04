@@ -305,7 +305,11 @@ You are now ready to run the demo!
 
 4. **On the host machine**, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You should be able to see that both events completed in the "Events" tab of the gds.
 
+<<<<<<< HEAD
 5. Once the camera is connected (flashing green light on camera), run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime. 
+=======
+5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime.
+>>>>>>> a393dba22d0b2675bb93e46a55c9709354b68ad9
 
 6. To take a picture with the camera, run the `imx_cmdSeq.CD_RUN` command in the fprime-gds with argument `demo.bin`. This will take a pictire with the camera, downlink it to the IMX, and then downlink it again to the Host Machine. You can download the image from the `Downlink` tab in the GDS. This sequence will also run a resnet ML model to identify what is in the image. The output will be displayed in the Events tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you wish to take more images.
 
