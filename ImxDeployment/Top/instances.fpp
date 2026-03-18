@@ -107,6 +107,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+  instance imx_pwrManager: scalesSvc.PowerManager base id 0x5000 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------

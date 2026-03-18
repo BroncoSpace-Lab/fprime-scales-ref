@@ -17,6 +17,7 @@ set(MOD_DEPS
   # Communication Implementations
   Drv/Udp
   Drv/TcpClient
+  scales_scalesSvc_PowerManager
 )
 
 register_fprime_module()

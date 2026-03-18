@@ -53,6 +53,7 @@ module ImxDeployment {
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
+    instance imx_pwrManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -114,6 +115,7 @@ module ImxDeployment {
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
+      imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
 
       # Rate group 3
