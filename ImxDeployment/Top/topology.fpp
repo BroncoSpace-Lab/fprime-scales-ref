@@ -164,6 +164,12 @@ module ImxDeployment {
 
     connections ImxDeployment {
       # Add here connections to user-defined components
+
+      # powerModeSend: Jetson JetsonPowerModeManager → hub → PowerManager
+      imx_hub.portOut[2] -> imx_pwrManager.currentPwrMode
+
+      # powerModeRecieve: PowerManager → hub → Jetson JetsonPowerModeManager
+      imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
     }
 
     connections send_hub {

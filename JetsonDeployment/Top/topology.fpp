@@ -154,7 +154,11 @@ module JetsonDeployment {
 
       jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
 
-      
+      # powerModeSend: JetsonPowerModeManager → hub → IMX PowerManager
+      jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
+
+      # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
+      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeRecieve
 
     }
 
