@@ -92,10 +92,10 @@ int main() {
     JetsonDeployment::setupTopology(inputs);
 
 
-    //JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
-    // JetsonDeployment::teardownTopology(inputs);
-    // (void)printf("Exiting...\n");
-    // return 0;
+    JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    JetsonDeployment::teardownTopology(inputs);
+    (void)printf("Exiting...\n");
+    return 0;
 }
 
 PYBIND11_MODULE(python_extension, m) {

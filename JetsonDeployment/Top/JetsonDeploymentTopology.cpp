@@ -115,7 +115,7 @@ void configureTopology(const TopologyState& state) {
     jetson_hubDeframer.setup(hubDeframing);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
-    // jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
+    jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
 
     // Rate group driver needs a divisor list
     jetson_rateGroupDriver.configure(rateGroupDivisorsSet);
