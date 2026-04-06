@@ -17,6 +17,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <unistd.h>
+
 /**
  * \brief print command line help message
  *
@@ -92,7 +94,13 @@ int main() {
     JetsonDeployment::setupTopology(inputs);
 
 
-    JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    // JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    // JetsonDeployment::teardownTopology(inputs);
+    // (void)printf("Exiting...\n");
+    // return 0;
+
+    // trying to get jetson-startup.sh to work
+    pause();  // blocks until SIGINT/SIGTERM; signal handler calls stopSimulatedCycle()
     JetsonDeployment::teardownTopology(inputs);
     (void)printf("Exiting...\n");
     return 0;
