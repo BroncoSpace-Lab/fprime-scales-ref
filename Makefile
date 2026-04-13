@@ -42,7 +42,7 @@ arena-init: ## Set up the Arena SDK
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
 	@echo "Building aarch64-linux..."
-	fprime-util build aarch64-linux -j999
+	fprime-util build aarch64-linux
 	./jetson-python.sh
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux
