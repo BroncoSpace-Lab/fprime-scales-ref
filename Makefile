@@ -9,7 +9,7 @@ help: ## Display this help.
 .ONESHELL:
 setup: ## Set up the repo
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout main
+	git checkout lucadev
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Initializing and updating all git submodules recursively..."
@@ -30,13 +30,16 @@ setup: ## Set up the repo
 .PHONY: arena-init
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
-	@echo "Extracting the tarball..."
-	git lfs pull
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
-	@echo "Moving the files..."
-	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up ArenaSDK"
+	echo "Extracting the tarball..." && \
+	git lfs pull && \
+	cd lib/ArenaSDK && \
+	tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz && \
+	echo "Moving the files..." && \
+	EXTRACTED_DIR=$$(ls -d ArenaSDK_v0.1.77_Linux_ARM64* | head -1) && \
+	echo "Found extracted directory: $$EXTRACTED_DIR" && \
+	cp -r "$$EXTRACTED_DIR/ArenaSDK_Linux_ARM64"/* . && \
+	rm -rf "$$EXTRACTED_DIR" && \
+	echo "Finished setting up ArenaSDK"
 
 .PHONY: build-jetson
 .ONESHELL:
@@ -46,7 +49,7 @@ build-jetson: ## Build fprime for the Jetson
 	./jetson-python.sh
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux
-	mkdir Images
+	mkdir -p Images
 	@echo "make build-jetson Done"
 
 .PHONY: clean
