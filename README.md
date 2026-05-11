@@ -4,6 +4,12 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 
 Check out our [docs page](https://scales-docs.readthedocs.io/en/latest/)!
 
+### Software Architecture:
+
+<div style="text-align: center;">
+    <img src="docs/Images/scalesfsw-arch.png" alt="Software Architecture" width="600" margin="center">
+    </div>
+
 ### Development Environment
 
 May or may not be required, but this is what we found best to use for development:
@@ -45,6 +51,125 @@ Make sure your hardware is configured as follows:
     </div>
 
 If you are trying this yourself, you do not need to have the Ethernet Camera. We just use it as an example payload.
+
+### Jetson Setup
+
+On the Jetson, we use a system service that automatically tries to connect to the fprime-gds upon boot, using the 'jetson-startup.sh' script. To set this up on your Jetson, complete the following:
+
+1. Create the Jetson Deployment service file on the Jetson:
+
+    ```
+    sudo nano /etc/systemd/system/jetson-deployment.service
+    ```
+
+    Paste the following in the file you just created. Make sure to change the username to match the username of your Jetson, and update the path to where you cloned this repository.
+
+    ```
+    [Unit]
+    Description=fprime-scales JetsonDeployment Flight Software
+    # Wait for network (needed to connect to the IMX hub)
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=simple
+    # Replace 'jetson' with the actual username on the Jetson
+    User=<jetson username>
+    WorkingDirectory=<path to>/fprime-scales-ref
+
+    ExecStart=<path to>/fprime-scales-ref/jetson-startup.sh
+
+    # Restart on crash, but not on clean exit (exit 0)
+    Restart=on-failure
+    RestartSec=5
+
+    # Give the network and fprime-gds time to be ready before retrying hard failures
+    StartLimitIntervalSec=120
+    StartLimitBurst=5
+
+    # Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment >
+    StandardOutput=journal
+    StandardError=journal
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+2. Enable and start the service:
+
+    ```
+    sudo systemctl daemon-reload
+    sudo systemctl enable jetson-deployment.service
+    sudo systemctl start jetson-deployment.service
+    ```
+
+<details>
+<summary>Helpful commands for using this service:</summary>
+
+To check the status:
+
+```
+sudo systemctl status jetson-deployment.service
+```
+
+To watch live logs:
+
+```
+journalctl -u jetson-deployment -f
+```
+
+To pause the service without disabling completely:
+
+```
+sudo systemctl stop jetson-deployment.service
+```
+
+To stop AND disable the service:
+
+```
+sudo systemctl disable jetson-deployment.service
+```
+
+To restart the service:
+
+```
+sudo systemctl restart jetson-deployment.service
+```
+
+</details>
+
+To change Jetson power modes without user input, you must change sudo permissions for the `nvpmodel` commands on the Jetson.
+
+1. Create a file that will contain this rule.
+
+    ```
+    sudo visudo -f /etc/sudoers.d/fprime-nvpmodel
+    ```
+
+    Add this line to the file. Be sure to add your Jetson's actual username.
+
+    ```
+    <jetson-username> ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel
+    ```
+
+2. Save and exit, then verify the file has the corrext permissions.
+
+    ```
+    sudo chmod 0440 /etc/sudoers.d/fprime-nvpmodel
+    sudo chown root:root /etc/sudoers.d/fprime-nvpmodel
+    ```
+
+3. Add this new file you created to the sudoers list. Open the sudoers file:
+
+    ```
+    sudo visudo
+    ```
+
+    Add this to the very end, then save and exit.
+
+    ```
+    #includedir /etc/sudoers.d
+    ```
 
 ## How to Build JetsonDeployment
 
@@ -89,7 +214,7 @@ make build-jetson
 
 The `make build-jetson` command will `fprime-util build aarch64-linux` and create a linked folder for the camera images. This command also runs a script to create the build environment for fprime-python on the Jetson.
 
-## ImxDeployment
+## How to Build ImxDeployment
 
 To correctly generate and build for the IMX, you need to have the build environment on your machine. Refer to [this guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/#building-the-bsp) we made on our docs for how to set up the IMX SDK.
 
@@ -308,24 +433,24 @@ If you make changes to ImxDeployment or JetsonDeployment, you have to rebuild th
 
     **On the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds.
 
-        ```
-        fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
-        ```
+    ```
+    fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
+    ```
 
     **On the IMX**, run the ImxDeployment binary. You should see a green dot on the fprime-gds and "Accepted client" in the IMX terminal.
 
-        ```
-        ./ImxDeployment -a 0.0.0.0 -p 50000
-        ```
+    ```
+    ./ImxDeployment -a 0.0.0.0 -p 50000
+    ```
 
     **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using python.
 
-        ```
-        cd build-python-fprime-aarch64-linux
-        python
-        import python_extension
-        python_extension.main()
-        ```
+    ```
+    cd build-python-fprime-aarch64-linux
+    python
+    import python_extension
+    python_extension.main()
+    ```
 
     If you experience errors running the last 3 commands at the same time, run them one at a time and it should work.
 
@@ -360,24 +485,24 @@ If you make changes to ImxDeployment or JetsonDeployment, you have to rebuild th
 
     **On the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds.
 
-        ```
-        fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
-        ```
+    ```
+    fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
+    ```
 
     **On the IMX**, run the ImxDeployment binary. You should see a green dot on the fprime-gds and "Accepted client" in the IMX terminal.
 
-        ```
-        ./ImxDeployment -a 0.0.0.0 -p 50000
-        ```
+    ```
+    ./ImxDeployment -a 0.0.0.0 -p 50000
+    ```
 
     **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using python.
 
-        ```
-        cd build-python-fprime-aarch64-linux
-        python
-        import python_extension
-        python_extension.main()
-        ```
+    ```
+    cd build-python-fprime-aarch64-linux
+    python
+    import python_extension
+    python_extension.main()
+    ```
 
     If you experience errors running the last 3 commands at the same time, run them one at a time and it should work.
 
