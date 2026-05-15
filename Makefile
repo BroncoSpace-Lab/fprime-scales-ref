@@ -44,12 +44,21 @@ arena-init: ## Set up the Arena SDK
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
 	@echo "Building aarch64-linux..."
+	export SCALES_TRT_PYTHON="$${SCALES_TRT_PYTHON:-/usr/bin/python3}"
+	export TRT_FP16="$${TRT_FP16:-1}"
+	export SCALES_TRT_MODEL="$${SCALES_TRT_MODEL:-microsoft/resnet-18}"
+	export SCALES_YOLO_WEIGHTS="$${SCALES_YOLO_WEIGHTS:-yolov8n.pt}"
 	fprime-util build aarch64-linux -j999
-	./jetson-python.sh
+	bash ./scripts/jetson-python.sh
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux
-	mkdir Images
+	mkdir -p Images
 	@echo "make build-jetson Done"
+
+.PHONY: ml-trt-setup
+.ONESHELL:
+ml-trt-setup: ## TensorRT cache build (MODEL=resnet|yolo, SCALES_TRT_PYTHON=/usr/bin/python3)
+	bash ./scripts/ml_trt_setup.sh
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

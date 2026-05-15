@@ -41,7 +41,7 @@ fprime-util generate aarch64-linux -f
 make build-jetson
 ```
 
-The `make build-jetson` command will `fprime-util build aarch64-linux` and create a linked folder for the camera images. This command also runs a script to create the build environment for fprime-python on the Jetson.
+The `make build-jetson` command runs `fprime-util build aarch64-linux` and `scripts/jetson-python.sh`, which copies ML code into `build-python-fprime-aarch64-linux/` for F´ Python.
 
 ## ImxDeployment
 
@@ -60,177 +60,154 @@ fprime-util generate imx8x -f && fprime-util build imx8x -j20
 These steps are only required if there are changes made to ImxDeployment. Otherwise, the binary on the IMX should be fine.
 
 1. Follow the instructions above to build ImxDeployment on the host machine. Use the following command to ssh into the IMX.
-
-    ```
+  ```
     ssh root@<ip of imx> -o HostKeyAlgorithms=+ssh-rsa -o PubKeyAcceptedAlgorithms=+ssh-rsa
-    ```
-
+  ```
 2. Make sure you are able to ping both the host machine and the Jetson from the IMX. Copy the ImxDeployment binary from the host machine to the IMX. (Run this command on the host machine.)
-
-    ```
+  ```
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip of imx>:~/.
-    ```
-
+  ```
 3. Copy the binary files for the sequences to the IMX.
-
-    ```
+  ```
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/save-png.bin root@<ip of imx>:~/.
     scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/batch-send-img.bin root@<ip of imx>:~/.
-    ```
+  ```
 
 ## Jetson Setup
 
 1. On the Jetson, follow the above directions to generate and build JetsonDeployment.
-
 2. Change the IP of the IMX in `Jetsondeployment/Top/JetsonDeploymentTopology.cpp` to match the IP of the IMX.
-
-    ```
+  ```
     // line 32
     const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
     // const char* REMOTE_HUIP_ADDRESS = "10.3.2.5"; // ip of CPP IMX
     const U32 REMOTE_HUPORT = 50500;
-    ```
-
+  ```
 3. Rebuild JetsonDeployment.
-
-    ```
+  ```
     make build-jetson
-    ```
-
+  ```
 4. **For first time setup only:** Make a folder with a symbolic link to where the camera images are saved. This is done to assure the paths for commands in the fprime-gds are not too long.
-
-    ```
+  ```
     sudo ln -s ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images/ ./Images
-    ```
-
+  ```
     The `Images` folder will be created in your root directory.
 
 ## Host Setup
 
 1. Open another terminal on the host machine and enter the directory for the repo and source your environment.
-
-    ```
+  ```
     cd fprime-scales-ref
     source fprime-venv/bin/activate
-    ```
-
+  ```
 2. Copy the ImxDeployment dictionary to the GDS-Dictionary folder on the host machine. Run this command on the host machine.
-
-    ```
+  ```
     cp ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyAppDictionary.xml ~/fprime-scales-ref/GDS-Dictionary/.
-    ```
-
+  ```
 3. Copy the JetsonDeployment dictionary from the Jetson to the host machine. Run this command on the host machine.
-
-    ```
+  ```
     scp <jetson name>@<jetson IP>:~/fprime-scales-ref/build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyAppDictionary.xml ~/fprime-scales-ref/GDS-Dictionary/.
-    ```
-
-6. Combine the GDS dictionaries with the `merger.py` script. Run this command on the host machine.
-
-    ```
+  ```
+4. Combine the GDS dictionaries with the `merger.py` script. Run this command on the host machine.
+  ```
     cd GDS-Dictionary
     python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
-    ```
+  ```
 
 You are now ready to run the demo!
 
 ## Running the Demo
 
 1. After you finished setting up the demo in the previous section, **on the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds.
-
-    ```
+  ```
     fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
-    ```
-
+  ```
 2. **On the IMX**, run the ImxDeployment binary. You should see a green dot on the fprime-gds and "Accepted client" in the IMX terminal.
-
-    ```
+  ```
     ./ImxDeployment -a 0.0.0.0 -p 50000
-    ```
-
-3. **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using python.
-
-    ```
+  ```
+3. **On the Jetson**, start F´ Python:
+  ```
     cd build-python-fprime-aarch64-linux
     python -c "import python_extension; python_extension.main()"
-    ```
-
-    This command opens the python environment and connects to the IMX's fprime-gds using the hub pattern. If you want to exit the python environment, the command is `exit()`.
-
+  ```
+    To exit, use `exit()`.
 4. **On the host machine**, use the fprime-gds to run the `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with the `imx_cmdDisp.CMD_NO_OP`. You should be able to see that both events completed in the "Events" tab of the gds.
-
 5. Once the camera is connected, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection via fprime.
-
 6. To take a picture with the Ethernet Camera, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command on the fprime-gds with fileName argument `snap-n-save.bin`. The Command String is as follows:
-
-    ```
+  ```
     imx_cmdSeq.CS_RUN, "snap-n-save.bin", BLOCK
-    ```
-
-    <div style="text-align: center;">
-    <img src="docs/Images/run_seq.png" alt="fprime-gds to run sequence" width="600" margin="center">
-    </div>
-    
+  ```
     This sequence will trigger the Images from the Jetson to be downlinked to the IMX, and then again downlinked from the IMX to the Host Machine. Check the `Downlink` tab in the GDS to see the images.
-
-    <div style="text-align: center;">
-    <img src="docs/Images/image_downlink.png" alt="Downlink view" width="600" margin="center">
-    </div>
-
     Click the `Download` button in the `Downlink` tab of the fprime-gds to download the zipped Image folder to the host machine. You can then unzip the folder and view the images from the Jetson!
-
 7. If you would like to send a batch of images from the Jetson to the Host Machine, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command on the fprime-gds with fileName argument `send.bin`. The Command String is as follows:
-
-    ```
+  ```
     imx_cmdSeq.CS_RUN, "send.bin", BLOCK
-    ```
-
-    <div style="text-align: center;">
-    <img src="docs/Images/run_seq.png" alt="fprime-gds to run sequence" width="600" margin="center">
-    </div>
-    
+  ```
     This sequence will trigger the Images from the Jetson to be zipped into a smaller file to be downlinked to the IMX, and then again downlinked from the IMX to the Host Machine.
-
-    <div style="text-align: center;">
-    <img src="docs/Images/image_downlink.png" alt="Downlink view" width="600" margin="center">
-    </div>
-
     Click the `Download` button in the `Downlink` tab of the fprime-gds to download the zipped Image folder to the host machine. You can then unzip the folder and view the images from the Jetson!
-
-7. To run ML on the images, run the `mlManager.SET_ML_PATH` command with argument `resent_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command with argement `../Images`. Finally, run the ML model with command `mlManager.MULTI_INFERENCE`. You should see the results of the ML model both in the Jetson's terminal and in the Jetson's fprime-gds Events log.
+8. To run ML on saved images, see [Machine learning (Scales-ML)](#machine-learning-scales-ml) below.
 
 That's how to run the SCALES demo!
 
 Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1XDO)! Some minor changes have been implemented since the creation of this video, but the core process remains the same.
 
-# To Run Scales-ML
+## Machine learning (Scales-ML)
 
-[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/e3aa59f606e9325cd198b787543cea0341d9a19a)
+F´ runs inference with three commands (GDS or command sequence):
 
-1. Follow the setup described in previous sections for the IMX, Jetson, and Host Machine.
+1. `jetson_mlManager.SET_ML_PATH` — Python module for the model (see table below)
+2. `jetson_mlManager.SET_INFERENCE_PATH` — folder of `.jpg` / `.png` / `.jpeg` images (any path you choose; relative paths are resolved from `build-python-fprime-aarch64-linux`)
+3. `jetson_mlManager.MULTI_INFERENCE` — run on all images in that folder
 
-2. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with argument `test-resnet.bin`. This sequence will:
+Results show up as `InferenceOutput` events in GDS and as an FPS line on the Jetson terminal (for accelerated paths).
 
-    - Set the ML path to a resnet model
-    - Set the inference path to a folder called `test-imagery` with example images
-    - Execute the `MULTI_INFERENCE` command to inference on all images in that folder.
+### Models you can run from F´
 
-# To Run Scales-ML
 
-[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/e3aa59f606e9325cd198b787543cea0341d9a19a)
+| `SET_ML_PATH`               | Engine                          | One-time setup                   | FPS (10 images, test-imagery)   |
+| --------------------------- | ------------------------------- | -------------------------------- | ------------------------------- |
+| `resnet.inference.pytorch`  | Hugging Face ResNet (F´ Python) | None                             | ~1–3 FPS                        |
+| `resnet.inference.tensorrt` | TensorRT                        | `MODEL=resnet make ml-trt-setup` | ~20 FPS                         |
+| `yolo.inference.pytorch`    | Ultralytics (JetPack Python)    | None                             | ~2.3 FPS                        |
+| `yolo.inference.tensorrt`   | TensorRT                        | `MODEL=yolo make ml-trt-setup`   | device-dependent (often ≥4 FPS) |
 
-1. Follow the setup described in previous sections for the IMX, Jetson, and Host Machine.
 
-2. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with argument `test-resnet.bin`. This sequence will:
+FPS numbers are from Jetson runs on this repo’s sample folder; yours may differ.
 
-    - Set the ML path to a resnet model
-    - Set the inference path to a folder called `test-imagery` with example images
-    - Execute the `MULTI_INFERENCE` command to inference on all images in that folder.
+TensorRT paths use **subprocess** inference in JetPack Python so F´ does not need TensorRT in the embedded venv.
+
+### TensorRT setup (`make ml-trt-setup`)
+
+Run **on the Jetson**, from the repo root, **once per model** (or after changing weights / ONNX). This exports ONNX, builds a TensorRT engine.
+
+**ResNet:**
+
+```bash
+MODEL=resnet make ml-trt-setup
+```
+
+**YOLO** (first run may download `yolov8n.pt`; engine build often takes **10–30+ minutes**):
+
+```bash
+MODEL=yolo make ml-trt-setup
+```
+
+### Run inference from GDS
+
+With the demo running and Jetson F´ Python connected:
+
+```text
+jetson_mlManager.SET_ML_PATH "yolo.inference.tensorrt"
+jetson_mlManager.SET_INFERENCE_PATH "../test-imagery"
+jetson_mlManager.MULTI_INFERENCE
+```
+
+To add a new model, see the [Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML) README.
 
 ---
 
 This project was auto-generated by the F' utility tool. 
 
 F´ (F Prime) is a component-driven framework that enables rapid development and deployment of spaceflight and other embedded software applications.
-**Please Visit the F´ Website:** https://fprime.jpl.nasa.gov.
+**Please Visit the F´ Website:** [https://fprime.jpl.nasa.gov](https://fprime.jpl.nasa.gov).
