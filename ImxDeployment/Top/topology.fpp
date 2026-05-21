@@ -56,6 +56,8 @@ module ImxDeployment {
     instance imx_pwrManager
 
     instance imx_thermalManager
+    instance mcp_manager
+    instance imx_i2cBusDriver
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -120,6 +122,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[3] -> mcp_manager.McpRead
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -173,6 +176,8 @@ module ImxDeployment {
 
       # powerModeRecieve: PowerManager → hub → Jetson JetsonPowerModeManager
       imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
+
+      mcp_manager.McpWriteRead -> imx_i2cBusDriver.writeRead
     }
 
     connections send_hub {
