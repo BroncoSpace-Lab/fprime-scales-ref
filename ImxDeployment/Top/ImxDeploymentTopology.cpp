@@ -137,8 +137,7 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
-    bool status = imx_i2cBusDriver.open("/dev/i2c-0");
-
+    Drv::I2cStatus status = busDriver.open("/dev/i2c-0");
 
 }
 
