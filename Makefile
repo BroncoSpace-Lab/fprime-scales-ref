@@ -25,6 +25,8 @@ setup: ## Set up the repo
 	@echo "███████║╚██████╗██║  ██║███████╗███████╗███████║"
 	@echo "╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝"
 	@echo "                                                "
+	@echo "	Powered by F\` Flight Software		   		   "
+	@echo "     		(NASA/JPL)                         "
 	@echo ""
 
 .PHONY: arena-init
