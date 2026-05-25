@@ -137,7 +137,7 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
-    bool status = imx_I2CbusDriver.configure("/dev/i2c-0");
+    bool status = imx_I2CbusDriver.open("/dev/i2c-0");
 }
 
 // Public functions for use in main program are namespaced with deployment name ImxDeployment
