@@ -32,7 +32,6 @@ setup: ## Set up the repo
 .PHONY: arena-init
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
-	@set -euo pipefail
 	@echo "Extracting the tarball..."
 	git lfs pull
 	cd lib/ArenaSDK
