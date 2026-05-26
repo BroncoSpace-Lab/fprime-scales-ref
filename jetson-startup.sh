@@ -14,6 +14,13 @@ PROJECT_ROOT="$SCRIPT_DIR"
 PYTHON="$PROJECT_ROOT/fprime-venv/bin/python"
 BUILD_DIR="$PROJECT_ROOT/build-python-fprime-aarch64-linux"
 
+# ---- Runtime linker paths ----
+# Ensure Arena SDK libraries are discoverable at runtime (needed for python_extension.so deps)
+ARENA_SDK_LIB="$PROJECT_ROOT/lib/ArenaSDK/lib"
+ARENA_SDK_FFMPEG="$PROJECT_ROOT/lib/ArenaSDK/ffmpeg"
+ARENA_SDK_GENICAM="$PROJECT_ROOT/lib/ArenaSDK/GenICam/library/lib/Linux64_ARM"
+export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
+
 # Small Python script to run — more reliable than python -c "..." one-liner
 # (see README troubleshooting: running each import step separately is stabler)
 RUN_SCRIPT="$BUILD_DIR/run_jetson.py"
@@ -43,6 +50,9 @@ echo " Project: $PROJECT_ROOT"
 echo " Python:  $PYTHON"
 echo " Build:   $BUILD_DIR"
 echo "========================================"
+echo ""
+
+echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
 echo ""
 
 cd "$BUILD_DIR"

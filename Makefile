@@ -25,8 +25,8 @@ setup: ## Set up the repo
 	@echo "███████║╚██████╗██║  ██║███████╗███████╗███████║"
 	@echo "╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝"
 	@echo "                                                "
-	@echo "	Powered by F\` Flight Software		   		   "
-	@echo "     		(NASA/JPL)                         "
+	@echo "\tPowered by F\` Flight Software\t\t\t\t   \t\t   "
+	@echo "     \t\t(NASA/JPL)                         "
 	@echo ""
 
 .PHONY: arena-init
@@ -40,7 +40,7 @@ arena-init: ## Set up the Arena SDK
 	SDK_DIR="$$(ls -d ArenaSDK_v0.1.77_Linux_ARM64* 2>/dev/null | head -n 1)"; \
 	if [ -z "$$SDK_DIR" ] || [ ! -d "$$SDK_DIR/ArenaSDK_Linux_ARM64" ]; then \
 		echo "ERROR: Expected extracted directory like ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64"; \
-		echo "Found in lib/ArenaSDK:"; \
+		echo "Found in lslib/ArenaSDK:"; \
 		ls -la; \
 		exit 1; \
 	fi; \
@@ -48,9 +48,19 @@ arena-init: ## Set up the Arena SDK
 	rm -rf "$$SDK_DIR"
 	@echo "Finished setting up ArenaSDK"
 
+.PHONY: ml-deps-jetson
+.ONESHELL:
+ml-deps-jetson: ## Install ML dependencies for Jetson (torch, transformers, etc.)
+	@echo "Installing ML dependencies for Jetson from requirements-jetson-ml.txt..."
+	fprime-venv/bin/pip install --upgrade pip setuptools wheel
+	fprime-venv/bin/pip install -r requirements-jetson-ml.txt --index-url https://download.pytorch.org/whl/cpu
+	@echo "ML dependencies installed successfully."
+
 .PHONY: build-jetson
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
+	@echo "Installing ML dependencies..."
+	$(MAKE) ml-deps-jetson
 	@echo "Building aarch64-linux..."
 	fprime-util build aarch64-linux
 	./jetson-python.sh
