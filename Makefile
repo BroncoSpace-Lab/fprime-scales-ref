@@ -34,18 +34,10 @@ setup: ## Set up the repo
 arena-init: ## Set up the Arena SDK
 	@echo "Extracting the tarball..."
 	git lfs pull
-	cd lib/ArenaSDK
-	tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
+	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
 	@echo "Moving the files..."
-	SDK_DIR="$$(ls -d ArenaSDK_v0.1.77_Linux_ARM64* 2>/dev/null | head -n 1)"; \
-	if [ -z "$$SDK_DIR" ] || [ ! -d "$$SDK_DIR/ArenaSDK_Linux_ARM64" ]; then \
-		echo "ERROR: Expected extracted directory like ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64"; \
-		echo "Found in lslib/ArenaSDK:"; \
-		ls -la; \
-		exit 1; \
-	fi; \
-	cp -r "$$SDK_DIR/ArenaSDK_Linux_ARM64/"* .; \
-	rm -rf "$$SDK_DIR"
+	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
+	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
 	@echo "Finished setting up ArenaSDK"
 
 .PHONY: build-jetson
