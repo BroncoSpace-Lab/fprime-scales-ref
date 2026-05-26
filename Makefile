@@ -48,19 +48,9 @@ arena-init: ## Set up the Arena SDK
 	rm -rf "$$SDK_DIR"
 	@echo "Finished setting up ArenaSDK"
 
-.PHONY: ml-deps-jetson
-.ONESHELL:
-ml-deps-jetson: ## Install ML dependencies for Jetson (torch, transformers, etc.)
-	@echo "Installing ML dependencies for Jetson from requirements-jetson-ml.txt..."
-	fprime-venv/bin/pip install --upgrade pip setuptools wheel
-	fprime-venv/bin/pip install -r requirements-jetson-ml.txt --index-url https://download.pytorch.org/whl/cpu
-	@echo "ML dependencies installed successfully."
-
 .PHONY: build-jetson
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
-	@echo "Installing ML dependencies..."
-	$(MAKE) ml-deps-jetson
 	@echo "Building aarch64-linux..."
 	fprime-util build aarch64-linux
 	./jetson-python.sh
