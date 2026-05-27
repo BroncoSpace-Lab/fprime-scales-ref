@@ -168,6 +168,6 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
-  instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4700
+  instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
 
 }
