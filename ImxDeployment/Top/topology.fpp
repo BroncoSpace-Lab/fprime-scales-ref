@@ -56,6 +56,7 @@ module ImxDeployment {
     instance imx_pwrManager
     instance imx_mcpManager
     instance imx_I2CbusDriver
+    instance imx_thermalManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -120,6 +121,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.pollTempData
+      imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn

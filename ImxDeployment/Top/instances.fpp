@@ -116,6 +116,11 @@ module ImxDeployment {
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
+  
+  instance imx_thermalManager: scalesSvc.ThermalManager base id 0x5200 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
 
   # ----------------------------------------------------------------------
   # Queued component instances
