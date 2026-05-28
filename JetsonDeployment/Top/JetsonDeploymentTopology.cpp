@@ -29,7 +29,7 @@ Svc::FprimeDeframing deframing;
 Svc::FprimeFraming hubFraming;
 Svc::FprimeDeframing hubDeframing;
 
-const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
+const char* REMOTE_HUIP_ADDRESS = "10.3.2.11"; // ip of JPL IMX
 // const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
 const U32 REMOTE_HUPORT = 50500;
 
