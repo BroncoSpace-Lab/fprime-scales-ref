@@ -32,13 +32,33 @@ setup: ## Set up the repo
 .PHONY: arena-init
 .ONESHELL:
 arena-init: ## Set up the Arena SDK
-	@echo "Extracting the tarball..."
-	git lfs pull
-	cd lib/ArenaSDK && tar -xvf ArenaSDK_v0.1.77_Linux_ARM64.tar.xz
-	@echo "Moving the files..."
-	cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64*/ArenaSDK_Linux_ARM64 && cp -r * $(PROJECT_ROOT)/lib/ArenaSDK/
-	cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64*/
-	@echo "Finished setting up ArenaSDK"
+	@set -e; \
+	echo "Pulling ArenaSDK archive from Git LFS..."; \
+	git lfs pull; \
+	echo "Extracting the tarball..."; \
+	ARENA_ROOT="$(PROJECT_ROOT)/lib/ArenaSDK"; \
+	ARENA_ARCHIVE="$$ARENA_ROOT/ArenaSDK_v0.1.77_Linux_ARM64.tar.xz"; \
+	cd "$$ARENA_ROOT" && tar -xvf "$$ARENA_ARCHIVE"; \
+	echo "Moving the files..."; \
+	ARENA_EXTRACTED_DIR=$$(find "$$ARENA_ROOT" -maxdepth 1 -type d -name "ArenaSDK_v0.1.77_Linux_ARM64*" | head -n 1); \
+	if [ -z "$$ARENA_EXTRACTED_DIR" ]; then \
+		echo "ERROR: Extracted ArenaSDK directory not found."; \
+		echo "Current ArenaSDK contents:"; \
+		ls -la "$$ARENA_ROOT"; \
+		exit 1; \
+	fi; \
+	ARENA_SDK_DIR="$$ARENA_EXTRACTED_DIR/ArenaSDK_Linux_ARM64"; \
+	if [ ! -d "$$ARENA_SDK_DIR" ]; then \
+		echo "ERROR: ArenaSDK_Linux_ARM64 directory not found."; \
+		echo "Expected:"; \
+		echo "  $$ARENA_SDK_DIR"; \
+		echo "Current extracted directory contents:"; \
+		ls -la "$$ARENA_EXTRACTED_DIR"; \
+		exit 1; \
+	fi; \
+	cp -r "$$ARENA_SDK_DIR"/* "$$ARENA_ROOT/"; \
+	rm -rf "$$ARENA_EXTRACTED_DIR"; \
+	echo "Finished setting up ArenaSDK"
 
 .PHONY: build-jetson
 .ONESHELL:
