@@ -55,6 +55,7 @@ module JetsonDeployment {
     instance jetson_lucidCamera
     instance jetson_mlManager
     instance jetson_pwrModeManager
+    instance jetson_thermalManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -115,6 +116,7 @@ module JetsonDeployment {
       jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_pwrModeManager.schedIn
       jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
       jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_thermalManager.jetsonTempRead
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
