@@ -16,6 +16,7 @@ setup: ## Set up the repo
 	git submodule update --init --recursive
 	@echo "Installing Python requirements into venv..."
 	fprime-venv/bin/pip install -r lib/fprime/requirements.txt
+	fprime-venv/bin/pip install torch transformers datasets pillow ultralytics
 	@echo "Finished setup."
 	@echo ""
 	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
