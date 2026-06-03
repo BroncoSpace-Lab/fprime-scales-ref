@@ -117,6 +117,12 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance imx_thermalManager: scalesSvc.ThermalManager base id 0x5200 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
@@ -163,6 +169,6 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
-  instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4700
+  instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
 
 }
