@@ -107,6 +107,9 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+# ----------------------------------------------------
+# SCALES Service Managers
+
   instance imx_pwrManager: scalesSvc.PowerManager base id 0x5000 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
@@ -118,6 +121,11 @@ module ImxDeployment {
     priority 99
 
   instance imx_thermalManager: scalesSvc.ThermalManager base id 0x5200 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance imx_perifBoardManager: scalesSvc.PerifBoardManager base id 0x5300 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
@@ -170,5 +178,7 @@ module ImxDeployment {
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
   instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
+
+  instance imx_gpioDriver: Drv.LinuxGpioDriver base id 0x4900
 
 }

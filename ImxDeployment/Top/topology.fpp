@@ -53,10 +53,14 @@ module ImxDeployment {
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
+    
+    # Drivers and managers for SCALES-specific hardware components
+    instance imx_I2CbusDriver
+    instance imx_gpioDriver
     instance imx_pwrManager
     instance imx_thermalManager
     instance imx_mcpManager
-    instance imx_I2CbusDriver
+    instance imx_perifBoardManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -122,6 +126,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.pollTempData
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[4] -> imx_perifBoardManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -178,6 +183,9 @@ module ImxDeployment {
 
       # I2C bus connections for MCP9808 temp sensors
       imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
+
+      # imx GPIO connection to the GpioDriver
+      imx_perifBoardManager.gpioSet -> imx_gpioDriver.gpioWrite
     }
 
     connections send_hub {

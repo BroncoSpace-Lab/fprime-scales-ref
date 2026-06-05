@@ -11,6 +11,7 @@
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Svc/FramingProtocol/FprimeProtocol.hpp>
+#include <Fw/Logger/Logger.hpp>
 
 // Used for 1Hz synthetic cycling
 #include <Os/Mutex.hpp>
@@ -137,7 +138,14 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    // Manager Definitions
     bool status = imx_I2CbusDriver.open("/dev/i2c-0");
+
+    Os::File::Status status = gpioDriver.open("/dev/gpiochip2", 18, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin\n");
+    }
+
 
 }
 
