@@ -136,6 +136,9 @@ void configureTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         imx_comDriver.configure(state.hostname, state.port);
     }
+
+    Os::File::Status status =
+        imx_gpioJetsonEnable.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
 }
 
 // Public functions for use in main program are namespaced with deployment name ImxDeployment

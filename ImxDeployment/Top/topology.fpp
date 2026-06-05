@@ -54,6 +54,7 @@ module ImxDeployment {
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
     instance imx_pwrManager
+    instance imx_gpioJetsonEnable
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -172,10 +173,13 @@ module ImxDeployment {
       imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
 
       # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.portOut[3] -> imx_pwrManager.currentJetsonPowerState
+      imx_hub.portOut[3] -> imx_pwrManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_pwrManager.reqJetsonPowerState -> imx_hub.portIn[3]
+      imx_pwrManager.reqJetsonPwrState -> imx_hub.portIn[3]
+
+      # output port to linux gpio driver to turn jetson on and off
+      imx_pwrManager.gpioSet -> imx_gpioJetsonEnable.gpioWrite
     }
 
     connections send_hub {

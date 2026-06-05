@@ -157,4 +157,6 @@ module ImxDeployment {
   instance imx_hubFramer: Svc.Framer base id 0x4400
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
+
+  instance imx_gpioJetsonEnable: Drv.LinuxGpioDriver base id 0x10015000
 }
