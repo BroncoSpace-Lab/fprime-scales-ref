@@ -120,7 +120,7 @@ module ImxDeployment {
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
       imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
-      imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.pollTempData
+      imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
 
       # Rate group 3
