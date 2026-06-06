@@ -179,6 +179,6 @@ module ImxDeployment {
 
   instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
 
-  instance imx_gpioDriver: Drv.LinuxGpioDriver base id 0x4900
+  instance imx_gpioDriver: Drv.LinuxGpioDriver base id 0x4850
 
 }
