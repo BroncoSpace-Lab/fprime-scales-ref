@@ -9,7 +9,8 @@
 # https://fprime.jpl.nasa.gov/latest/documentation/reference
 #
 ####
-restrict_platforms(aarch64-linux)
+#restrict_platforms(aarch64-linux)
+# 
 set(SOURCE_FILES
   "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
   # "${CMAKE_CURRENT_LIST_DIR}/MLComponent.cpp"
@@ -28,8 +29,25 @@ set(SOURCE_FILES
 # )
 
 register_fprime_module()
-register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
 
+#register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
+# Luca here, the line above^ was the original call. Here is why ive commented it out
+# The direct register_python_component call fails during F Prime's info-cache
+# sub-build because pybind.cmake is not loaded in that pass, so the command is
+# not defined yet.
+#
+# Guard the call so the info-cache pass can skip Python binding registration,
+# while the main build can register MLComponent with pybind once the command
+# exists. MLComponent must not be platform-restricted out of the main build, or
+# PYTHON_BINDINGS remains empty and pybind_gen.py is invoked as "--ai" with no
+# XML path.
+
+if(COMMAND register_python_component)
+  register_python_component(
+    "${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml"
+    "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py"
+  )
+endif()
 
 ### Unit Tests ###
 # set(UT_SOURCE_FILES
