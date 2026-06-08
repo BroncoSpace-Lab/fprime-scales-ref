@@ -138,7 +138,16 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    Os::File::Status perif_gpio_status = imx_perifGpioDriver.open("/dev/gpiochip2", 18, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (perif_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
 
+    }
+
+    Os::File::Status jetson_gpio_status = imx_jetsonGpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (jetson_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
+    }
 
 }
 
@@ -176,17 +185,6 @@ void setupTopology(const TopologyState& state) {
 
     // Manager Definitions
     bool status = imx_I2CbusDriver.open("/dev/i2c-0");
-
-    Os::File::Status perif_gpio_status = imx_gpioDriver.open("/dev/gpiochip2", 18, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
-    if (perif_gpio_status != Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
-
-    }
-
-    Os::File::Status jetson_gpio_status = imx_gpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
-    if (jetson_gpio_status != Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
-    }
 }
 
 // Variables used for cycle simulation

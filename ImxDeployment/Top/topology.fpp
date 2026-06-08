@@ -56,8 +56,8 @@ module ImxDeployment {
     
     # Drivers and managers for SCALES-specific hardware components
     instance imx_I2CbusDriver
-    instance imx_gpioDriver
-    instance imx_pwrManager
+    instance imx_perifGpioDriver
+    instance imx_jetsonGpioDriver
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
@@ -176,20 +176,20 @@ module ImxDeployment {
     connections ImxDeployment {
       # Add here connections to user-defined components
 
-      # powerModeSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.portOut[2] -> imx_pwrManager.currentPwrMode
+      # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
+      imx_hub.portOut[2] -> imx_jetsonManager.currentPwrMode
 
-      # powerModeRecieve: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
+      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
+      imx_jetsonManager.reqPwrMode -> imx_hub.portIn[2]
 
       # I2C bus connections for MCP9808 temp sensors
       imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
 
       # imx GPIO connection to the GpioDriver for Peripheral Board control
-      imx_perifBoardManager.gpioSet -> imx_gpioDriver.gpioWrite
+      imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
 
       # imx GPIO connection to the GpioDriver for Jetson power control
-      imx_jetsonManager.gpioSet -> imx_gpioDriver.gpioWrite
+      imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
     }
 
     connections send_hub {
