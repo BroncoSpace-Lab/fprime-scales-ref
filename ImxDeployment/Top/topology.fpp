@@ -61,6 +61,7 @@ module ImxDeployment {
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
+    instance imx_jetsonManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -122,11 +123,11 @@ module ImxDeployment {
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
-      imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.pollTempData
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_perifBoardManager.run
+      imx_rateGroup2.RateGroupMemberOut[5] -> imx_jetsonManager.schedIn
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -184,8 +185,11 @@ module ImxDeployment {
       # I2C bus connections for MCP9808 temp sensors
       imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
 
-      # imx GPIO connection to the GpioDriver
+      # imx GPIO connection to the GpioDriver for Peripheral Board control
       imx_perifBoardManager.gpioSet -> imx_gpioDriver.gpioWrite
+
+      # imx GPIO connection to the GpioDriver for Jetson power control
+      imx_jetsonManager.gpioSet -> imx_gpioDriver.gpioWrite
     }
 
     connections send_hub {

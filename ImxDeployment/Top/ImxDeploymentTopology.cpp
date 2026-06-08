@@ -182,6 +182,11 @@ void setupTopology(const TopologyState& state) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
 
     }
+
+    Os::File::Status jetson_gpio_status = imx_gpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (jetson_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
+    }
 }
 
 // Variables used for cycle simulation
