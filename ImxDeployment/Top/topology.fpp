@@ -183,10 +183,10 @@ module ImxDeployment {
       imx_jetsonManager.reqPwrMode -> imx_hub.portIn[2]
 
       # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.portOut[3] -> imx_pwrManager.currentJetsonPwrState
+      imx_hub.portOut[3] -> imx_jetsonManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_pwrManager.reqJetsonPwrState -> imx_hub.portIn[3]
+      imx_jetsonManager.reqJetsonPwrState -> imx_hub.portIn[3]
 
       # I2C bus connections for MCP9808 temp sensors
       imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
