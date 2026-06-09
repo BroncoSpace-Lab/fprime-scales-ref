@@ -148,6 +148,8 @@ void configureTopology(const TopologyState& state) {
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
+    // Manager Definitions
+    bool status = imx_I2CbusDriver.open("/dev/i2c-0");
 
 }
 
@@ -181,10 +183,6 @@ void setupTopology(const TopologyState& state) {
     imx_cmdSplitter.configure(0x10000);
     Os::TaskString hubName("hub");
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
-
-
-    // Manager Definitions
-    bool status = imx_I2CbusDriver.open("/dev/i2c-0");
 }
 
 // Variables used for cycle simulation
