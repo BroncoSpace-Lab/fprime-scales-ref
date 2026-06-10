@@ -130,6 +130,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x5010 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
 
   # ----------------------------------------------------------------------
   # Queued component instances
@@ -182,5 +187,7 @@ module ImxDeployment {
   instance imx_perifGpioDriver: Drv.LinuxGpioDriver base id 0x4850
 
   instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x4860
+
+  instance gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x4870
 
 }

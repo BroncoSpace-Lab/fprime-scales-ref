@@ -58,10 +58,12 @@ module ImxDeployment {
     instance imx_I2CbusDriver
     instance imx_perifGpioDriver
     instance imx_jetsonGpioDriver
+    instance gpioWatchDog
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
     instance imx_jetsonManager
+    instance imx_watchdogManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -128,6 +130,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_perifBoardManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_jetsonManager.schedIn
+      imx_rateGroup2.RateGroupMemberOut[6] -> imx_watchdogManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -196,6 +199,8 @@ module ImxDeployment {
 
       # imx GPIO connection to the GpioDriver for Jetson power control
       imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
+
+      imx_watchdogManager.gpioWatchDog -> gpioWatchDogDriver.gpioWrite
     }
 
     connections send_hub {

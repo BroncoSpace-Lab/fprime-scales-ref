@@ -56,6 +56,7 @@ module JetsonDeployment {
     instance jetson_mlManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
+    instance jetson_watchdogManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -162,11 +163,13 @@ module JetsonDeployment {
       # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
       jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeRecieve
 
-       # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
+      # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
       jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
 
       # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
       jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
+
+      jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.GpioWrite
 
     }
 

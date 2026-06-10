@@ -152,6 +152,11 @@ void configureTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         jetson_comDriver.configure(state.hostname, state.port);
     }
+
+    Os::File::Status jetson_gpio_status = imx_jetsonGpioDriver.open("/dev/gpiochip0", 32, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (jetson_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
+    }
 }
 
 // Public functions for use in main program are namespaced with deployment name JetsonDeployment
