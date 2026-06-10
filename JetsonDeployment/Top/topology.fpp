@@ -116,6 +116,7 @@ module JetsonDeployment {
       jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_pwrModeManager.schedIn
       jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
       jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_thermalManager.run
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
@@ -159,7 +160,13 @@ module JetsonDeployment {
       jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
 
       # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
-      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeRecieve
+      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
+
+      # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
+      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
+
+      # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
+      jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
     }
 
