@@ -56,6 +56,9 @@ module ImxDeployment {
     instance imx_pwrManager
     instance imx_gpioJetsonEnable
 
+    instance inaManager
+    instance inaI2CDriver
+
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
     # ----------------------------------------------------------------------
@@ -113,6 +116,8 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[0] -> imx_tlmSend.Run
       imx_rateGroup1.RateGroupMemberOut[1] -> imx_fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
+
+      rateGroup.RateGroupMemberOut[3] -> inaManager.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -180,6 +185,9 @@ module ImxDeployment {
 
       # output port to linux gpio driver to turn jetson on and off
       imx_pwrManager.gpioSet -> imx_gpioJetsonEnable.gpioWrite
+
+      # output port to linux I2C driver to read INA260 data
+      inaManager.busWriteRead -> inaI2CDriver.writeRead
     }
 
     connections send_hub {
