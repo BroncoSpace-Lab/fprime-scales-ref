@@ -53,10 +53,19 @@ module ImxDeployment {
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
+
+    # --- SCALES SVC MANAGERS ---
     instance imx_pwrManager
     instance imx_mcpManager
-    instance imx_I2CbusDriver
+    instance imx_inaManager
     instance imx_thermalManager
+
+
+    # --- DRIVERS FOR SCALES SVC COMPNENTS ---
+    instance imx_mcpI2CbusDriver
+    instance imx_inaI2CbusDriver
+    instance imx_jetsonGpioDriver
+    
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -122,6 +131,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -176,8 +186,20 @@ module ImxDeployment {
       # powerModeRecieve: PowerManager → hub → Jetson JetsonPowerModeManager
       imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
 
-      # I2C bus connections for MCP9808 temp sensors
-      imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
+      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
+      imx_hub.portOut[3] -> imx_pwrManager.currentJetsonPwrState
+
+      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
+      imx_pwrManager.reqJetsonPwrState -> imx_hub.portIn[3]
+
+       # output port to linux gpio driver to turn jetson on and off
+      imx_pwrManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
+
+      # I2C bus connections for MCP9808 temp sensors and INA219 voltage, current, and power sensors
+      imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
+      imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
+
+
     }
 
     connections send_hub {

@@ -15,6 +15,8 @@
 // Used for 1Hz synthetic cycling
 #include <Os/Mutex.hpp>
 
+#include <Fw/Logger/Logger.hpp>
+
 // Allows easy reference to objects in FPP/autocoder required namespaces
 using namespace ImxDeployment;
 
@@ -137,7 +139,21 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
-    bool status = imx_I2CbusDriver.open("/dev/i2c-0");
+    bool mcp_status = imx_mcpI2CbusDriver.open("/dev/i2c-0");
+    if (!mcp_status) {
+        Fw::Logger::log("[ERROR] Failed to open MCP I2C bus driver\n");
+    }
+
+    bool ina_status = imx_inaI2CbusDriver.open("/dev/i2c-0");
+    if (!ina_status) {
+        Fw::Logger::log("[ERROR] Failed to open INA I2C bus driver\n");
+    }
+
+     Os::File::Status jetson_gpio_status = imx_jetsonGpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if(jetson_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin\n");
+    }
+
 }
 
 // Public functions for use in main program are namespaced with deployment name ImxDeployment
