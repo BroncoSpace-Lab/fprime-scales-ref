@@ -139,8 +139,8 @@ void configureTopology(const TopologyState& state) {
     }
 
     Os::File::Status watchdog_gpio_status = gpioWatchDogDriver.open("/dev/gpiochip2", 20, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
-    if (perif_gpio_status != Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
+    if (watchdog_gpio_status!= Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", watchdog_gpio_status);
 
     }
 

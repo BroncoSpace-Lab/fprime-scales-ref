@@ -58,12 +58,12 @@ module ImxDeployment {
     instance imx_I2CbusDriver
     instance imx_perifGpioDriver
     instance imx_jetsonGpioDriver
-    instance gpioWatchDog
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
     instance imx_jetsonManager
     instance imx_watchdogManager
+    instance gpioWatchDogDriver
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
