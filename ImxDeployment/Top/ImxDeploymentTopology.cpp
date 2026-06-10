@@ -137,6 +137,8 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    bool i2c_status = inaI2CDriver.open("/dev/i2c-0");
+    
     Os::File::Status status =
         imx_gpioJetsonEnable.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
 }

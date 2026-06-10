@@ -112,7 +112,7 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance inaManager: Components.InaManager base id 0x4A00 \
+  instance inaManager: scalesSvc.InaManager base id 0x4A00 \
     queue size 10 \
     stack size 8192 \
     priority 100
@@ -163,7 +163,7 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
-  instance imx_gpioJetsonEnable: Drv.LinuxGpioDriver base id 0x4700
+  instance imx_gpioJetsonEnable: Drv.LinuxGpioDriver base id 0x105000
 
-  instance inaI2CDriver: Drv.LinuxI2cDriver base id 0x4800
+  instance inaI2CDriver: Drv.LinuxI2cDriver base id 0x105100
 }

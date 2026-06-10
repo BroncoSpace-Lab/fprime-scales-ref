@@ -117,7 +117,7 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[1] -> imx_fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
 
-      rateGroup.RateGroupMemberOut[3] -> inaManager.run
+      imx_rateGroup1.RateGroupMemberOut[3] -> inaManager.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
