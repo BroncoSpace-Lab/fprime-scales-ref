@@ -119,6 +119,7 @@ module JetsonDeployment {
       jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
       jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
       jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_thermalManager.jetsonTempRead
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_watchdogManager.run
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
