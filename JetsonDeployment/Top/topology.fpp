@@ -161,7 +161,7 @@ module JetsonDeployment {
       jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
 
       # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
-      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeRecieve
+      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
 
       # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
       jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
