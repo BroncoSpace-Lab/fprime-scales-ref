@@ -57,6 +57,7 @@ module JetsonDeployment {
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_watchdogManager
+    instance gpioWatchdogDriver
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
