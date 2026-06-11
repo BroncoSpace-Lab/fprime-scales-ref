@@ -55,7 +55,7 @@ module ImxDeployment {
     instance imx_proxyGroundInterface
 
     # --- SCALES SVC MANAGERS ---
-    instance imx_pwrManager
+    instance imx_jetsonManager
     instance imx_mcpManager
     instance imx_inaManager
     instance imx_thermalManager
@@ -127,7 +127,7 @@ module ImxDeployment {
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
-      imx_rateGroup2.RateGroupMemberOut[0] -> imx_pwrManager.schedIn
+      imx_rateGroup2.RateGroupMemberOut[0] -> imx_jetsonManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
@@ -181,19 +181,19 @@ module ImxDeployment {
       # Add here connections to user-defined components
 
       # powerModeSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.portOut[2] -> imx_pwrManager.currentPwrMode
+      imx_hub.portOut[2] -> imx_jetsonManager.currentPwrMode
 
       # powerModeRecieve: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_pwrManager.reqPwrMode -> imx_hub.portIn[2]
+      imx_jetsonManager.reqPwrMode -> imx_hub.portIn[2]
 
       # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.portOut[3] -> imx_pwrManager.currentJetsonPwrState
+      imx_hub.portOut[3] -> imx_jetsonManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_pwrManager.reqJetsonPwrState -> imx_hub.portIn[3]
+      imx_jetsonManager.reqJetsonPwrState -> imx_hub.portIn[3]
 
        # output port to linux gpio driver to turn jetson on and off
-      imx_pwrManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
+      imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
 
       # I2C bus connections for MCP9808 temp sensors and INA219 voltage, current, and power sensors
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
