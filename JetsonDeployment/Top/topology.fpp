@@ -169,7 +169,7 @@ module JetsonDeployment {
       # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
       jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
-      jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.GpioWrite
+      jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
 
     }
 
