@@ -154,7 +154,7 @@ void configureTopology(const TopologyState& state) {
         jetson_comDriver.configure(state.hostname, state.port);
     }
 
-    Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 32, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 108, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
