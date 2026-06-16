@@ -112,21 +112,23 @@ module JetsonDeployment {
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
-
-  instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1600 \
+  
+  instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1600 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance jetson_thermalManager: scalesSvc.JetsonThermalManager base id CMD_SPLITTER_OFFSET + 0x1700 \
+  instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1700 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1800 \
+  instance jetson_thermalManager: scalesSvc.JetsonThermalManager base id CMD_SPLITTER_OFFSET + 0x1800 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
+
+  
 
   # ----------------------------------------------------------------------
   # Queued component instances
