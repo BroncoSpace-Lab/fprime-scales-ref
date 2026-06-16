@@ -110,30 +110,36 @@ module ImxDeployment {
 # ----------------------------------------------------
 # SCALES Service Managers
 
-  instance imx_mcpManager: scalesSvc.McpManager base id 0x5100 \
+  instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x5000 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 99
+
+  instance imx_thermalManager: scalesSvc.ImxThermalManager base id 0x5010 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance imx_thermalManager: scalesSvc.ImxThermalManager base id 0x5200 \
+  instance imx_inaManager: scalesSvc.InaManager base id 0x5020 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance imx_perifBoardManager: scalesSvc.PerifBoardManager base id 0x5300 \
+  instance imx_mcpManager: scalesSvc.McpManager base id 0x5030 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance imx_jetsonManager: scalesSvc.JetsonManager base id 0x5000 \
+  instance imx_perifBoardManager: scalesSvc.PerifBoardManager base id 0x5040 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x5010 \
+  instance imx_jetsonManager: scalesSvc.JetsonManager base id 0x5050 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
+
 
 
   # ----------------------------------------------------------------------
@@ -182,12 +188,17 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
-  instance imx_I2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
 
-  instance imx_perifGpioDriver: Drv.LinuxGpioDriver base id 0x4850
+  # SCALES SVC Driver Instances
 
-  instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x4860
+  instance imx_mcpI2CbusDriver: Drv.LinuxI2cDriver base id 0x4800
 
-  instance gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x4870
+  instance imx_inaI2CbusDriver: Drv.LinuxI2cDriver base id 0x4810
+
+  instance imx_perifGpioDriver: Drv.LinuxGpioDriver base id 0x4820
+
+  instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x4830
+
+  instance gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x4840
 
 }

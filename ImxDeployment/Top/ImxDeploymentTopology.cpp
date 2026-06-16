@@ -138,6 +138,8 @@ void configureTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    // Hardware Manager Definitions
+
     Os::File::Status watchdog_gpio_status = gpioWatchDogDriver.open("/dev/gpiochip2", 20, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (watchdog_gpio_status!= Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", watchdog_gpio_status);
@@ -155,7 +157,15 @@ void configureTopology(const TopologyState& state) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
     // Manager Definitions
-    bool status = imx_I2CbusDriver.open("/dev/i2c-0");
+    bool mcp_status = imx_mcpI2CbusDriver.open("/dev/i2c-0");
+    if (!mcp_status) {
+        Fw::Logger::log("[ERROR] Failed to open MCP I2C bus driver\n");
+    }
+
+    bool ina_status = imx_inaI2CbusDriver.open("/dev/i2c-0");
+    if (!ina_status) {
+        Fw::Logger::log("[ERROR] Failed to open INA I2C bus driver\n");
+    }
 
 }
 

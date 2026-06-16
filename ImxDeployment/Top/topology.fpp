@@ -55,15 +55,22 @@ module ImxDeployment {
     instance imx_proxyGroundInterface
     
     # Drivers and managers for SCALES-specific hardware components
-    instance imx_I2CbusDriver
+    
+    # SCALES SVC Drivers
+    instance imx_mcpI2CbusDriver
+    instance imx_inaI2CbusDriver
     instance imx_perifGpioDriver
     instance imx_jetsonGpioDriver
+    instance gpioWatchDogDriver
+    
+
+    # SCALES SVC Managers
+    instance imx_inaManager
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
     instance imx_jetsonManager
     instance imx_watchdogManager
-    instance gpioWatchDogDriver
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
