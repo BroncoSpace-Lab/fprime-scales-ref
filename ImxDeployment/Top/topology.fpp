@@ -59,12 +59,16 @@ module ImxDeployment {
     instance imx_mcpManager
     instance imx_inaManager
     instance imx_thermalManager
+    instance imx_perifBoardManager
+    instance imx_watchdogManager
 
 
     # --- DRIVERS FOR SCALES SVC COMPNENTS ---
     instance imx_mcpI2CbusDriver
     instance imx_inaI2CbusDriver
     instance imx_jetsonGpioDriver
+    instance imx_perifGpioDriver
+    instance imx_gpioWatchDogDriver
     
 
     # ----------------------------------------------------------------------
@@ -132,6 +136,8 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
+      imx_rateGroup2.RateGroupMemberOut[5] -> imx_perifBoardManager.run
+      imx_rateGroup2.RateGroupMemberOut[6] -> imx_watchdogManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -194,6 +200,12 @@ module ImxDeployment {
 
        # output port to linux gpio driver to turn jetson on and off
       imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
+
+       # imx GPIO connection to the GpioDriver for Peripheral Board control
+      imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
+
+       # Watchdog GPIO connection to the LinuxWatchdogDriver
+      imx_watchdogManager.gpioWatchDog -> imx_gpioWatchDogDriver.gpioWrite
 
       # I2C bus connections for MCP9808 temp sensors and INA219 voltage, current, and power sensors
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead

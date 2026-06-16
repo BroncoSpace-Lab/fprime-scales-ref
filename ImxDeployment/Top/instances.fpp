@@ -107,6 +107,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+
+  # ----------------------------------------------------------------------
+  # SCALES active component instances
+  # ----------------------------------------------------------------------
+
   instance imx_jetsonManager: scalesSvc.JetsonManager base id 0x5000 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
@@ -117,7 +122,7 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
   
-  instance imx_thermalManager: scalesSvc.ThermalManager base id 0x5200 \
+  instance imx_thermalManager: scalesSvc.ImxThermalManager base id 0x5200 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
@@ -126,6 +131,18 @@ module ImxDeployment {
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
+
+  instance imx_perifBoardManager: scalesSvc.PerifBoardManager base id 0x5400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+  
+  instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x5500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
@@ -178,4 +195,7 @@ module ImxDeployment {
 
   instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x11200
 
+  instance imx_perifGpioDriver: Drv.LinuxGpioDriver base id 0x6020
+
+  instance imx_gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x6040
 }
