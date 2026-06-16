@@ -133,11 +133,13 @@ module ImxDeployment {
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
-      imx_rateGroup2.RateGroupMemberOut[2] -> imx_mcpManager.pollTempData
-      imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
-      imx_rateGroup2.RateGroupMemberOut[4] -> imx_perifBoardManager.run
-      imx_rateGroup2.RateGroupMemberOut[5] -> imx_jetsonManager.schedIn
-      imx_rateGroup2.RateGroupMemberOut[6] -> imx_watchdogManager.run
+      imx_rateGroup2.RateGroupMemberOut[2] -> imx_watchdogManager.run
+      imx_rateGroup2.RateGroupMemberOut[3] -> imx_perifBoardManager.run
+      imx_rateGroup2.RateGroupMemberOut[4] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[5] -> imx_inaManager.run
+      imx_rateGroup2.RateGroupMemberOut[6] -> imx_mcpManager.run
+      imx_rateGroup2.RateGroupMemberOut[7] -> imx_jetsonManager.schedIn
+      
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -198,8 +200,11 @@ module ImxDeployment {
       # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.portIn[3]
 
-      # I2C bus connections for MCP9808 temp sensors
-      imx_mcpManager.mcpWriteRead -> imx_I2CbusDriver.writeRead
+      # I2C bus connections for MCP9808 and INA
+      imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
+
+      imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
+      
 
       # imx GPIO connection to the GpioDriver for Peripheral Board control
       imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
