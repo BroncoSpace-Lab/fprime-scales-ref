@@ -107,11 +107,28 @@ module JetsonDeployment {
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
-  
+
   instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
+  
+  instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1600 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1700 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_thermalManager: scalesSvc.JetsonThermalManager base id CMD_SPLITTER_OFFSET + 0x1800 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  
 
   # ----------------------------------------------------------------------
   # Queued component instances
@@ -158,5 +175,8 @@ module JetsonDeployment {
   instance jetson_hubFramer: Svc.Framer base id CMD_SPLITTER_OFFSET + 0x9400
 
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
+
+  instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
+
 
 }

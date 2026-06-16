@@ -107,6 +107,41 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+# ----------------------------------------------------
+# SCALES Service Managers
+
+  instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x5000 \
+      queue size Default.QUEUE_SIZE \
+      stack size Default.STACK_SIZE \
+      priority 99
+
+  instance imx_thermalManager: scalesSvc.ImxThermalManager base id 0x5100 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance imx_inaManager: scalesSvc.InaManager base id 0x5200 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance imx_mcpManager: scalesSvc.McpManager base id 0x5300 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance imx_perifBoardManager: scalesSvc.PerifBoardManager base id 0x5400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance imx_jetsonManager: scalesSvc.JetsonManager base id 0x5500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
@@ -152,5 +187,18 @@ module ImxDeployment {
   instance imx_hubFramer: Svc.Framer base id 0x4400
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
+
+
+  # SCALES SVC Driver Instances
+
+  instance imx_mcpI2CbusDriver: Drv.LinuxI2cDriver base id 0x6000
+
+  instance imx_inaI2CbusDriver: Drv.LinuxI2cDriver base id 0x6010
+
+  instance imx_perifGpioDriver: Drv.LinuxGpioDriver base id 0x6020
+
+  instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x6030
+
+  instance gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x6040
 
 }

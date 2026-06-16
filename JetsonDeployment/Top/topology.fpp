@@ -54,6 +54,10 @@ module JetsonDeployment {
 
     instance jetson_lucidCamera
     instance jetson_mlManager
+    instance jetson_pwrModeManager
+    instance jetson_thermalManager
+    instance jetson_watchdogManager
+    instance gpioWatchdogDriver
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -111,9 +115,11 @@ module JetsonDeployment {
 
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
-      # rateGroup1.RateGroupMemberOut[0] -> tlmSend.Run
+      jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_pwrModeManager.schedIn
       jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
       jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_thermalManager.run
+      jetson_rateGroup1.RateGroupMemberOut[4] -> jetson_watchdogManager.run
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
@@ -152,6 +158,20 @@ module JetsonDeployment {
       # Add here connections to user-defined components
 
       jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
+
+      # powerModeSend: JetsonPowerModeManager → hub → IMX PowerManager
+      jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
+
+      # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
+      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
+
+      # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
+      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
+
+      # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
+      jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
+
+      jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
 
     }
 

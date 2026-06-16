@@ -4,6 +4,12 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 
 Check out our [docs page](https://scales-docs.readthedocs.io/en/latest/)!
 
+### Software Architecture:
+
+<div style="text-align: center;">
+    <img src="docs/Images/scalesfsw-arch.png" alt="Software Architecture" width="600" margin="center">
+    </div>
+
 ### Development Environment
 
 May or may not be required, but this is what we found best to use for development:
@@ -44,6 +50,127 @@ Make sure your hardware is configured as follows:
     <img src="docs/Images/scales-demo-flatsat.png" alt="Hardware Setup" width="600" margin="center">
     </div>
 
+If you are trying this yourself, you do not need to have the Ethernet Camera. We just use it as an example payload.
+
+### Jetson Setup
+
+On the Jetson, we use a system service that automatically tries to connect to the fprime-gds upon boot, using the 'jetson-startup.sh' script. To set this up on your Jetson, complete the following:
+
+1. Create the Jetson Deployment service file on the Jetson:
+
+    ```
+    sudo nano /etc/systemd/system/jetson-deployment.service
+    ```
+
+    Paste the following in the file you just created. Make sure to change the username to match the username of your Jetson, and update the path to where you cloned this repository.
+
+    ```
+    [Unit]
+    Description=fprime-scales JetsonDeployment Flight Software
+    # Wait for network (needed to connect to the IMX hub)
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    Type=simple
+    # Replace 'jetson' with the actual username on the Jetson
+    User=<jetson username>
+    WorkingDirectory=<path to>/fprime-scales-ref
+
+    ExecStart=<path to>/fprime-scales-ref/jetson-startup.sh
+
+    # Restart on crash, but not on clean exit (exit 0)
+    Restart=on-failure
+    RestartSec=5
+
+    # Give the network and fprime-gds time to be ready before retrying hard failures
+    StartLimitIntervalSec=120
+    StartLimitBurst=5
+
+    # Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment >
+    StandardOutput=journal
+    StandardError=journal
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+2. Enable and start the service:
+
+    ```
+    sudo systemctl daemon-reload
+    sudo systemctl enable jetson-deployment.service
+    sudo systemctl start jetson-deployment.service
+    ```
+
+<details>
+<summary>Helpful commands for using this service:</summary>
+
+To check the status:
+
+```
+sudo systemctl status jetson-deployment.service
+```
+
+To watch live logs:
+
+```
+journalctl -u jetson-deployment -f
+```
+
+To pause the service without disabling completely:
+
+```
+sudo systemctl stop jetson-deployment.service
+```
+
+To stop AND disable the service:
+
+```
+sudo systemctl disable jetson-deployment.service
+```
+
+To restart the service:
+
+```
+sudo systemctl restart jetson-deployment.service
+```
+
+</details>
+
+To change Jetson power modes without user input, you must change sudo permissions for the `nvpmodel` commands on the Jetson.
+
+1. Create a file that will contain this rule.
+
+    ```
+    sudo visudo -f /etc/sudoers.d/fprime-nvpmodel
+    ```
+
+    Add this line to the file. Be sure to add your Jetson's actual username.
+
+    ```
+    <jetson-username> ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel
+    ```
+
+2. Save and exit, then verify the file has the corrext permissions.
+
+    ```
+    sudo chmod 0440 /etc/sudoers.d/fprime-nvpmodel
+    sudo chown root:root /etc/sudoers.d/fprime-nvpmodel
+    ```
+
+3. Add this new file you created to the sudoers list. Open the sudoers file:
+
+    ```
+    sudo visudo
+    ```
+
+    Add this to the very end, then save and exit.
+
+    ```
+    #includedir /etc/sudoers.d
+    ```
+
 ## How to Build JetsonDeployment
 
 **First time setup only:** Set up the Arena SDK for the Ethernet camera. Run this command **on the Jetson.**
@@ -52,56 +179,19 @@ Make sure your hardware is configured as follows:
 make arena-init
 ```
 
-You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
+If you run into any errors when running `make arena-init`, please see the [Troubleshooting](https://github.com/BroncoSpace-Lab/fprime-scales-ref?tab=readme-ov-file#troubleshooting) section.
 
 <details>
+<summary>Note: If you are running this without the Ethernet camera, you can skip this step, just make sure to comment out the lines in this toggle.</summary>
 
-<summary> JetsonDeployment Build Configuration Details </summary>
+- [RunLucidCamera in Components/CMakeLists.txt](https://github.com/BroncoSpace-Lab/fprime-scales-ref/blob/4d7539bd00343ee9b80e19f95b4a6aae525610b0/Components/CMakeLists.txt#L4)
+- [`add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ArenaSDK/")` in /lib/CMakeLists.txt](https://github.com/BroncoSpace-Lab/fprime-scales-ref/blob/4d7539bd00343ee9b80e19f95b4a6aae525610b0/lib/CMakeLists.txt#L1)
 
-Your `settings.ini` should look like this:
+</details> <br>
 
-```
-[fprime]
-project_root: .
-framework_path:     ./lib/fprime
-; uncomment this line for JetsonDeployment
-library_locations:  ./lib/fprime-python:./lib/fprime-scales
-; uncomment this line for ImxDeployment
-; library_locations:  ./lib/fprime-scales:
+You must generate build JetsonDeployment on the Jetson, we have not set up cross-compilation for aarch64-linux yet.
 
-default_cmake_options:  FPRIME_ENABLE_FRAMEWORK_UTS=OFF
-                        FPRIME_ENABLE_AUTOCODER_UTS=OFF
-```
-
-Your `project.cmake` should look like this:
-
-```
-# This CMake file is intended to register project-wide objects.
-# This allows for reuse between deployments, or other projects.
-
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ImxDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/JetsonDeployment/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-scales/scales/scalesSvc")
-```
-
-Your `CMakeLists.txt` in the root project directory should have line 17 containing `register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")` **uncommented**.
-
-Your `Components/CMakeLists.txt` should look like this:
-
-```
-# Include project-wide components here
-
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/StandardBlankComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PythonComponent/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
-```
-
-</details>
-
-After all of this, **on the Jetson** you should be able to generate and build the JetsonDeployment.
+**On the Jetson** you should be able to generate and build the JetsonDeployment.
 
 To generate: 
 
@@ -124,69 +214,17 @@ make build-jetson
 
 The `make build-jetson` command will `fprime-util build aarch64-linux` and create a linked folder for the camera images. This command also runs a script to create the build environment for fprime-python on the Jetson.
 
-## ImxDeployment
+## How to Build ImxDeployment
 
 To correctly generate and build for the IMX, you need to have the build environment on your machine. Refer to [this guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/#building-the-bsp) we made on our docs for how to set up the IMX SDK.
 
-<details>
-
-<summary> ImxDeployment Build Configuration Details </summary>
-
-### For Successful Build
-
-Your `settings.ini` should look like this:
-
-```
-[fprime]
-project_root: .
-framework_path:     ./lib/fprime
-; uncomment this line for JetsonDeployment
-; library_locations:  ./lib/fprime-python:./lib/fprime-scales
-; uncomment this line for ImxDeployment
-library_locations:  ./lib/fprime-scales
-
-default_cmake_options:  FPRIME_ENABLE_FRAMEWORK_UTS=OFF
-                        FPRIME_ENABLE_AUTOCODER_UTS=OFF
-```
-
-Your `project.cmake` should look like this:
-
-```
-# This CMake file is intended to register project-wide objects.
-# This allows for reuse between deployments, or other projects.
-
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Components")
-add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ImxDeployment/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/JetsonDeployment/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/lib/fprime-scales/scales/scalesSvc")
-```
-
-Your `CMakeLists.txt` in the root project directory should have line 17 containing `register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")` **commented**.
-
-Your `Components/CMakeLists.txt` should look like this:
-
-```
-# Include project-wide components here
-
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/StandardBlankComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/PythonComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/MLComponent/")
-# add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/RunLucidCamera/")
-```
-
-</details>
-
-
-After all of this, you should be able to generate and build the ImxDeployment on your host machine.
-
-To generate: 
+To generate ImxDeployment: 
 
 ```
 fprime-util generate imx8x -f
 ```
 
-To build:
+To build ImxDeployment:
 
 ```
 fprime-util build imx8x
@@ -237,7 +275,7 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
     ```
     // line 32
     const char* REMOTE_HUIP_ADDRESS = "10.3.2.2"; // ip of JPL IMX
-    // const char* REMOTE_HUIP_ADDRESS = "192.168.0.66"; // ip of CPP IMX
+    // const char* REMOTE_HUIP_ADDRESS = "10.3.2.5"; // ip of CPP IMX
     const U32 REMOTE_HUPORT = 50500;
     ```
 
@@ -251,7 +289,6 @@ These steps are only required if there are changes made to ImxDeployment. Otherw
 
     ```
     sudo ln -s ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images/ ./Images
-    sudo ln -s ~/fprime-scales-ref/build-pyhon-fprime-aarch64-linux/Images/ ./Images
     ```
 
     The `Images` folder will be created in your root directory.
@@ -304,7 +341,9 @@ You are now ready to run the demo!
 
     ```
     cd build-python-fprime-aarch64-linux
-    python -c "import python_extension; python_extension.main()"
+    python
+    import python_extension
+    python_extension.main()
     ```
 
     This command opens the python environment and connects to the IMX's fprime-gds using the hub pattern. If you want to exit the python environment, the command is `exit()`.
@@ -365,9 +404,121 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
     - Set the inference path to a folder called `test-imagery` with example images
     - Execute the `MULTI_INFERENCE` command to inference on all images in that folder.
 
+# Running After Making Changes
+
+If you make changes to ImxDeployment or JetsonDeployment, you have to rebuild the respective deployment, and repeat the steps to merge the dictionaries.
+
+## Updates to JetsonDeployment
+
+1. Rebuild JetsonDeployment (run this on the Jetson).
+
+    ```
+    make build-jetson
+    ```
+
+2. Copy the JetsonDeployment dictionary from the Jetson to the host machine. Run this command on the host machine.
+
+    ```
+    scp <jetson name>@<jetson IP>:~/fprime-scales-ref/build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyAppDictionary.xml ~/fprime-scales-ref/GDS-Dictionary/.
+    ```
+
+3. Combine the GDS dictionaries with the `merger.py` script. Run this command on the host machine. If you also updated ImxDeployment, make sure to follow the directions below before you attempt this step.
+
+    ```
+    cd GDS-Dictionary
+    python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
+    ```
+
+4. Connect to the fprime-gds.
+
+    **On the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds.
+
+    ```
+    fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
+    ```
+
+    **On the IMX**, run the ImxDeployment binary. You should see a green dot on the fprime-gds and "Accepted client" in the IMX terminal.
+
+    ```
+    ./ImxDeployment -a 0.0.0.0 -p 50000
+    ```
+
+    **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using python.
+
+    ```
+    cd build-python-fprime-aarch64-linux
+    python
+    import python_extension
+    python_extension.main()
+    ```
+
+    If you experience errors running the last 3 commands at the same time, run them one at a time and it should work.
+
+## Updates to ImxDeployment
+
+1. Rebuild ImxDeployment.
+
+    ```
+    fprime-util build imx8x
+    ```
+
+2. Use the following command to ssh into the IMX.
+
+    ```
+    ssh root@<ip of imx> -o HostKeyAlgorithms=+ssh-rsa -o PubKeyAcceptedAlgorithms=+ssh-rsa
+    ```
+
+2. Copy the ImxDeployment binary from the host machine to the IMX. (Run this command on the host machine.)
+
+    ```
+    scp -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa ~/fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip of imx>:~/.
+    ```
+
+3. Combine the GDS dictionaries with the `merger.py` script. Run this command on the host machine. If you also updated JetsonDeployment, make sure to follow the directions above before you attempt this step.
+
+    ```
+    cd GDS-Dictionary
+    python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
+    ```
+
+4. Connect to the fprime-gds.
+
+    **On the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds.
+
+    ```
+    fprime-gds -n --dictionary GDSDictionary.xml --ip-client --ip-address <ip of imx>
+    ```
+
+    **On the IMX**, run the ImxDeployment binary. You should see a green dot on the fprime-gds and "Accepted client" in the IMX terminal.
+
+    ```
+    ./ImxDeployment -a 0.0.0.0 -p 50000
+    ```
+
+    **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using python.
+
+    ```
+    cd build-python-fprime-aarch64-linux
+    python
+    import python_extension
+    python_extension.main()
+    ```
+
+    If you experience errors running the last 3 commands at the same time, run them one at a time and it should work.
+
 # Troubleshooting
 
 When trying to run the SCALES demo, you may encounter a few issues.
+
+### ArenaSDK Setup Errors
+
+The main error you may encounter is an issue with pathing in the Makefile script. This is likely due to a previous installation of the ArenaSDK that results in a file with a `(1)` at the end. If that is the case, rename the unzipped ArenaSDK file to remove the `(1)` and run the following commands:
+
+```
+cd lib/ArenaSDK/ArenaSDK_v0.1.77_Linux_ARM64/ArenaSDK_Linux_ARM64
+cp -r * <path to>/lib/ArenaSDK/
+cd lib/ArenaSDK && rm -rf ArenaSDK_v0.1.77_Linux_ARM64/
+```
 
 ### Hanging/Crashing During Downlink
 

@@ -20,6 +20,7 @@ set(MOD_DEPS
   Drv/Udp
   Drv/TcpServer
   pybind
+  scales_scalesSvc_JetsonPowerModeManager
 )
 
 register_fprime_module()

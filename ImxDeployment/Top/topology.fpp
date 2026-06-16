@@ -53,6 +53,24 @@ module ImxDeployment {
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
+    
+    # Drivers and managers for SCALES-specific hardware components
+    
+    # SCALES SVC Drivers
+    instance imx_mcpI2CbusDriver
+    instance imx_inaI2CbusDriver
+    instance imx_perifGpioDriver
+    instance imx_jetsonGpioDriver
+    instance gpioWatchDogDriver
+    
+
+    # SCALES SVC Managers
+    instance imx_inaManager
+    instance imx_thermalManager
+    instance imx_mcpManager
+    instance imx_perifBoardManager
+    instance imx_jetsonManager
+    instance imx_watchdogManager
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -115,6 +133,13 @@ module ImxDeployment {
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_cmdSeq.schedIn
+      imx_rateGroup2.RateGroupMemberOut[2] -> imx_watchdogManager.run
+      imx_rateGroup2.RateGroupMemberOut[3] -> imx_perifBoardManager.run
+      imx_rateGroup2.RateGroupMemberOut[4] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[5] -> imx_inaManager.run
+      imx_rateGroup2.RateGroupMemberOut[6] -> imx_mcpManager.run
+      imx_rateGroup2.RateGroupMemberOut[7] -> imx_jetsonManager.schedIn
+      
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -162,6 +187,32 @@ module ImxDeployment {
 
     connections ImxDeployment {
       # Add here connections to user-defined components
+
+      # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
+      imx_hub.portOut[2] -> imx_jetsonManager.currentPwrMode
+
+      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
+      imx_jetsonManager.reqPwrMode -> imx_hub.portIn[2]
+
+      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
+      imx_hub.portOut[3] -> imx_jetsonManager.currentJetsonPwrState
+
+      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
+      imx_jetsonManager.reqJetsonPwrState -> imx_hub.portIn[3]
+
+      # I2C bus connections for MCP9808 and INA
+      imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
+
+      imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
+      
+
+      # imx GPIO connection to the GpioDriver for Peripheral Board control
+      imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
+
+      # imx GPIO connection to the GpioDriver for Jetson power control
+      imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
+
+      imx_watchdogManager.gpioWatchDog -> gpioWatchDogDriver.gpioWrite
     }
 
     connections send_hub {

@@ -11,6 +11,7 @@
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Svc/FramingProtocol/FprimeProtocol.hpp>
+#include <Fw/Logger/Logger.hpp>
 
 // Used for 1Hz synthetic cycling
 #include <Os/Mutex.hpp>
@@ -136,6 +137,36 @@ void configureTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         imx_comDriver.configure(state.hostname, state.port);
     }
+
+    // Hardware Manager Definitions
+
+    Os::File::Status watchdog_gpio_status = gpioWatchDogDriver.open("/dev/gpiochip2", 20, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (watchdog_gpio_status!= Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", watchdog_gpio_status);
+
+    }
+
+    Os::File::Status perif_gpio_status = imx_perifGpioDriver.open("/dev/gpiochip2", 18, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (perif_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
+
+    }
+
+    Os::File::Status jetson_gpio_status = imx_jetsonGpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    if (jetson_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
+    }
+    // Manager Definitions
+    bool mcp_status = imx_mcpI2CbusDriver.open("/dev/i2c-0");
+    if (!mcp_status) {
+        Fw::Logger::log("[ERROR] Failed to open MCP I2C bus driver\n");
+    }
+
+    bool ina_status = imx_inaI2CbusDriver.open("/dev/i2c-0");
+    if (!ina_status) {
+        Fw::Logger::log("[ERROR] Failed to open INA I2C bus driver\n");
+    }
+
 }
 
 // Public functions for use in main program are namespaced with deployment name ImxDeployment
@@ -168,7 +199,6 @@ void setupTopology(const TopologyState& state) {
     imx_cmdSplitter.configure(0x10000);
     Os::TaskString hubName("hub");
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
-
 }
 
 // Variables used for cycle simulation

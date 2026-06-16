@@ -5,31 +5,38 @@ module Components {
         # One async command/port is required for active components
         # This should be overridden by the developers with a useful command/port
         
+        @ Set the file path for the ML model.
         async command SET_ML_PATH(
             path: string size 254
         )
 
+        @ Event to output ML path set.
         event MLSet(
             status: string size 254
         ) severity activity high format "ML Path Set: {}"
 
+        @ Set the file path for data to be inferenced.
         async command SET_INFERENCE_PATH(
             path: string size 254
         )
 
+        @ Event to output inference path set.
         event InferenceSet(
             status: string size 254
         ) severity activity high format "Inference Path Set: {}"
         
+        @ Perform inference on multiple images in the specified path.
         async command MULTI_INFERENCE(
             
         )
 
+        @ Event to output inference results.
         event InferenceOutput(
             path: string size 128
             classification: string size 256
         ) severity activity high format "{} is an image of a {}"
 
+        @ Clear the inference path.
         async command CLEAR_INFERENCE_PATH(
 
         )
