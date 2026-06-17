@@ -151,7 +151,7 @@ module ImxDeployment {
   @ Communications driver. May be swapped with other com drivers like UART or TCP
   instance imx_comDriver: Drv.TcpServer base id 0x2000
 
-  instance imx_framer: Svc.Framer base id 0x2100
+  instance imx_framer: Svc.FprimeFramer base id 0x2100
 
   instance imx_fatalAdapter: Svc.AssertFatalAdapter base id 0x2200
 
@@ -165,7 +165,7 @@ module ImxDeployment {
 
   instance imx_textLogger: Svc.PassiveTextLogger base id 0x2800
 
-  instance imx_deframer: Svc.Deframer base id 0x2900
+  instance imx_deframer: Svc.FprimeDeframer base id 0x2900
 
   instance imx_systemResources: Svc.SystemResources base id 0x2A00
 
@@ -177,9 +177,9 @@ module ImxDeployment {
 
   instance imx_hubComStub: Svc.ComStub base id 0x4200
 
-  instance imx_hubDeframer: Svc.Deframer base id 0x4300
+  instance imx_hubDeframer: Svc.FprimeDeframer base id 0x4300
 
-  instance imx_hubFramer: Svc.Framer base id 0x4400
+  instance imx_hubFramer: Svc.FprimeFramer base id 0x4400
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
