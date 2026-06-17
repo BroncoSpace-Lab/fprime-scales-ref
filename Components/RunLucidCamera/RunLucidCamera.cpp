@@ -7,7 +7,7 @@
 #include "Components/RunLucidCamera/RunLucidCamera.hpp"
 #include <Svc/FileDownlink/FileDownlink.hpp>
 #include <Fw/Types/ExternalString.hpp>
-#include "FpConfig.hpp"
+#include "Fw/FPrimeBasicTypes.hpp"
 #include "ArenaApi.h"
 #include <stdio.h>
 #include "SaveApi.h"

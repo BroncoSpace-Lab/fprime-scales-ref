@@ -111,7 +111,7 @@ module JetsonDeployment {
 
     connections RateGroups {
       # Block driver
-      jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
+      timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn

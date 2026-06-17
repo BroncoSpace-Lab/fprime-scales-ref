@@ -5,7 +5,7 @@
 // ======================================================================
 
 #include "Components/CmdSequenceForwarder/CmdSequenceForwarder.hpp"
-#include "FpConfig.hpp"
+#include "Fw/FPrimeBasicTypes.hpp"
 
 namespace Components {
 

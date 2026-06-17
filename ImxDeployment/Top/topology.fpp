@@ -121,8 +121,8 @@ module ImxDeployment {
     }
 
     connections RateGroups {
-      # Block driver
-      imx_blockDrv.CycleOut -> imx_rateGroupDriver.CycleIn
+      # Block driver deprecated after 4.0.0, changes to linux timer example in hello world
+      timer.CycleOut -> imx_rateGroupDriver.CycleIn
 
       # Rate group 1
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn

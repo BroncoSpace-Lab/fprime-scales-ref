@@ -14,11 +14,6 @@ module JetsonDeployment {
   # Active component instances
   # ----------------------------------------------------------------------
 
-  instance jetson_blockDrv: Drv.BlockDriver base id CMD_SPLITTER_OFFSET + 0x5100 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 140
-
   instance jetson_rateGroup1: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x5200 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
@@ -64,7 +59,7 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
-  instance jetson_eventLogger: Svc.ActiveLogger base id CMD_SPLITTER_OFFSET + 0x5B00 \
+  instance jetson_eventLogger: Svc.EventManager base id CMD_SPLITTER_OFFSET + 0x5B00 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 98
@@ -177,6 +172,8 @@ module JetsonDeployment {
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
   instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
-
+  
+   # Added timer to replace the deprecated BlockDriver
+  instance timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9900
 
 }

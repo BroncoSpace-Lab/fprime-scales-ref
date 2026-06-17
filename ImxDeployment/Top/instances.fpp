@@ -13,11 +13,6 @@ module ImxDeployment {
   # Active component instances
   # ----------------------------------------------------------------------
 
-  instance imx_blockDrv: Drv.BlockDriver base id 0x0100 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 140
-
   instance imx_rateGroup1: Svc.ActiveRateGroup base id 0x0200 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
@@ -63,7 +58,7 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
-  instance imx_eventLogger: Svc.ActiveLogger base id 0x0B00 \
+  instance imx_eventLogger: Svc.EventManager base id 0x0B00 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 98
@@ -188,6 +183,8 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
+  # Added timer to replace the deprecated BlockDriver
+  instance timer: Svc.LinuxTimer base id 0x4700
 
   # SCALES SVC Driver Instances
 
