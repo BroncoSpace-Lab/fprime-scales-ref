@@ -5,16 +5,15 @@
 // ======================================================================
 // Provides access to autocoded functions
 #include <ImxDeployment/Top/ImxDeploymentTopologyAc.hpp>
+#include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
+#include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
+#include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ImxDeployment/Top/ImxDeploymentPacketsAc.hpp>
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
-#include <Svc/FramingProtocol/FprimeProtocol.hpp>
 #include <Fw/Logger/Logger.hpp>
-
-// Used for 1Hz synthetic cycling
-#include <Os/Mutex.hpp>
 
 // Allows easy reference to objects in FPP/autocoder required namespaces
 using namespace ImxDeployment;
@@ -23,12 +22,9 @@ using namespace ImxDeployment;
 // initialization phase.
 Fw::MallocAllocator mallocator;
 
-// The reference topology uses the F´ packet protocol when communicating with the ground and therefore uses the F´
-// framing and deframing implementations.
-Svc::FprimeFraming framing;
-Svc::FprimeDeframing deframing;
-Svc::FprimeFraming hubFraming;
-Svc::FprimeDeframing hubDeframing;
+// FrameAccumulator uses this detector to identify complete F Prime frames in the receive byte stream.
+Svc::FrameDetectors::FprimeFrameDetector imx_frameDetector;
+//Svc::FrameDetectors::FprimeFrameDetector hub_frameDetector;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
@@ -50,8 +46,11 @@ enum TopologyConstants {
     FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
     HEALTH_WATCHDOG_CODE = 0x123,
     COMM_PRIORITY = 100,
+    FRAME_ACCUMULATOR_BUFFER_SIZE = 2048,
     // bufferManager constants
-    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) + HASH_DIGEST_LENGTH + Svc::FpFrameHeader::SIZE,
+    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) +
+                         Svc::FprimeProtocol::FrameHeader::SERIALIZED_SIZE +
+                         Svc::FprimeProtocol::FrameTrailer::SERIALIZED_SIZE,
     FRAMER_BUFFER_COUNT = 30,
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
@@ -95,11 +94,8 @@ void configureTopology(const TopologyState& state) {
     upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
     imx_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
 
-    // Framer and Deframer components need to be passed a protocol handler
-    imx_framer.setup(framing);
-    imx_deframer.setup(deframing);
-    imx_hubFramer.setup(hubFraming);
-    imx_hubDeframer.setup(hubDeframing);
+    imx_frameAccumulator.configure(imx_frameDetector, 1, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
+    //hub_frameAccumulator.configure(hub_frameDetector, 2, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     imx_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
@@ -195,36 +191,18 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    imx_hubComDriver.configure("0.0.0.0", 50500);
-    imx_cmdSplitter.configure(0x10000);
-    Os::TaskString hubName("hub");
-    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    // imx_hubComDriver.configure("0.0.0.0", 50500);
+    // imx_cmdSplitter.configure(0x10000);
+    // Os::TaskString hubName("hub");
+    // imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
-// Variables used for cycle simulation
-Os::Mutex cycleLock;
-volatile bool cycleFlag = true;
-
 void startSimulatedCycle(Fw::TimeInterval interval) {
-    cycleLock.lock();
-    bool cycling = cycleFlag;
-    cycleLock.unLock();
-
-    // Main loop
-    while (cycling) {
-        ImxDeployment::imx_blockDrv.callIsr();
-        Os::Task::delay(interval);
-
-        cycleLock.lock();
-        cycling = cycleFlag;
-        cycleLock.unLock();
-    }
+    imx_timer.startTimer(interval.getSeconds()*1000+interval.getUSeconds()/1000);
 }
 
 void stopSimulatedCycle() {
-    cycleLock.lock();
-    cycleFlag = false;
-    cycleLock.unLock();
+    imx_timer.quit();
 }
 
 void teardownTopology(const TopologyState& state) {
@@ -235,11 +213,12 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
     imx_comDriver.stop();
     (void)imx_comDriver.join();
-    imx_hubComDriver.stop();
-    (void)imx_hubComDriver.join();
+    // imx_hubComDriver.stop();
+    // (void)imx_hubComDriver.join();
 
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
+    imx_frameAccumulator.cleanup();
     imx_bufferManager.cleanup();
 }
 };  // namespace ImxDeployment

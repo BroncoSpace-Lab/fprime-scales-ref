@@ -184,7 +184,13 @@ module ImxDeployment {
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
   # Added timer to replace the deprecated BlockDriver
-  instance timer: Svc.LinuxTimer base id 0x4700
+  instance imx_timer: Svc.LinuxTimer base id 0x6200
+
+  instance imx_frameAccumulator : Svc.FrameAccumulator base id 0x6300
+
+  instance imx_fprimeRouter: Svc.FprimeRouter base id 0x6400
+
+  instance hub_frameAccumulator: Svc.FrameAccumulator base id 0x6500
 
   # SCALES SVC Driver Instances
 

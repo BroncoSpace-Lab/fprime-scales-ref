@@ -49,8 +49,8 @@ static void signalHandler(int signum) {
  */
 int main(int argc, char* argv[]) {
     I32 option = 0;
-    CHAR* hostname = nullptr;
-    U16 port_number = 0;
+    const CHAR* hostname = "0.0.0.0";
+    U16 port_number = 50000;
     Os::init();
 
     // Loop while reading the getopt supplied options
@@ -83,6 +83,7 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     (void)printf("Hit Ctrl-C to quit\n");
+    (void)printf("GDS TCP server listening on %s:%hu\n", inputs.hostname, inputs.port);
 
     // Setup, cycle, and teardown topology
     ImxDeployment::setupTopology(inputs);

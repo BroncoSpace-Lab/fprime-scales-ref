@@ -10,6 +10,15 @@ module ImxDeployment {
     rateGroup3
   }
 
+  enum Ports_ComPacketQueue{
+        EVENTS,
+        TELEMETRY
+    }
+
+  enum Ports_ComBufferQueue{
+        FILE_DOWNLINK
+    }
+
   topology ImxDeployment {
 
     # ----------------------------------------------------------------------
@@ -17,7 +26,6 @@ module ImxDeployment {
     # ----------------------------------------------------------------------
 
     instance imx_health
-    instance imx_blockDrv
     instance imx_tlmSend
     instance imx_cmdDisp
     instance imx_cmdSeq
@@ -41,6 +49,7 @@ module ImxDeployment {
     instance imx_rateGroupDriver
     instance imx_textLogger
     instance imx_systemResources
+    instance imx_timer
 
     instance imx_hub
     instance imx_hubComDriver
@@ -50,6 +59,11 @@ module ImxDeployment {
     instance imx_hubFramer
     instance imx_cmdSplitter
     instance imx_hubFileUplink
+
+    instance imx_fprimeRouter
+    instance imx_frameAccumulator
+    instance hub_frameAccumulator
+
     
     instance imx_proxySequencer
     instance imx_proxyGroundInterface
@@ -96,23 +110,41 @@ module ImxDeployment {
 
     connections Downlink {
 
-      imx_eventLogger.PktSend -> imx_comQueue.comQueueIn[0]
-      imx_tlmSend.PktSend -> imx_comQueue.comQueueIn[1]
-      imx_fileDownlink.bufferSendOut -> imx_comQueue.buffQueueIn[0]
+      # Inputs to ComQueue (events, telemetry, file)
+      imx_eventLogger.PktSend -> imx_comQueue.comPacketQueueIn[Ports_ComPacketQueue.EVENTS]
+      imx_tlmSend.PktSend -> imx_comQueue.comPacketQueueIn[Ports_ComPacketQueue.TELEMETRY]
+      imx_fileDownlink.bufferSendOut -> imx_comQueue.bufferQueueIn[Ports_ComBufferQueue.FILE_DOWNLINK]
+      imx_comQueue.bufferReturnOut[Ports_ComBufferQueue.FILE_DOWNLINK] -> imx_fileDownlink.bufferReturn
 
-      imx_comQueue.comQueueSend -> imx_framer.comIn
-      imx_comQueue.buffQueueSend -> imx_framer.bufferIn
+      # ComQueue <-> Framer 
+      imx_comQueue.dataOut -> imx_framer.dataIn
+      imx_framer.dataReturnOut -> imx_comQueue.dataReturnIn
+      # imx_comQueue.buffQueueSend -> imx_framer.bufferIn
 
-      imx_framer.framedAllocate -> imx_bufferManager.bufferGetCallee
-      imx_framer.framedOut -> imx_comStub.comDataIn
-      imx_framer.bufferDeallocate -> imx_fileDownlink.bufferReturn
+      # Buffer Management for Framer
+      imx_framer.bufferAllocate -> imx_bufferManager.bufferGetCallee
+      imx_framer.bufferDeallocate -> imx_bufferManager.bufferSendIn
 
-      imx_comDriver.deallocate -> imx_bufferManager.bufferSendIn
+      # Framer <-> ComStub
+      imx_framer.dataOut -> imx_comStub.dataIn
+      imx_comStub.dataReturnOut -> imx_framer.dataReturnIn
+
+      # ComStub <-> ComDriver
+      imx_comStub.drvSendOut -> imx_comDriver.$send
+      #imx_comDriver.sendReturnOut -> imx_comStub.drvSendReturnIn
+      # imx_comDriver.$recv -> imx_comStub.drvAsyncSendReturnIn
       imx_comDriver.ready -> imx_comStub.drvConnected
-
-      imx_comStub.comStatus -> imx_framer.comStatusIn
+      
+      # ComStatus
+      imx_comStub.comStatusOut -> imx_framer.comStatusIn
       imx_framer.comStatusOut -> imx_comQueue.comStatusIn
-      imx_comStub.drvDataOut -> imx_comDriver.$send
+
+      # imx_comDriver.deallocate -> imx_bufferManager.bufferSendIn
+      # imx_comDriver.ready -> imx_comStub.drvConnected
+
+      # imx_comStub.comStatus -> imx_framer.comStatusIn
+      # imx_framer.comStatusOut -> imx_comQueue.comStatusIn
+      # imx_comStub.drvDataOut -> imx_comDriver.$send
 
     }
 
@@ -122,13 +154,14 @@ module ImxDeployment {
 
     connections RateGroups {
       # Block driver deprecated after 4.0.0, changes to linux timer example in hello world
-      timer.CycleOut -> imx_rateGroupDriver.CycleIn
+      imx_timer.CycleOut -> imx_rateGroupDriver.CycleIn
 
       # Rate group 1
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn
       imx_rateGroup1.RateGroupMemberOut[0] -> imx_tlmSend.Run
       imx_rateGroup1.RateGroupMemberOut[1] -> imx_fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
+      imx_rateGroup1.RateGroupMemberOut[3] -> imx_comQueue.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -144,8 +177,7 @@ module ImxDeployment {
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
       imx_rateGroup3.RateGroupMemberOut[0] -> imx_health.Run
-      imx_rateGroup3.RateGroupMemberOut[1] -> imx_blockDrv.Sched
-      imx_rateGroup3.RateGroupMemberOut[2] -> imx_bufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[1] -> imx_bufferManager.schedIn
     }
 
     connections Sequencer {
@@ -155,34 +187,67 @@ module ImxDeployment {
       # imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
     }
 
-    connections Uplink {
+ connections Uplink {
 
-      imx_comDriver.allocate -> imx_bufferManager.bufferGetCallee
-      imx_comDriver.$recv -> imx_comStub.drvDataIn
-      imx_comStub.comDataOut -> imx_deframer.framedIn
+      # ComDriver buffer allocations
+      imx_comDriver.allocate      -> imx_bufferManager.bufferGetCallee
+      imx_comDriver.deallocate    -> imx_bufferManager.bufferSendIn
 
-      imx_deframer.framedDeallocate -> imx_bufferManager.bufferSendIn
-      # imx_deframer.comOut -> imx_cmdDisp.seqCmdBuff
-      imx_deframer.comOut -> imx_cmdSplitter.CmdBuff[0]
-      imx_cmdSplitter.LocalCmd[0] -> imx_proxyGroundInterface.seqCmdBuf
-      imx_cmdSplitter.LocalCmd[1] -> imx_proxySequencer.seqCmdBuf
+      # ComDriver <-> ComStub
+      imx_comDriver.$recv             -> imx_comStub.drvReceiveIn
+      imx_comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
 
-      imx_proxyGroundInterface.comCmdOut -> imx_cmdDisp.seqCmdBuff
-      imx_proxySequencer.comCmdOut -> imx_cmdDisp.seqCmdBuff
+      # ComStub <-> FrameAccumulator
+      imx_comStub.dataOut -> imx_frameAccumulator.dataIn
+      imx_frameAccumulator.dataReturnOut -> imx_comStub.dataReturnIn
 
-      # imx_cmdDisp.seqCmdStatus -> imx_deframer.cmdResponseIn
-      imx_cmdDisp.seqCmdStatus -> imx_proxyGroundInterface.cmdResponseIn
-      imx_cmdDisp.seqCmdStatus -> imx_proxySequencer.cmdResponseIn
+      # FrameAccumulator buffer allocations
+      imx_frameAccumulator.bufferDeallocate -> imx_bufferManager.bufferSendIn
+      imx_frameAccumulator.bufferAllocate   -> imx_bufferManager.bufferGetCallee
 
-      imx_proxyGroundInterface.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[0]
-      imx_proxySequencer.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[1]
+      # FrameAccumulator <-> Deframer
+      imx_frameAccumulator.dataOut -> imx_deframer.dataIn
+      imx_deframer.dataReturnOut   -> imx_frameAccumulator.dataReturnIn
+    
+      # Deframer <-> Router
+      imx_deframer.dataOut           -> imx_fprimeRouter.dataIn
+      imx_fprimeRouter.dataReturnOut -> imx_deframer.dataReturnIn
 
-      imx_cmdSplitter.forwardSeqCmdStatus[0] -> imx_deframer.cmdResponseIn
+      # Router buffer allocations
+      imx_fprimeRouter.bufferAllocate   -> imx_bufferManager.bufferGetCallee
+      imx_fprimeRouter.bufferDeallocate -> imx_bufferManager.bufferSendIn
 
-      imx_deframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
-      imx_deframer.bufferOut -> imx_fileUplink.bufferSendIn
-      imx_deframer.bufferDeallocate -> imx_bufferManager.bufferSendIn
-      imx_fileUplink.bufferSendOut -> imx_bufferManager.bufferSendIn
+      # Router <-> CmdDispatcher/FileUplink
+      imx_fprimeRouter.commandOut  -> imx_cmdDisp.seqCmdBuff
+      imx_cmdDisp.seqCmdStatus     -> imx_fprimeRouter.cmdResponseIn
+      imx_fprimeRouter.fileOut     -> imx_fileUplink.bufferSendIn
+      imx_fileUplink.bufferSendOut -> imx_fprimeRouter.fileBufferReturnIn
+
+      # # imx_comDriver.$recv -> imx_comStub.drvDataIn
+      # # imx_comStub.comDataOut -> imx_deframer.framedIn
+
+      # imx_deframer.framedDeallocate -> imx_bufferManager.bufferSendIn
+      # # imx_deframer.comOut -> imx_cmdDisp.seqCmdBuff
+      # imx_deframer.comOut -> imx_cmdSplitter.CmdBuff[0]
+      # imx_cmdSplitter.LocalCmd[0] -> imx_proxyGroundInterface.seqCmdBuf
+      # imx_cmdSplitter.LocalCmd[1] -> imx_proxySequencer.seqCmdBuf
+
+      # imx_proxyGroundInterface.comCmdOut -> imx_cmdDisp.seqCmdBuff
+      # imx_proxySequencer.comCmdOut -> imx_cmdDisp.seqCmdBuff
+
+      # # imx_cmdDisp.seqCmdStatus -> imx_deframer.cmdResponseIn
+      # imx_cmdDisp.seqCmdStatus -> imx_proxyGroundInterface.cmdResponseIn
+      # imx_cmdDisp.seqCmdStatus -> imx_proxySequencer.cmdResponseIn
+
+      # imx_proxyGroundInterface.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[0]
+      # imx_proxySequencer.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[1]
+
+      # imx_cmdSplitter.forwardSeqCmdStatus[0] -> imx_deframer.cmdResponseIn
+
+      # imx_deframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
+      # imx_deframer.bufferOut -> imx_fileUplink.bufferSendIn
+      # imx_deframer.bufferDeallocate -> imx_bufferManager.bufferSendIn
+      # imx_fileUplink.bufferSendOut -> imx_bufferManager.bufferSendIn
     }
 
     connections ImxDeployment {
@@ -216,25 +281,22 @@ module ImxDeployment {
     }
 
     connections send_hub {
-      imx_hub.dataOut -> imx_hubFramer.bufferIn
-      imx_hub.dataOutAllocate -> imx_bufferManager.bufferGetCallee
-
-      imx_hubFramer.framedOut -> imx_hubComDriver.$send
-      imx_hubFramer.bufferDeallocate -> imx_bufferManager.bufferSendIn
-      imx_hubFramer.framedAllocate -> imx_bufferManager.bufferGetCallee
-
-      imx_hubComDriver.deallocate -> imx_bufferManager.bufferSendIn
+      imx_hub.dataOut -> imx_hubComQueue.bufferQueueIn[0]
+      imx_hubComQueue.dataOut -> imx_hubFramer.dataIn
+      imx_hubFramer.dataReturnOut -> imx_hubComQueue.dataReturnIn
+      imx_hubFramer.dataOut -> imx_hubComStub.dataIn
+      imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
+      imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
     }
 
     connections recv_hub {
-      imx_hubComDriver.$recv -> imx_hubDeframer.framedIn
-      imx_hubComDriver.allocate -> imx_bufferManager.bufferGetCallee
-      
-      imx_hubDeframer.bufferOut -> imx_hub.dataIn 
-      imx_hubDeframer.framedDeallocate -> imx_bufferManager.bufferSendIn
-      imx_hubDeframer.bufferAllocate -> imx_bufferManager.bufferGetCallee
-
-      imx_hub.dataInDeallocate -> imx_bufferManager.bufferSendIn
+      imx_hubComQueue.bufferReturnOut[0] -> imx_bufferManager.bufferSendIn
+      imx_hubFramer.bufferAllocate -> imx_bufferManager.bufferGetCallee
+      imx_hubFramer.bufferDeallocate -> imx_bufferManager.bufferSendIn
+      imx_hubComDriver.deallocate -> imx_bufferManager.bufferSendIn
+      imx_hubComDriver.ready -> imx_hubComStub.drvConnected
+      imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
+      imx_hubFramer.comStatusOut -> imx_hubComQueue.comStatusIn
     }
 
     connections hub {

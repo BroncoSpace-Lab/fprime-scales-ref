@@ -6,7 +6,6 @@
 #ifndef IMXDEPLOYMENT_IMXDEPLOYMENTTOPOLOGYDEFS_HPP
 #define IMXDEPLOYMENT_IMXDEPLOYMENTTOPOLOGYDEFS_HPP
 
-#include "Drv/BlockDriver/BlockDriver.hpp"
 #include "Fw/Types/MallocAllocator.hpp"
 #include "ImxDeployment/Top/FppConstantsAc.hpp"
 #include "Svc/FramingProtocol/FprimeProtocol.hpp"
