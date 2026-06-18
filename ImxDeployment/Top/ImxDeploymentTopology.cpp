@@ -191,10 +191,10 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    // imx_hubComDriver.configure("0.0.0.0", 50500);
-    // imx_cmdSplitter.configure(0x10000);
-    // Os::TaskString hubName("hub");
-    // imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    imx_hubComDriver.configure("0.0.0.0", 50500);
+    imx_cmdSplitter.configure(0x10000);
+    Os::TaskString hubName("hub");
+    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 void startSimulatedCycle(Fw::TimeInterval interval) {
@@ -213,8 +213,8 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
     imx_comDriver.stop();
     (void)imx_comDriver.join();
-    // imx_hubComDriver.stop();
-    // (void)imx_hubComDriver.join();
+    imx_hubComDriver.stop();
+    (void)imx_hubComDriver.join();
 
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
