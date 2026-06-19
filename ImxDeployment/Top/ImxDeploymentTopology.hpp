@@ -71,9 +71,9 @@ void teardownTopology(const TopologyState& state);
  *
  * Note: projects should replace this with a component that produces an output port call at the appropriate frequency.
  *
- * \param milliseconds: milliseconds to delay for each cycle. Default: 1000 or 1Hz.
+ * \param interval: interval between timer cycles. Default: 1 second or 1Hz.
  */
-void startSimulatedCycle(Fw::TimeInterval interval = Fw::TimeInterval(1,0));
+void startSimulatedCycle(const Fw::TimeInterval& interval = Fw::TimeInterval(1,0));
 
 /**
  * \brief stop the simulated cycle started by startSimulatedCycle

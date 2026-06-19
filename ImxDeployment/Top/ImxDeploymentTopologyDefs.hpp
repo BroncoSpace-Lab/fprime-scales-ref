@@ -8,7 +8,6 @@
 
 #include "Fw/Types/MallocAllocator.hpp"
 #include "ImxDeployment/Top/FppConstantsAc.hpp"
-#include "Svc/FramingProtocol/FprimeProtocol.hpp"
 #include "Svc/Health/Health.hpp"
 
 // Definitions are placed within a namespace named after the deployment

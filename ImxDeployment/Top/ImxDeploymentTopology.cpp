@@ -109,8 +109,7 @@ void configureTopology(const TopologyState& state) {
     imx_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    imx_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
-                           FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    imx_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
     imx_prmDb.configure("PrmDb.dat");
@@ -197,8 +196,8 @@ void setupTopology(const TopologyState& state) {
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
-void startSimulatedCycle(Fw::TimeInterval interval) {
-    imx_timer.startTimer(interval.getSeconds()*1000+interval.getUSeconds()/1000);
+void startSimulatedCycle(const Fw::TimeInterval& interval) {
+    imx_timer.startTimer(interval);
 }
 
 void stopSimulatedCycle() {
