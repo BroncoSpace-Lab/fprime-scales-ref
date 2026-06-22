@@ -1,0 +1,5 @@
+torch==2.12.1
+transformers==5.12.1
+datasets==5.0.0
+pillow==12.2.0
+ultralytics==8.4.75

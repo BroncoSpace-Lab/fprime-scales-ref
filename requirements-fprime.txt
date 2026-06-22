@@ -1,0 +1,2 @@
+git+https://github.com/fprime-community/fprime-python-model.git@934d79ddbe4ad1286e56a5575fed34fb0c44a1bb
+pybind11==3.0.2
