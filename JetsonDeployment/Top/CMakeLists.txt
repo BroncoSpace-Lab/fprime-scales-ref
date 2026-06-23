@@ -19,7 +19,8 @@ set(MOD_DEPS
   # Communication Implementations
   Drv/Udp
   Drv/TcpServer
-  pybind
+  # fprime-python component used by this topology
+  Components_MLComponent
   scales_scalesSvc_JetsonPowerModeManager
 )
 

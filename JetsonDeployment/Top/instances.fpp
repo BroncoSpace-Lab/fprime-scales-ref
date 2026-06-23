@@ -132,14 +132,14 @@ module JetsonDeployment {
   instance jetson_health: Svc.Health base id CMD_SPLITTER_OFFSET + 0x6000 \
     queue size 25
 
-  # ----------------------------------------------------------------------
+   # ----------------------------------------------------------------------
   # Passive component instances
   # ----------------------------------------------------------------------
 
   @ Communications driver. May be swapped with other com drivers like UART or TCP
   instance jetson_comDriver: Drv.TcpServer base id CMD_SPLITTER_OFFSET + 0x7000
 
-  instance jetson_framer: Svc.Framer base id CMD_SPLITTER_OFFSET + 0x7100
+  instance jetson_framer: Svc.FprimeFramer base id CMD_SPLITTER_OFFSET + 0x7100
 
   instance jetson_fatalAdapter: Svc.AssertFatalAdapter base id CMD_SPLITTER_OFFSET + 0x7200
 
@@ -153,7 +153,7 @@ module JetsonDeployment {
 
   instance jetson_textLogger: Svc.PassiveTextLogger base id CMD_SPLITTER_OFFSET + 0x7800
 
-  instance jetson_deframer: Svc.Deframer base id CMD_SPLITTER_OFFSET + 0x7900
+  instance jetson_deframer: Svc.FprimeDeframer base id CMD_SPLITTER_OFFSET + 0x7900
 
   instance jetson_systemResources: Svc.SystemResources base id CMD_SPLITTER_OFFSET + 0x7A00
 
@@ -162,18 +162,19 @@ module JetsonDeployment {
   instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x9000
 
   instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x9100
-  
+
   instance jetson_hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x9200
 
-  instance jetson_hubDeframer: Svc.Deframer base id CMD_SPLITTER_OFFSET + 0x9300
+  instance jetson_hubDeframer: Svc.FprimeDeframer base id CMD_SPLITTER_OFFSET + 0x9300
 
-  instance jetson_hubFramer: Svc.Framer base id CMD_SPLITTER_OFFSET + 0x9400
+  instance jetson_hubFramer: Svc.FprimeFramer base id CMD_SPLITTER_OFFSET + 0x9400
 
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
   instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
-  
-   # Added timer to replace the deprecated BlockDriver
-  instance timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9900
+
+  instance jetson_frameAccumulator: Svc.FrameAccumulator base id CMD_SPLITTER_OFFSET + 0x9A00
+
+  instance jetson_fprimeRouter: Svc.FprimeRouter base id CMD_SPLITTER_OFFSET + 0x9B00 
 
 }

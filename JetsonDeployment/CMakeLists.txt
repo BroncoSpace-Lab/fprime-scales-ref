@@ -13,7 +13,7 @@ include(implementation)
 # Topology and Components
 ###
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
-#register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
+register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
 
 
 # Add custom components to this specific deployment here

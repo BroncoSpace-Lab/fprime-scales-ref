@@ -30,7 +30,7 @@ namespace Components {
       //! Destroy RunLucidCamera object
       ~RunLucidCamera();
 
-    PRIVATE:
+    private:
 
       // ----------------------------------------------------------------------
       // Handler implementations for commands

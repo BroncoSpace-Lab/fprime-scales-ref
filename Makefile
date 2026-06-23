@@ -24,6 +24,8 @@ setup: ## Set up the repo
 	fprime-venv/bin/pip install -r requirements-fprime.txt
 	@echo "Installing fprime-python dependencies..."
 	fprime-venv/bin/pip install -e ./lib/fprime-python
+	@echo "Downloading python ML dependencies..."
+	fprime-venv/bin/pip install -r requirements-ml.txt
 	@echo "Installing fpp dependencies..."
 	sudo apt install default-jre -y
 	@echo "Finished setup."
@@ -73,8 +75,6 @@ arena-init: ## Set up the Arena SDK
 .PHONY: build-jetson
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
-	@echo "Downloading python ML dependencies..."
-	fprime-venv/bin/pip install -r requirements-ml.txt
 	@echo "Building aarch64-linux..."
 	fprime-util build aarch64-linux
 	./jetson-python.sh

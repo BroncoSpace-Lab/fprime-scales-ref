@@ -191,10 +191,10 @@ Arena::IDevice* pDevice;
       Fw::FileNameString destination("./image.png");
       
       Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
-            if (resp.getstatus() != Svc::SendFileStatus::STATUS_OK) {
+            if (resp.get_status() != Svc::SendFileStatus::STATUS_OK) {
                 // warn, but keep going since it may be an issue with this file but others could
                 // make it
-                this->log_WARNING_HI_FileSendError(this->m_filename,resp.getstatus());
+                this->log_WARNING_HI_FileSendError(this->m_filename,resp.get_status());
             }
 
       std::cout << "\nExample complete\n";
