@@ -13,7 +13,7 @@ include(implementation)
 # Topology and Components
 ###
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
-register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
+#register_fprime_target("${CMAKE_SOURCE_DIR}/lib/fprime-python/cmake/target/pybind.cmake")
 
 
 # Add custom components to this specific deployment here
@@ -31,6 +31,6 @@ set_target_properties(python_extension PROPERTIES
     SUFFIX ".so"
 )
 target_compile_options(python_extension PUBLIC "-fPIC")
-setup_executable_implementations(python_extension)
+#setup_executable_implementations(python_extension)
 
 register_fprime_deployment()

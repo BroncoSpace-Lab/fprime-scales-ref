@@ -3,18 +3,19 @@
 // \brief cpp file containing the topology instantiation code
 //
 // ======================================================================
+
 // Provides access to autocoded functions
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyAc.hpp>
+#include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
+#include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
+#include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
+
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
-#include <Svc/FramingProtocol/FprimeProtocol.hpp>
 #include <Fw/Logger/Logger.hpp>
-
-// Used for 1Hz synthetic cycling
-#include <Os/Mutex.hpp>
 
 // Allows easy reference to objects in FPP/autocoder required namespaces
 using namespace JetsonDeployment;
@@ -23,16 +24,16 @@ using namespace JetsonDeployment;
 // initialization phase.
 Fw::MallocAllocator mallocator;
 
-// The reference topology uses the F´ packet protocol when communicating with the ground and therefore uses the F´
-// framing and deframing implementations.
-Svc::FprimeFraming framing;
-Svc::FprimeDeframing deframing;
-Svc::FprimeFraming hubFraming;
-Svc::FprimeDeframing hubDeframing;
+// FrameAccumulator uses this detector to identify complete F Prime frames in the receive byte stream.
+Svc::FrameDetectors::FprimeFrameDetector jetson_frameDetector;
 
-const char* REMOTE_HUIP_ADDRESS = "10.3.2.10"; // ip of JPL IMX
+// Hub pattern disabled/commented out
+// Svc::FrameDetectors::FprimeFrameDetector hub_frameDetector;
+
+// Hub pattern disabled/commented out
+// const char* REMOTE_HUIP_ADDRESS = "10.3.2.10"; // ip of JPL IMX
 // const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
-const U32 REMOTE_HUPORT = 50500;
+// const U32 REMOTE_HUPORT = 50500;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
@@ -45,16 +46,6 @@ U32 rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
-
-Os::Task rateTask;
-/**
- * Task function to drive rate groups
- */
-void rateGroups(void *) {
-    jetson_timer.startTimer(1000);
-}
-
-
 // A number of constants are needed for construction of the topology. These are specified here.
 enum TopologyConstants {
     CMD_SEQ_BUFFER_SIZE = 5 * 1024,
@@ -64,13 +55,20 @@ enum TopologyConstants {
     FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
     HEALTH_WATCHDOG_CODE = 0x123,
     COMM_PRIORITY = 100,
+    FRAME_ACCUMULATOR_BUFFER_SIZE = 2048,
+
     // bufferManager constants
-    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) + HASH_DIGEST_LENGTH + Svc::FpFrameHeader::SIZE,
+    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) +
+                         Svc::FprimeProtocol::FrameHeader::SERIALIZED_SIZE +
+                         Svc::FprimeProtocol::FrameTrailer::SERIALIZED_SIZE,
     FRAMER_BUFFER_COUNT = 30,
+
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
+
     COM_DRIVER_BUFFER_SIZE = 3000,
     COM_DRIVER_BUFFER_COUNT = 30,
+
     BUFFER_MANAGER_ID = 200
 };
 
@@ -109,11 +107,11 @@ void configureTopology(const TopologyState& state) {
     upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
     jetson_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
 
-    // Framer and Deframer components need to be passed a protocol handler
-    jetson_framer.setup(framing);
-    jetson_deframer.setup(deframing);
-    jetson_hubFramer.setup(hubFraming);
-    jetson_hubDeframer.setup(hubDeframing);
+    // FrameAccumulator needs a frame detector and working buffer.
+    jetson_frameAccumulator.configure(jetson_frameDetector, 1, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
+
+    // Hub pattern disabled/commented out
+    // hub_frameAccumulator.configure(hub_frameDetector, 2, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
@@ -127,8 +125,7 @@ void configureTopology(const TopologyState& state) {
     jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
-                           FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
     jetson_prmDb.configure("PrmDb.dat");
@@ -146,9 +143,12 @@ void configureTopology(const TopologyState& state) {
     configurationTable.entries[1] = {.depth = 500, .priority = 2};
     // File Downlink
     configurationTable.entries[2] = {.depth = 100, .priority = 1};
+
     // Allocation identifier is 0 as the MallocAllocator discards it
     jetson_comQueue.configure(configurationTable, 0, mallocator);
-    jetson_hubComQueue.configure(configurationTable, 0, mallocator);
+
+    // Hub pattern disabled/commented out
+    // jetson_hubComQueue.configure(configurationTable, 0, mallocator);
 
     if (state.hostname != nullptr && state.port != 0) {
         jetson_comDriver.configure(state.hostname, state.port);
@@ -162,6 +162,7 @@ void configureTopology(const TopologyState& state) {
 
 // Public functions for use in main program are namespaced with deployment name JetsonDeployment
 namespace JetsonDeployment {
+
 void setupTopology(const TopologyState& state) {
     // Autocoded initialization. Function provided by autocoder.
     initComponents(state);
@@ -179,47 +180,26 @@ void setupTopology(const TopologyState& state) {
     loadParameters();
     // Autocoded task kick-off (active components). Function provided by autocoder.
     startTasks(state);
+
     // Initialize socket communication if and only if there is a valid specification
     if (state.hostname != nullptr && state.port != 0) {
         Os::TaskString name("ReceiveTask");
         // Uplink is configured for receive so a socket task is started
-        jetson_comDriver.configure(state.hostname, state.port);
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
-    Os::TaskString hubName("hub");
-    jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
-
-    Os::TaskString taskName("RateGroupTask");
-    Os::TaskInterface::Arguments taskArgs(taskName, rateGroups, nullptr, 99, 3*1024);
-    rateTask.start(taskArgs);
+    // Hub pattern disabled/commented out
+    // jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
+    // Os::TaskString hubName("hub");
+    // jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
-// Variables used for cycle simulation
-Os::Mutex cycleLock;
-volatile bool cycleFlag = true;
-
-void startSimulatedCycle(Fw::TimeInterval interval) {
-    cycleLock.lock();
-    bool cycling = cycleFlag;
-    cycleLock.unLock();
-
-    // Main loop
-    while (cycling) {
-        JetsonDeployment::jetson_blockDrv.callIsr();
-        Os::Task::delay(interval);
-
-        cycleLock.lock();
-        cycling = cycleFlag;
-        cycleLock.unLock();
-    }
+void startSimulatedCycle(const Fw::TimeInterval& interval) {
+    jetson_timer.startTimer(interval);
 }
 
 void stopSimulatedCycle() {
-    cycleLock.lock();
-    cycleFlag = false;
-    cycleLock.unLock();
+    jetson_timer.quit();
 }
 
 void teardownTopology(const TopologyState& state) {
@@ -230,11 +210,15 @@ void teardownTopology(const TopologyState& state) {
     // Other task clean-up.
     jetson_comDriver.stop();
     (void)jetson_comDriver.join();
-    jetson_hubComDriver.stop();
-    (void)jetson_hubComDriver.join();
+
+    // Hub pattern disabled/commented out
+    // jetson_hubComDriver.stop();
+    // (void)jetson_hubComDriver.join();
 
     // Resource deallocation
     jetson_cmdSeq.deallocateBuffer(mallocator);
+    jetson_frameAccumulator.cleanup();
     jetson_bufferManager.cleanup();
 }
+
 };  // namespace JetsonDeployment

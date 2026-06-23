@@ -1,5 +1,7 @@
 module Components {
     @ Component for F Prime FSW framework.
+    @ Component implemented in Python
+    @ fprime-python
     active component MLComponent {
 
         # One async command/port is required for active components

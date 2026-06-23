@@ -5,7 +5,7 @@ map to this component. **Note:** ensure this file is renamed to MLComponent.py i
 """
 
 # Required imports for the implementation to work
-import fprime_pybind
+import fprime_py
 
 # Typical, but optional, imports
 import Fw

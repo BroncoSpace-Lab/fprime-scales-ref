@@ -55,7 +55,7 @@ static void signalHandler(int signum) {
  */
 int main() {
     I32 option = 0;
-    CHAR* hostname = "127.0.0.1";
+    char* hostname = "127.0.0.1";
     U16 port_number = 50000;
     Os::init();
 
