@@ -8,20 +8,20 @@ help: ## Display this help.
 .PHONY: setup
 .ONESHELL:
 setup: ## Set up the repo
+	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
-	#git checkout main
+	git checkout lucadev_v4.2.2
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Sourcing fprime virtual environment..."
 	. fprime-venv/bin/activate
 	@echo "Initializing and updating all git submodules recursively..."
-	#git submodule update --init --recursive
+	git submodule update --init --recursive
 	@echo "Installing Python requirements into venv..."
 	fprime-venv/bin/pip install -r ./lib/fprime/requirements.txt
 	fprime-venv/bin/pip install -r requirements-fprime.txt
-	fprime-venv/bin/pip install -r requirements-ml.txt
-	@echo "Installing fprime-python dependencies..."
 	fprime-venv/bin/pip install -e ./lib/fprime-python
+	@echo "Installing fprime-python dependencies..."
 	@echo "Finished setup."
 	@echo ""
 	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
@@ -69,6 +69,8 @@ arena-init: ## Set up the Arena SDK
 .PHONY: build-jetson
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson
+	@echo "Downloading python ML dependencies..."
+	fprime-venv/bin/pip install -r requirements-ml.txt
 	@echo "Building aarch64-linux..."
 	fprime-util build aarch64-linux
 	./jetson-python.sh
