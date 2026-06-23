@@ -1,5 +1,7 @@
 PYTHON_VERSION = 3.12
 PROJECT_ROOT = $(CURDIR)
+# Make sure you have python3.12 installed prio to running make setup
+# JRE is also required, it is included in make setup (line 28)
 
 .PHONY: help
 help: ## Display this help.
@@ -20,8 +22,10 @@ setup: ## Set up the repo
 	@echo "Installing Python requirements into venv..."
 	fprime-venv/bin/pip install -r ./lib/fprime/requirements.txt
 	fprime-venv/bin/pip install -r requirements-fprime.txt
-	fprime-venv/bin/pip install -e ./lib/fprime-python
 	@echo "Installing fprime-python dependencies..."
+	fprime-venv/bin/pip install -e ./lib/fprime-python
+	@echo "Installing fpp dependencies..."
+	sudo apt install default-jre -y
 	@echo "Finished setup."
 	@echo ""
 	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
