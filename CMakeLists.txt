@@ -35,7 +35,7 @@ if (NOT DEFINED FPRIME_SUB_BUILD_TARGETS)
     endif()
 
     find_package(pybind11 CONFIG REQUIRED PATHS "${PYBIND11_CMAKEDIR}" NO_CMAKE_FIND_ROOT_PATH)
-    link_libraries("pybind11::module" "pybind11::headers")
+    #link_libraries("pybind11::module" "pybind11::headers")
 
     register_fprime_target(target/fprime_python)
 endif()

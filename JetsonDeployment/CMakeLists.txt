@@ -17,3 +17,7 @@ register_fprime_deployment(
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
 )
+if (NOT DEFINED FPRIME_SUB_BUILD_TARGETS)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    target_link_libraries(JetsonDeployment PRIVATE Python3::Python)
+endif()
