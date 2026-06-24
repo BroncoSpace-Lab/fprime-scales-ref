@@ -2,6 +2,8 @@ import fprime_py
 import Fw
 import Components
 
+from MLComponentBaseAc import MLComponentBase
+
 import importlib
 import os
 import time
@@ -10,7 +12,8 @@ import resnet_cifar100
 import resnet_inference
 
 
-class MLComponent(fprime_py.Components.MLComponentBase):
+class MLComponent(MLComponentBase):
+
     def __init__(self):
         super().__init__()
         self.model = None

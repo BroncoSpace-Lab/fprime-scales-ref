@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# ======================================================================
+# jetson-python.sh
+#
+# Launch the fprime-python JetsonDeployment from build-artifacts/python.
+# ======================================================================
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
@@ -12,8 +18,15 @@ ARENA_SDK_LIB="$PROJECT_ROOT/lib/ArenaSDK/lib"
 ARENA_SDK_FFMPEG="$PROJECT_ROOT/lib/ArenaSDK/ffmpeg"
 ARENA_SDK_GENICAM="$PROJECT_ROOT/lib/ArenaSDK/GenICam/library/lib/Linux64_ARM"
 
+export FPRIME_SCALES_ROOT="$PROJECT_ROOT"
+
 export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
-export PYTHONPATH="$PYTHON_ARTIFACT_DIR:${PYTHONPATH}"
+
+export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH}"
+
+export PYTHONUNBUFFERED=1
+
+mkdir -p "$PROJECT_ROOT/Images"
 
 echo "========================================"
 echo " JetsonDeployment fprime-python launcher"
@@ -50,9 +63,8 @@ if ! ls "$PYTHON_ARTIFACT_DIR"/fprime_py*.so >/dev/null 2>&1; then
     exit 1
 fi
 
-mkdir -p "$PROJECT_ROOT/Images"
-
 cd "$PYTHON_ARTIFACT_DIR"
 
 echo "Launching fsw_main.py..."
-exec "$PYTHON" "$FSW_MAIN"
+
+exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN"

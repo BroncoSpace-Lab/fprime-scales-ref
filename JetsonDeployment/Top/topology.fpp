@@ -15,14 +15,14 @@ module JetsonDeployment {
     TELEMETRY
   }
 
-  enum Ports_ComBufferQueue {
-    FILE_DOWNLINK
-  }
-
+  # File downlink is temporarily disabled.
+  # Keep this enum commented out unless C++ code still references it.
+  # enum Ports_ComBufferQueue {
+  #   FILE_DOWNLINK
+  # }
 
   topology JetsonDeployment {
 
-    
     # ----------------------------------------------------------------------
     # Instances used in the topology
     # ----------------------------------------------------------------------
@@ -38,7 +38,10 @@ module JetsonDeployment {
     instance jetson_eventLogger
     instance jetson_fatalAdapter
     instance jetson_fatalHandler
-    instance jetson_fileDownlink
+
+    # Temporarily disabled while debugging FileDownlink queue assert.
+    # instance jetson_fileDownlink
+
     instance jetson_fileManager
     instance jetson_fileUplink
     instance jetson_bufferManager
@@ -97,11 +100,14 @@ module JetsonDeployment {
 
     connections Downlink {
 
-      # Inputs to ComQueue: events, telemetry, file downlink
+      # Inputs to ComQueue: events and telemetry only.
+      # File downlink is temporarily disabled.
       jetson_eventLogger.PktSend -> jetson_comQueue.comPacketQueueIn[Ports_ComPacketQueue.EVENTS]
       jetson_tlmSend.PktSend -> jetson_comQueue.comPacketQueueIn[Ports_ComPacketQueue.TELEMETRY]
-      jetson_fileDownlink.bufferSendOut -> jetson_comQueue.bufferQueueIn[Ports_ComBufferQueue.FILE_DOWNLINK]
-      jetson_comQueue.bufferReturnOut[Ports_ComBufferQueue.FILE_DOWNLINK] -> jetson_fileDownlink.bufferReturn
+
+      # Disabled file downlink path:
+      # jetson_fileDownlink.bufferSendOut -> jetson_comQueue.bufferQueueIn[Ports_ComBufferQueue.FILE_DOWNLINK]
+      # jetson_comQueue.bufferReturnOut[Ports_ComBufferQueue.FILE_DOWNLINK] -> jetson_fileDownlink.bufferReturn
 
       # ComQueue <-> FprimeFramer
       jetson_comQueue.dataOut -> jetson_framer.dataIn
@@ -137,12 +143,14 @@ module JetsonDeployment {
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
       jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_tlmSend.Run
-      jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
-      jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
-      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_comQueue.run
-      jetson_rateGroup1.RateGroupMemberOut[4] -> jetson_pwrModeManager.schedIn
-      jetson_rateGroup1.RateGroupMemberOut[5] -> jetson_thermalManager.run
-      jetson_rateGroup1.RateGroupMemberOut[6] -> jetson_watchdogManager.run
+      jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_comQueue.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_pwrModeManager.schedIn
+      jetson_rateGroup1.RateGroupMemberOut[4] -> jetson_thermalManager.run
+      jetson_rateGroup1.RateGroupMemberOut[5] -> jetson_watchdogManager.run
+
+      # Disabled FileDownlink rate group connection:
+      # jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
@@ -201,13 +209,8 @@ module JetsonDeployment {
     connections JetsonDeployment {
       # Add here connections to user-defined components
 
-      jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
-
-      # Hub-pattern power-routing connections commented out for now
-      # jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
-      # jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
-      # jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
-      # jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
+      # Temporarily disabled because FileDownlink is removed from this test topology.
+      # jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
 
       jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
 

@@ -50,15 +50,15 @@ module JetsonDeployment {
     priority 100
 
   instance jetson_fileManager: Svc.FileManager base id CMD_SPLITTER_OFFSET + 0x5900 \
-    queue size 30 \
+    queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 100
 
   instance jetson_fileUplink: Svc.FileUplink base id CMD_SPLITTER_OFFSET + 0x5A00 \
-    queue size 30 \
+    queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 100
-
+  
   instance jetson_eventLogger: Svc.EventManager base id CMD_SPLITTER_OFFSET + 0x5B00 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \

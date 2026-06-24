@@ -8,26 +8,20 @@ PYTHON="$PROJECT_ROOT/fprime-venv/bin/python"
 PYTHON_ARTIFACT_DIR="$PROJECT_ROOT/build-artifacts/python"
 FSW_MAIN="$PYTHON_ARTIFACT_DIR/fsw_main.py"
 
-LOG_DIR="$PROJECT_ROOT/logs"
-LOG_FILE="$LOG_DIR/jetson-deployment.log"
-
 ARENA_SDK_LIB="$PROJECT_ROOT/lib/ArenaSDK/lib"
 ARENA_SDK_FFMPEG="$PROJECT_ROOT/lib/ArenaSDK/ffmpeg"
 ARENA_SDK_GENICAM="$PROJECT_ROOT/lib/ArenaSDK/GenICam/library/lib/Linux64_ARM"
 
+export FPRIME_SCALES_ROOT="$PROJECT_ROOT"
+
 export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
-export PYTHONPATH="$PYTHON_ARTIFACT_DIR:${PYTHONPATH}"
+
+export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH}"
 
 # Force Python and native stdout/stderr to appear immediately in systemd logs.
 export PYTHONUNBUFFERED=1
 
 mkdir -p "$PROJECT_ROOT/Images"
-mkdir -p "$LOG_DIR"
-
-# Send everything printed by this script and the Python deployment to:
-#   1. systemd journal
-#   2. logs/jetson-deployment.log
-exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "========================================"
 echo " JetsonDeployment fprime-python launcher"
@@ -35,7 +29,6 @@ echo " Project:   $PROJECT_ROOT"
 echo " Python:    $PYTHON"
 echo " Artifacts: $PYTHON_ARTIFACT_DIR"
 echo " Main:      $FSW_MAIN"
-echo " Log file:  $LOG_FILE"
 echo "========================================"
 echo ""
 
@@ -68,6 +61,7 @@ fi
 cd "$PYTHON_ARTIFACT_DIR"
 
 echo "PWD=$(pwd)"
+echo "FPRIME_SCALES_ROOT=$FPRIME_SCALES_ROOT"
 echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 echo "PYTHONPATH=$PYTHONPATH"
 echo "Python version:"
@@ -77,6 +71,8 @@ echo ""
 echo "Launching fsw_main.py..."
 
 # stdbuf makes C/C++ stdout/stderr line-buffered, which helps F Prime/native logs
-# show up immediately instead of being delayed.
+# show up immediately in journalctl instead of being delayed.
 exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN"
-# To view the fsw live, use: journalctl -u jetson-deployment.service -f -l --no-pager
+
+# To view the FSW live through systemd:
+# journalctl -u jetson-deployment.service -f -l --no-pager

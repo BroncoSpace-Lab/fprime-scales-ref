@@ -53,7 +53,7 @@ enum TopologyConstants {
     FILE_DOWNLINK_TIMEOUT = 1000,
     FILE_DOWNLINK_COOLDOWN = 1000,
     FILE_DOWNLINK_CYCLE_TIME = 1000,
-    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
+    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 1,
     HEALTH_WATCHDOG_CODE = 0x123,
     COMM_PRIORITY = 100,
     FRAME_ACCUMULATOR_BUFFER_SIZE = 2048,
@@ -126,7 +126,7 @@ void configureTopology(const TopologyState& state) {
     jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    //jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
     jetson_prmDb.configure("PrmDb.dat");
@@ -225,7 +225,8 @@ void teardownTopology(const TopologyState& state) {
 };  // namespace JetsonDeployment
 
 void setup_user_deployment(pybind11::module_& module) {
-    // No custom user bindings yet.
-    // This function is required because generated fprime_init.cpp expects it.
-    (void) module;
+    pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
+        .def(pybind11::init<>())
+        .def_readwrite("hostname", &JetsonDeployment::TopologyState::hostname)
+        .def_readwrite("port", &JetsonDeployment::TopologyState::port);
 }
