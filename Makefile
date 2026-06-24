@@ -80,7 +80,7 @@ build-jetson: ## Build fprime for the Jetson
 	./jetson-python.sh
 	@echo "Making the Images folder..."
 	cd build-python-fprime-aarch64-linux
-	mkdir Images
+	mkdir -p Images
 	@echo "Restaring the F Prime auto-connect service..."
 	sudo systemctl restart jetson-deployment.service
 	@echo "make build-jetson Done"

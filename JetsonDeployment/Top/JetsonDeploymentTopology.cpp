@@ -9,6 +9,7 @@
 #include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
 #include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
 #include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
+#include <pybind11/pybind11.h>
 
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
@@ -222,3 +223,9 @@ void teardownTopology(const TopologyState& state) {
 }
 
 };  // namespace JetsonDeployment
+
+void setup_user_deployment(pybind11::module_& module) {
+    // No custom user bindings yet.
+    // This function is required because generated fprime_init.cpp expects it.
+    (void) module;
+}
