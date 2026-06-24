@@ -74,15 +74,16 @@ arena-init: ## Set up the Arena SDK
 
 .PHONY: build-jetson
 .ONESHELL:
-build-jetson: ## Build fprime for the Jetson
-	@echo "Building aarch64-linux..."
+build-jetson: ## Build fprime for the Jetson and restart the systemd service
+	@set -e
+	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
-	./jetson-python.sh
 	@echo "Making the Images folder..."
-	cd build-python-fprime-aarch64-linux
 	mkdir -p Images
-	@echo "Restaring the F Prime auto-connect service..."
+	@echo "Restarting the JetsonDeployment systemd service..."
 	sudo systemctl restart jetson-deployment.service
+	@echo "Checking service status..."
+	systemctl status jetson-deployment.service --no-pager
 	@echo "make build-jetson Done"
 
 .PHONY: clean
