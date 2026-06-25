@@ -5,6 +5,11 @@ set -e
 # jetson-python.sh
 #
 # Launch the fprime-python JetsonDeployment from build-artifacts/python.
+#
+# Default comm setup:
+#   Jetson listens on 0.0.0.0:50000
+#   GDS connects with:
+#     fprime-gds ... --ip-client --ip-address <JETSON_IP> --ip-port 50000
 # ======================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,11 +23,14 @@ ARENA_SDK_LIB="$PROJECT_ROOT/lib/ArenaSDK/lib"
 ARENA_SDK_FFMPEG="$PROJECT_ROOT/lib/ArenaSDK/ffmpeg"
 ARENA_SDK_GENICAM="$PROJECT_ROOT/lib/ArenaSDK/GenICam/library/lib/Linux64_ARM"
 
+DEFAULT_HOSTNAME="0.0.0.0"
+DEFAULT_PORT="50000"
+
 export FPRIME_SCALES_ROOT="$PROJECT_ROOT"
 
-export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH:-}"
 
-export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH}"
+export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH:-}"
 
 export PYTHONUNBUFFERED=1
 
@@ -34,6 +42,7 @@ echo " Project:   $PROJECT_ROOT"
 echo " Python:    $PYTHON"
 echo " Artifacts: $PYTHON_ARTIFACT_DIR"
 echo " Main:      $FSW_MAIN"
+echo " Default:   --hostname $DEFAULT_HOSTNAME --port $DEFAULT_PORT"
 echo "========================================"
 echo ""
 
@@ -67,4 +76,10 @@ cd "$PYTHON_ARTIFACT_DIR"
 
 echo "Launching fsw_main.py..."
 
-exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN"
+if [ "$#" -eq 0 ]; then
+    exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN" \
+        --hostname "$DEFAULT_HOSTNAME" \
+        --port "$DEFAULT_PORT"
+else
+    exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN" "$@"
+fi
