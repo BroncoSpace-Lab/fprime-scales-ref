@@ -37,9 +37,8 @@ Svc::ComQueue::QueueConfigurationTable configurationTable;
 // Svc::FrameDetectors::FprimeFrameDetector hub_frameDetector;
 
 // Hub pattern disabled/commented out
-// const char* REMOTE_HUIP_ADDRESS = "10.3.2.10"; // ip of JPL IMX
-// const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
-// const U32 REMOTE_HUPORT = 50500;
+const char* REMOTE_HUB_IP_ADDRESS = "10.3.2.10"; // ip of IMX
+const U32 REMOTE_HUB_RECV_PORT = 50500;
 
 // The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};

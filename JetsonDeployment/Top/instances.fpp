@@ -156,15 +156,15 @@ module JetsonDeployment {
 
   instance jetson_comStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x7B00
 
-  instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x9000
+  # instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x9000
 
-  instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x9100
+  # instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x9100
 
-  instance jetson_hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x9200
+  # instance jetson_hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x9200
 
-  instance jetson_hubDeframer: Svc.FprimeDeframer base id CMD_SPLITTER_OFFSET + 0x9300
+  # instance jetson_hubDeframer: Svc.FprimeDeframer base id CMD_SPLITTER_OFFSET + 0x9300
 
-  instance jetson_hubFramer: Svc.FprimeFramer base id CMD_SPLITTER_OFFSET + 0x9400
+  # instance jetson_hubFramer: Svc.FprimeFramer base id CMD_SPLITTER_OFFSET + 0x9400
 
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
@@ -173,5 +173,13 @@ module JetsonDeployment {
   instance jetson_fprimeRouter: Svc.FprimeRouter base id CMD_SPLITTER_OFFSET + 0x9B00 
 
   instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
+
+  # Hub Pattern Instance Definitions
+
+  instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x9000
+  
+  instance jetson_hubComDriver: Drv.Udp base id CMD_SPLITTER_OFFSET + 0x9100
+
+  instance jetson_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id CMD_SPLITTER_OFFSET + 0x9200
 
 }

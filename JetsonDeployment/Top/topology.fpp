@@ -56,14 +56,10 @@ module JetsonDeployment {
     instance jetson_fprimeRouter
 
     # Hub-pattern instances commented out for now
-    # instance jetson_hub
-    # instance jetson_hubComDriver
-    # instance jetson_hubComStub
-    # instance jetson_hubComQueue
-    # instance jetson_hubDeframer
-    # instance jetson_hubFramer
-    # instance jetson_proxyGroundInterface
-    # instance jetson_proxySequencer
+    instance jetson_hub
+    instance jetson_hubComDriver
+    instance jetson_hubByteStreamAdapter
+    
 
     # Core SCALES Components
     instance jetson_lucidCamera
@@ -76,11 +72,31 @@ module JetsonDeployment {
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_watchdogManager
+
+    # ----------------------------------------------------------------------
+    # Subtopology imports
+    # ----------------------------------------------------------------------
+      import CdhCore.Subtopology
+      import ComCcsds.Subtopology
+      import DataProducts.Subtopology
+      import FileHandling.Subtopology
    
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
     # ----------------------------------------------------------------------
+
+    command connections instance CdhCore.cmdDisp
+    
+    event connections instance CdhCore.events
+    
+    telemetry connections instance CdhCore.tlmSend
+    
+    text event connections instance CdhCore.textLogger
+    
+    health connections instance CdhCore.$health
+
+    # new things above ^
 
     command connections instance jetson_cmdDisp
 
@@ -206,54 +222,22 @@ module JetsonDeployment {
 
     connections JetsonDeployment {
       # Add here connections to user-defined components
-
-     
-      # jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
-
+      jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
       jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
 
     }
 
-    # connections send_hub {
-    #   # Hub-pattern send path commented out
-    #   # jetson_hub.dataOut -> jetson_hubComQueue.bufferQueueIn[0]
-    #   # jetson_hubComQueue.dataOut -> jetson_hubFramer.dataIn
-    #   # jetson_hubFramer.dataReturnOut -> jetson_hubComQueue.dataReturnIn
-    #   # jetson_hubFramer.dataOut -> jetson_hubComStub.dataIn
-    #   # jetson_hubComStub.dataReturnOut -> jetson_hubFramer.dataReturnIn
-    #   # jetson_hubComStub.drvSendOut -> jetson_hubComDriver.$send
-    # }
+     connections send_hub {
+    
+     }
 
-    # connections recv_hub {
-    #   # Hub-pattern receive path commented out
-    #   # jetson_hubComQueue.bufferReturnOut[0] -> jetson_bufferManager.bufferSendIn
-    #   # jetson_hubFramer.bufferAllocate -> jetson_bufferManager.bufferGetCallee
-    #   # jetson_hubFramer.bufferDeallocate -> jetson_bufferManager.bufferSendIn
-    #   # jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
-    #   # jetson_hubComDriver.ready -> jetson_hubComStub.drvConnected
-    #   # jetson_hubComStub.comStatusOut -> jetson_hubFramer.comStatusIn
-    #   # jetson_hubFramer.comStatusOut -> jetson_hubComQueue.comStatusIn
-    # }
+     connections recv_hub {
+    
+     }
 
-    # connections hub {
-    #   # Hub-pattern routing commented out
-    #   # jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
-    #   # jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
-
-    #   # jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
-    #   # jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
-
-    #   # jetson_proxyGroundInterface.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-    #   # jetson_proxySequencer.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-
-    #   # jetson_cmdDisp.seqCmdStatus -> jetson_proxyGroundInterface.cmdResponseIn
-    #   # jetson_cmdDisp.seqCmdStatus -> jetson_proxySequencer.cmdResponseIn
-
-    #   # jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.portIn[0]
-    #   # jetson_proxySequencer.seqCmdStatus -> jetson_hub.portIn[1]
-
-    #   # jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
-    # }
+     connections hub {
+   
+     }
 
   }
 
