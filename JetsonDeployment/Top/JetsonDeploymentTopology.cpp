@@ -72,7 +72,6 @@ enum TopologyConstants {
 
 // Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
 Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::JetsonDeployment_jetson_blockDrv::WARN, PingEntries::JetsonDeployment_jetson_blockDrv::FATAL, "jetson_blockDrv"},
     {PingEntries::JetsonDeployment_jetson_tlmSend::WARN, PingEntries::JetsonDeployment_jetson_tlmSend::FATAL, "jetson_chanTlm"},
     {PingEntries::JetsonDeployment_jetson_cmdDisp::WARN, PingEntries::JetsonDeployment_jetson_cmdDisp::FATAL, "jetson_cmdDisp"},
     {PingEntries::JetsonDeployment_jetson_cmdSeq::WARN, PingEntries::JetsonDeployment_jetson_cmdSeq::FATAL, "jetson_cmdSeq"},
@@ -94,6 +93,8 @@ Svc::Health::PingEntry pingEntries[] = {
  * desired, but is extracted here for clarity.
  */
 void configureTopology(const TopologyState& state) {
+    std::printf("DEBUG ENTERED JetsonDeployment configureTopology\n");
+    std::fflush(stdout);
     // Buffer managers need a configured set of buckets and an allocator used to allocate memory for those buckets.
     Svc::BufferManager::BufferBins upBuffMgrBins;
     memset(&upBuffMgrBins, 0, sizeof(upBuffMgrBins));
@@ -123,25 +124,54 @@ void configureTopology(const TopologyState& state) {
     jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    std::printf(
+    "DEBUG FileDownlink configure: cooldown=%u cycleTime=%u queueDepth=%u\n",
+    static_cast<unsigned>(FILE_DOWNLINK_COOLDOWN),
+    static_cast<unsigned>(FILE_DOWNLINK_CYCLE_TIME),
+    static_cast<unsigned>(FILE_DOWNLINK_FILE_QUEUE_DEPTH)
+    );
+    std::fflush(stdout);
+
+    jetson_fileDownlink.configure(
+        FILE_DOWNLINK_COOLDOWN,
+        FILE_DOWNLINK_CYCLE_TIME,
+        FILE_DOWNLINK_FILE_QUEUE_DEPTH
+    );
+
+    std::printf("DEBUG FileDownlink configure complete\n");
+    std::fflush(stdout);
+    //jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
     jetson_prmDb.configure("PrmDb.dat");
     jetson_prmDb.readParamFile();
-
+    printf("Passed fileDownlink.configure\n");
     // Health is supplied a set of ping entires.
     jetson_health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
 
     // Note: Uncomment when using Svc:TlmPacketizer
     // tlmSend.setPacketList(JetsonDeploymentPacketsPkts, JetsonDeploymentPacketsIgnore, 1);
 
-    // Events (highest-priority)
-    configurationTable.entries[0] = {.depth = 100, .priority = 0};
-    // Telemetry
-    configurationTable.entries[1] = {.depth = 500, .priority = 2};
-    // File Downlink
-    configurationTable.entries[2] = {.depth = 100, .priority = 1};
+        configurationTable.entries[0] = {
+        .depth = 100,
+        .priority = 0,
+        .mode = Types::QUEUE_FIFO,
+        .overflowMode = Types::QUEUE_DROP_NEWEST,
+    };
 
+    configurationTable.entries[1] = {
+        .depth = 500,
+        .priority = 2,
+        .mode = Types::QUEUE_FIFO,
+        .overflowMode = Types::QUEUE_DROP_NEWEST,
+    };
+
+    configurationTable.entries[2] = {
+        .depth = 100,
+        .priority = 1,
+        .mode = Types::QUEUE_FIFO,
+        .overflowMode = Types::QUEUE_DROP_NEWEST,
+    };
     // Allocation identifier is 0 as the MallocAllocator discards it
     jetson_comQueue.configure(configurationTable, 0, mallocator);
     if (state.hostname != nullptr && state.port != 0) {
@@ -161,6 +191,8 @@ void configureTopology(const TopologyState& state) {
 namespace JetsonDeployment {
 
 void setupTopology(const TopologyState& state) {
+    std::printf("DEBUG ENTERED JetsonDeployment setupTopology\n");
+    std::fflush(stdout);
     // Autocoded initialization. Function provided by autocoder.
     initComponents(state);
     // Autocoded id setup. Function provided by autocoder.
@@ -225,4 +257,19 @@ void setup_user_deployment(pybind11::module_& module) {
         .def(pybind11::init<>())
         .def_readwrite("hostname", &JetsonDeployment::TopologyState::hostname)
         .def_readwrite("port", &JetsonDeployment::TopologyState::port);
+
+    pybind11::module_ jetsonDeploymentModule =
+        module.attr("JetsonDeployment").cast<pybind11::module_>();
+
+    jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
+        std::printf("DEBUG setup_custom: calling JetsonDeployment::setupTopology\n");
+        std::fflush(stdout);
+        JetsonDeployment::setupTopology(state);
+    });
+
+    jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
+        std::printf("DEBUG teardown_custom: calling JetsonDeployment::teardownTopology\n");
+        std::fflush(stdout);
+        JetsonDeployment::teardownTopology(state);
+    });
 }

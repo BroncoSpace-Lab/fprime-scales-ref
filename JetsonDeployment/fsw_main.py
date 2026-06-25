@@ -147,7 +147,7 @@ def fsw_main():
             flush=True,
         )
 
-        fprime_py.JetsonDeployment.setup(topology_state)
+        fprime_py.JetsonDeployment.setup_custom(topology_state)
         topology_started = True
 
         print("[INFO] JetsonDeployment setup complete", flush=True)
@@ -173,7 +173,7 @@ def fsw_main():
         if topology_started:
             try:
                 print("[INFO] Tearing down JetsonDeployment", flush=True)
-                fprime_py.JetsonDeployment.teardown(topology_state)
+                fprime_py.JetsonDeployment.teardown_custom(topology_state)
                 print("[INFO] F Prime shutdown complete", flush=True)
             except Exception:
                 print("[ERROR] Exception during JetsonDeployment teardown", flush=True)

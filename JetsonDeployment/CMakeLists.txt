@@ -13,7 +13,12 @@ register_fprime_deployment(
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/fsw_main.py"
     CHOOSES_IMPLEMENTATIONS
-        FprimePython_PythonConsole
+        Os_Generic_PriorityQueue
+        Os_File_Posix
+        Os_Task_Posix
+        Os_Mutex_Posix
+        Os_RawTime_Posix
+        Os_Console_Posix
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
 )

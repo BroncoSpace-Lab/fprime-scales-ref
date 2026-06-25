@@ -19,13 +19,6 @@ module JetsonDeployment {
         FILE_DOWNLINK
     }
 
-
-  # File downlink is temporarily disabled.
-  # Keep this enum commented out unless C++ code still references it.
-  # enum Ports_ComBufferQueue {
-  #   FILE_DOWNLINK
-  # }
-
   topology JetsonDeployment {
 
     # ----------------------------------------------------------------------
@@ -214,7 +207,7 @@ module JetsonDeployment {
     connections JetsonDeployment {
       # Add here connections to user-defined components
 
-      # Temporarily disabled because FileDownlink is removed from this test topology.
+     
       # jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
 
       jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
