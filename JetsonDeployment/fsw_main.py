@@ -153,14 +153,8 @@ def fsw_main():
         print("[INFO] JetsonDeployment setup complete", flush=True)
         print("[INFO] Flight software is running. Stop service or press CTRL-C to exit.", flush=True)
 
-        heartbeat_count = 0
         while running:
-            time.sleep(5)
-            heartbeat_count += 1
-            print(
-                f"[INFO] Heartbeat {heartbeat_count}: JetsonDeployment Python wrapper alive",
-                flush=True,
-            )
+            time.sleep(1)
 
     except KeyboardInterrupt:
         print("[INFO] CTRL-C received, shutting down F Prime", flush=True)

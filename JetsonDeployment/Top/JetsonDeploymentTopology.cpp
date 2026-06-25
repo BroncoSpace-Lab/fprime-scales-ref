@@ -18,6 +18,9 @@
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Fw/Logger/Logger.hpp>
+#include <string>
+
+static std::string topology_hostname_storage;
 
 // Allows easy reference to objects in FPP/autocoder required namespaces
 using namespace JetsonDeployment;
@@ -255,21 +258,33 @@ void teardownTopology(const TopologyState& state) {
 void setup_user_deployment(pybind11::module_& module) {
     pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
         .def(pybind11::init<>())
-        .def_readwrite("hostname", &JetsonDeployment::TopologyState::hostname)
+        .def_property(
+            "hostname",
+            [](const JetsonDeployment::TopologyState& state) {
+                return state.hostname == nullptr ? "" : state.hostname;
+            },
+            [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
+                topology_hostname_storage = hostname;
+                state.hostname = topology_hostname_storage.c_str();
+            }
+        )
         .def_readwrite("port", &JetsonDeployment::TopologyState::port);
 
     pybind11::module_ jetsonDeploymentModule =
         module.attr("JetsonDeployment").cast<pybind11::module_>();
 
     jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
-        std::printf("DEBUG setup_custom: calling JetsonDeployment::setupTopology\n");
+        std::printf(
+            "DEBUG setup_custom: hostname=%s port=%u\n",
+            state.hostname == nullptr ? "<null>" : state.hostname,
+            static_cast<unsigned>(state.port)
+        );
         std::fflush(stdout);
+
         JetsonDeployment::setupTopology(state);
     });
 
     jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
-        std::printf("DEBUG teardown_custom: calling JetsonDeployment::teardownTopology\n");
-        std::fflush(stdout);
         JetsonDeployment::teardownTopology(state);
     });
 }
