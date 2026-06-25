@@ -82,10 +82,10 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 96
 
-  instance imx_hubComQueue: Svc.ComQueue base id 0x4500 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 100
+  # instance imx_hubComQueue: Svc.ComQueue base id 0x4500 \
+  #   queue size Default.QUEUE_SIZE \
+  #   stack size Default.STACK_SIZE \
+  #   priority 100
 
   instance imx_proxySequencer: Components.CmdSequenceForwarder base id 0x4700 \
       queue size Default.QUEUE_SIZE \
@@ -175,11 +175,15 @@ module ImxDeployment {
 
   instance imx_hubComDriver: Drv.TcpServer base id 0x4100
 
-  instance imx_hubComStub: Svc.ComStub base id 0x4200
+  instance imx_hubBufferManager: Svc.BufferManager base id 0x4200
 
-  instance imx_hubDeframer: Svc.FprimeDeframer base id 0x4300
+  instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x4300
 
-  instance imx_hubFramer: Svc.FprimeFramer base id 0x4400
+  # instance imx_hubComStub: Svc.ComStub base id 0x4200
+
+  # instance imx_hubDeframer: Svc.FprimeDeframer base id 0x4300
+
+  # instance imx_hubFramer: Svc.FprimeFramer base id 0x4400
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 

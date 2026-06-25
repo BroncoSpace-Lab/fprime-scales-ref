@@ -38,6 +38,12 @@ U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 // A number of constants are needed for construction of the topology. These are specified here.
+
+
+const char* REMOTE_HUB_IP_ADDRESS = "127.0.0.1";
+const U32 REMOTE_HUB_SEND_PORT = 50556;
+const U32 REMOTE_HUB_RECV_PORT = 50555;
+
 enum TopologyConstants {
     CMD_SEQ_BUFFER_SIZE = 5 * 1024,
     FILE_DOWNLINK_TIMEOUT = 1000,
@@ -93,6 +99,12 @@ void configureTopology(const TopologyState& state) {
     upBuffMgrBins.bins[2].bufferSize = COM_DRIVER_BUFFER_SIZE;
     upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
     imx_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
+
+    Svc::BufferManager::BufferBins hubBuffMgrBins; // For the hub buffer manager
+    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
+    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
+    imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
 
     imx_frameAccumulator.configure(imx_frameDetector, 1, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
     //hub_frameAccumulator.configure(hub_frameDetector, 2, mallocator, FRAME_ACCUMULATOR_BUFFER_SIZE);
@@ -219,5 +231,6 @@ void teardownTopology(const TopologyState& state) {
     imx_cmdSeq.deallocateBuffer(mallocator);
     imx_frameAccumulator.cleanup();
     imx_bufferManager.cleanup();
+    imx_hubBufferManager.cleanup();
 }
 };  // namespace ImxDeployment
