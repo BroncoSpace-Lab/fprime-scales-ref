@@ -15,6 +15,11 @@ module JetsonDeployment {
     TELEMETRY
   }
 
+   enum Ports_ComBufferQueue{
+        FILE_DOWNLINK
+    }
+
+
   # File downlink is temporarily disabled.
   # Keep this enum commented out unless C++ code still references it.
   # enum Ports_ComBufferQueue {
@@ -39,11 +44,9 @@ module JetsonDeployment {
     instance jetson_fatalAdapter
     instance jetson_fatalHandler
 
-    # Temporarily disabled while debugging FileDownlink queue assert.
-    # instance jetson_fileDownlink
-
     instance jetson_fileManager
     instance jetson_fileUplink
+    instance jetson_fileDownlink
     instance jetson_bufferManager
     instance jetson_framer
     instance jetson_chronoTime
@@ -69,12 +72,18 @@ module JetsonDeployment {
     # instance jetson_proxyGroundInterface
     # instance jetson_proxySequencer
 
+    # Core SCALES Components
     instance jetson_lucidCamera
     instance jetson_mlManager
+
+    # SCALES SVC Drivers
+    instance gpioWatchdogDriver
+
+    # SCALES SVC Managers
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_watchdogManager
-    instance gpioWatchdogDriver
+   
 
     # ----------------------------------------------------------------------
     # Pattern graph specifiers
@@ -104,10 +113,8 @@ module JetsonDeployment {
       # File downlink is temporarily disabled.
       jetson_eventLogger.PktSend -> jetson_comQueue.comPacketQueueIn[Ports_ComPacketQueue.EVENTS]
       jetson_tlmSend.PktSend -> jetson_comQueue.comPacketQueueIn[Ports_ComPacketQueue.TELEMETRY]
-
-      # Disabled file downlink path:
-      # jetson_fileDownlink.bufferSendOut -> jetson_comQueue.bufferQueueIn[Ports_ComBufferQueue.FILE_DOWNLINK]
-      # jetson_comQueue.bufferReturnOut[Ports_ComBufferQueue.FILE_DOWNLINK] -> jetson_fileDownlink.bufferReturn
+      jetson_fileDownlink.bufferSendOut -> jetson_comQueue.bufferQueueIn[Ports_ComBufferQueue.FILE_DOWNLINK]
+      jetson_comQueue.bufferReturnOut[Ports_ComBufferQueue.FILE_DOWNLINK] -> jetson_fileDownlink.bufferReturn
 
       # ComQueue <-> FprimeFramer
       jetson_comQueue.dataOut -> jetson_framer.dataIn
@@ -143,18 +150,16 @@ module JetsonDeployment {
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
       jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_tlmSend.Run
-      jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_systemResources.run
-      jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_comQueue.run
-      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_pwrModeManager.schedIn
-      jetson_rateGroup1.RateGroupMemberOut[4] -> jetson_thermalManager.run
-      jetson_rateGroup1.RateGroupMemberOut[5] -> jetson_watchdogManager.run
-
-      # Disabled FileDownlink rate group connection:
-      # jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
+      jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
+      jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_comQueue.run
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
       jetson_rateGroup2.RateGroupMemberOut[0] -> jetson_cmdSeq.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[1] -> jetson_pwrModeManager.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[2] -> jetson_thermalManager.run
+      jetson_rateGroup2.RateGroupMemberOut[3] -> jetson_watchdogManager.run
 
       # Rate group 3
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> jetson_rateGroup3.CycleIn
@@ -164,8 +169,8 @@ module JetsonDeployment {
     }
 
     connections Sequencer {
-      jetson_cmdSeq.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-      jetson_cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
+      jetson_cmdSeq.comCmdOut -> jetson_cmdDisp.seqCmdBuff[1]
+      jetson_cmdDisp.seqCmdStatus[1] -> jetson_cmdSeq.cmdResponseIn
     }
 
     connections Uplink {
@@ -216,46 +221,46 @@ module JetsonDeployment {
 
     }
 
-    connections send_hub {
-      # Hub-pattern send path commented out
-      # jetson_hub.dataOut -> jetson_hubComQueue.bufferQueueIn[0]
-      # jetson_hubComQueue.dataOut -> jetson_hubFramer.dataIn
-      # jetson_hubFramer.dataReturnOut -> jetson_hubComQueue.dataReturnIn
-      # jetson_hubFramer.dataOut -> jetson_hubComStub.dataIn
-      # jetson_hubComStub.dataReturnOut -> jetson_hubFramer.dataReturnIn
-      # jetson_hubComStub.drvSendOut -> jetson_hubComDriver.$send
-    }
+    # connections send_hub {
+    #   # Hub-pattern send path commented out
+    #   # jetson_hub.dataOut -> jetson_hubComQueue.bufferQueueIn[0]
+    #   # jetson_hubComQueue.dataOut -> jetson_hubFramer.dataIn
+    #   # jetson_hubFramer.dataReturnOut -> jetson_hubComQueue.dataReturnIn
+    #   # jetson_hubFramer.dataOut -> jetson_hubComStub.dataIn
+    #   # jetson_hubComStub.dataReturnOut -> jetson_hubFramer.dataReturnIn
+    #   # jetson_hubComStub.drvSendOut -> jetson_hubComDriver.$send
+    # }
 
-    connections recv_hub {
-      # Hub-pattern receive path commented out
-      # jetson_hubComQueue.bufferReturnOut[0] -> jetson_bufferManager.bufferSendIn
-      # jetson_hubFramer.bufferAllocate -> jetson_bufferManager.bufferGetCallee
-      # jetson_hubFramer.bufferDeallocate -> jetson_bufferManager.bufferSendIn
-      # jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
-      # jetson_hubComDriver.ready -> jetson_hubComStub.drvConnected
-      # jetson_hubComStub.comStatusOut -> jetson_hubFramer.comStatusIn
-      # jetson_hubFramer.comStatusOut -> jetson_hubComQueue.comStatusIn
-    }
+    # connections recv_hub {
+    #   # Hub-pattern receive path commented out
+    #   # jetson_hubComQueue.bufferReturnOut[0] -> jetson_bufferManager.bufferSendIn
+    #   # jetson_hubFramer.bufferAllocate -> jetson_bufferManager.bufferGetCallee
+    #   # jetson_hubFramer.bufferDeallocate -> jetson_bufferManager.bufferSendIn
+    #   # jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
+    #   # jetson_hubComDriver.ready -> jetson_hubComStub.drvConnected
+    #   # jetson_hubComStub.comStatusOut -> jetson_hubFramer.comStatusIn
+    #   # jetson_hubFramer.comStatusOut -> jetson_hubComQueue.comStatusIn
+    # }
 
-    connections hub {
-      # Hub-pattern routing commented out
-      # jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
-      # jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
+    # connections hub {
+    #   # Hub-pattern routing commented out
+    #   # jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
+    #   # jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
 
-      # jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
-      # jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
+    #   # jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
+    #   # jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
 
-      # jetson_proxyGroundInterface.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-      # jetson_proxySequencer.comCmdOut -> jetson_cmdDisp.seqCmdBuff
+    #   # jetson_proxyGroundInterface.comCmdOut -> jetson_cmdDisp.seqCmdBuff
+    #   # jetson_proxySequencer.comCmdOut -> jetson_cmdDisp.seqCmdBuff
 
-      # jetson_cmdDisp.seqCmdStatus -> jetson_proxyGroundInterface.cmdResponseIn
-      # jetson_cmdDisp.seqCmdStatus -> jetson_proxySequencer.cmdResponseIn
+    #   # jetson_cmdDisp.seqCmdStatus -> jetson_proxyGroundInterface.cmdResponseIn
+    #   # jetson_cmdDisp.seqCmdStatus -> jetson_proxySequencer.cmdResponseIn
 
-      # jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.portIn[0]
-      # jetson_proxySequencer.seqCmdStatus -> jetson_hub.portIn[1]
+    #   # jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.portIn[0]
+    #   # jetson_proxySequencer.seqCmdStatus -> jetson_hub.portIn[1]
 
-      # jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
-    }
+    #   # jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
+    # }
 
   }
 

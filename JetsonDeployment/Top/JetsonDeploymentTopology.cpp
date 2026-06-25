@@ -9,6 +9,7 @@
 #include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
 #include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
 #include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
+// fprime-python includes
 #include <pybind11/pybind11.h>
 
 // Note: Uncomment when using Svc:TlmPacketizer
@@ -27,6 +28,7 @@ Fw::MallocAllocator mallocator;
 
 // FrameAccumulator uses this detector to identify complete F Prime frames in the receive byte stream.
 Svc::FrameDetectors::FprimeFrameDetector jetson_frameDetector;
+Svc::ComQueue::QueueConfigurationTable configurationTable;
 
 // Hub pattern disabled/commented out
 // Svc::FrameDetectors::FprimeFrameDetector hub_frameDetector;
@@ -35,8 +37,6 @@ Svc::FrameDetectors::FprimeFrameDetector jetson_frameDetector;
 // const char* REMOTE_HUIP_ADDRESS = "10.3.2.10"; // ip of JPL IMX
 // const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
 // const U32 REMOTE_HUPORT = 50500;
-
-Svc::ComQueue::QueueConfigurationTable configurationTable;
 
 // The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
@@ -53,7 +53,7 @@ enum TopologyConstants {
     FILE_DOWNLINK_TIMEOUT = 1000,
     FILE_DOWNLINK_COOLDOWN = 1000,
     FILE_DOWNLINK_CYCLE_TIME = 1000,
-    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 1,
+    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
     HEALTH_WATCHDOG_CODE = 0x123,
     COMM_PRIORITY = 100,
     FRAME_ACCUMULATOR_BUFFER_SIZE = 2048,
@@ -63,30 +63,27 @@ enum TopologyConstants {
                          Svc::FprimeProtocol::FrameHeader::SERIALIZED_SIZE +
                          Svc::FprimeProtocol::FrameTrailer::SERIALIZED_SIZE,
     FRAMER_BUFFER_COUNT = 30,
-
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
-
     COM_DRIVER_BUFFER_SIZE = 3000,
     COM_DRIVER_BUFFER_COUNT = 30,
-
     BUFFER_MANAGER_ID = 200
 };
 
 // Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
 Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::JetsonDeployment_jetson_blockDrv::WARN, PingEntries::JetsonDeployment_jetson_blockDrv::FATAL, "blockDrv"},
-    {PingEntries::JetsonDeployment_jetson_tlmSend::WARN, PingEntries::JetsonDeployment_jetson_tlmSend::FATAL, "chanTlm"},
-    {PingEntries::JetsonDeployment_jetson_cmdDisp::WARN, PingEntries::JetsonDeployment_jetson_cmdDisp::FATAL, "cmdDisp"},
-    {PingEntries::JetsonDeployment_jetson_cmdSeq::WARN, PingEntries::JetsonDeployment_jetson_cmdSeq::FATAL, "cmdSeq"},
-    {PingEntries::JetsonDeployment_jetson_eventLogger::WARN, PingEntries::JetsonDeployment_jetson_eventLogger::FATAL, "eventLogger"},
-    {PingEntries::JetsonDeployment_jetson_fileDownlink::WARN, PingEntries::JetsonDeployment_jetson_fileDownlink::FATAL, "fileDownlink"},
-    {PingEntries::JetsonDeployment_jetson_fileManager::WARN, PingEntries::JetsonDeployment_jetson_fileManager::FATAL, "fileManager"},
-    {PingEntries::JetsonDeployment_jetson_fileUplink::WARN, PingEntries::JetsonDeployment_jetson_fileUplink::FATAL, "fileUplink"},
-    {PingEntries::JetsonDeployment_jetson_prmDb::WARN, PingEntries::JetsonDeployment_jetson_prmDb::FATAL, "prmDb"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup1::WARN, PingEntries::JetsonDeployment_jetson_rateGroup1::FATAL, "rateGroup1"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup2::WARN, PingEntries::JetsonDeployment_jetson_rateGroup2::FATAL, "rateGroup2"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup3::WARN, PingEntries::JetsonDeployment_jetson_rateGroup3::FATAL, "rateGroup3"},
+    {PingEntries::JetsonDeployment_jetson_blockDrv::WARN, PingEntries::JetsonDeployment_jetson_blockDrv::FATAL, "jetson_blockDrv"},
+    {PingEntries::JetsonDeployment_jetson_tlmSend::WARN, PingEntries::JetsonDeployment_jetson_tlmSend::FATAL, "jetson_chanTlm"},
+    {PingEntries::JetsonDeployment_jetson_cmdDisp::WARN, PingEntries::JetsonDeployment_jetson_cmdDisp::FATAL, "jetson_cmdDisp"},
+    {PingEntries::JetsonDeployment_jetson_cmdSeq::WARN, PingEntries::JetsonDeployment_jetson_cmdSeq::FATAL, "jetson_cmdSeq"},
+    {PingEntries::JetsonDeployment_jetson_eventLogger::WARN, PingEntries::JetsonDeployment_jetson_eventLogger::FATAL, "jetson_eventLogger"},
+    {PingEntries::JetsonDeployment_jetson_fileDownlink::WARN, PingEntries::JetsonDeployment_jetson_fileDownlink::FATAL, "jetson_fileDownlink"},
+    {PingEntries::JetsonDeployment_jetson_fileManager::WARN, PingEntries::JetsonDeployment_jetson_fileManager::FATAL, "jetson_fileManager"},
+    {PingEntries::JetsonDeployment_jetson_fileUplink::WARN, PingEntries::JetsonDeployment_jetson_fileUplink::FATAL, "jetson_fileUplink"},
+    {PingEntries::JetsonDeployment_jetson_prmDb::WARN, PingEntries::JetsonDeployment_jetson_prmDb::FATAL, "jetson_prmDb"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup1::WARN, PingEntries::JetsonDeployment_jetson_rateGroup1::FATAL, "jetson_rateGroup1"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup2::WARN, PingEntries::JetsonDeployment_jetson_rateGroup2::FATAL, "jetson_rateGroup2"},
+    {PingEntries::JetsonDeployment_jetson_rateGroup3::WARN, PingEntries::JetsonDeployment_jetson_rateGroup3::FATAL, "jetson_rateGroup3"},
 };
 
 /**
@@ -126,7 +123,7 @@ void configureTopology(const TopologyState& state) {
     jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
     // File downlink requires some project-derived properties.
-    //jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_FILE_QUEUE_DEPTH);
 
     // Parameter database is configured with a database file name, and that file must be initially read.
     jetson_prmDb.configure("PrmDb.dat");
@@ -147,15 +144,14 @@ void configureTopology(const TopologyState& state) {
 
     // Allocation identifier is 0 as the MallocAllocator discards it
     jetson_comQueue.configure(configurationTable, 0, mallocator);
-
-    // Hub pattern disabled/commented out
-    // jetson_hubComQueue.configure(configurationTable, 0, mallocator);
-
     if (state.hostname != nullptr && state.port != 0) {
         jetson_comDriver.configure(state.hostname, state.port);
     }
+    // Hub pattern disabled/commented out
+    // jetson_hubComQueue.configure(configurationTable, 0, mallocator);
 
-    Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    // Hardware Manager Definitions
+    Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 112, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }

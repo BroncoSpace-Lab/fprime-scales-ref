@@ -14,6 +14,8 @@ module JetsonDeployment {
   # Active component instances
   # ----------------------------------------------------------------------
 
+  # Rate Groups
+
   instance jetson_rateGroup1: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x5200 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
@@ -45,7 +47,7 @@ module JetsonDeployment {
       priority 100 \
 
   instance jetson_fileDownlink: Svc.FileDownlink base id CMD_SPLITTER_OFFSET + 0x5800 \
-    queue size 30 \
+    queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 100
 
@@ -64,19 +66,10 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 98
 
-  # comment in Svc.TlmChan or Svc.TlmPacketizer
-  # depending on which form of telemetry downlink
-  # you wish to use
-
   instance jetson_tlmSend: Svc.TlmChan base id CMD_SPLITTER_OFFSET + 0x5C00 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 97
-
-  #instance tlmSend: Svc.TlmPacketizer base id 0x0C00 \
-  #    queue size Default.QUEUE_SIZE \
-  #    stack size Default.STACK_SIZE \
-  #    priority 97
 
   instance jetson_prmDb: Svc.PrmDb base id CMD_SPLITTER_OFFSET + 0x5D00 \
     queue size Default.QUEUE_SIZE \
@@ -98,22 +91,10 @@ module JetsonDeployment {
       stack size Default.STACK_SIZE \
       priority 100 \
 
-  instance jetson_lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
+# ----------------------------------------------------
+# SCALES Service Managers
 
-  instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-  
   instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1600 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-
-  instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1700 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
@@ -123,7 +104,23 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
-  
+   instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1700 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+# ----------------------------------------------------
+# Core SCALES Components
+
+  instance jetson_lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
 
   # ----------------------------------------------------------------------
   # Queued component instances
@@ -171,10 +168,10 @@ module JetsonDeployment {
 
   instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
-  instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
-
   instance jetson_frameAccumulator: Svc.FrameAccumulator base id CMD_SPLITTER_OFFSET + 0x9A00
 
   instance jetson_fprimeRouter: Svc.FprimeRouter base id CMD_SPLITTER_OFFSET + 0x9B00 
+
+  instance gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
 
 }
