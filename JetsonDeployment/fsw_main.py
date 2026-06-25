@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 
+"""
+fsw_main.py
+
+Main entry point for launching the JetsonDeployment F Prime topology from Python.
+
+This version is adapted for the current JetsonDeployment topology, which uses
+jetson_comDriver / jetson_comQueue / jetson_comStub / framer / deframer /
+fprimeRouter instead of a ReferenceDeployment pythonCom instance.
+"""
+
+import argparse
 import os
 import signal
 import sys
@@ -15,12 +26,7 @@ import fprime_py
 
 FSW_MAIN_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Preferred path source:
-# jetson-python.sh exports this dynamically from its own location.
 PROJECT_ROOT = os.environ.get("FPRIME_SCALES_ROOT")
-
-# Fallback:
-# fsw_main.py runs from build-artifacts/python, so repo root is ../..
 if PROJECT_ROOT is None:
     PROJECT_ROOT = os.path.abspath(os.path.join(FSW_MAIN_DIR, "..", ".."))
 
@@ -29,16 +35,10 @@ ML_COMPONENT_DIR = os.path.join(PROJECT_ROOT, "Components", "MLComponent")
 RESNET_DIR = os.path.join(ML_COMPONENT_DIR, "Scales-ML", "resnet")
 
 
+running = True
+
+
 def add_python_paths():
-    """
-    Add repo-relative Python import paths.
-
-    This supports imports like:
-        import resnet_cifar100
-        import resnet_inference
-
-    without hardcoding /home/jpl-jetson or any specific device username.
-    """
     paths = [
         PYTHON_ARTIFACT_DIR,
         PROJECT_ROOT,
@@ -46,159 +46,142 @@ def add_python_paths():
         RESNET_DIR,
     ]
 
-    for path in paths:
+    for path in reversed(paths):
         if os.path.isdir(path) and path not in sys.path:
             sys.path.insert(0, path)
 
-    print("Resolved PROJECT_ROOT:", PROJECT_ROOT, flush=True)
-    print("Resolved PYTHON_ARTIFACT_DIR:", PYTHON_ARTIFACT_DIR, flush=True)
-    print("Resolved ML_COMPONENT_DIR:", ML_COMPONENT_DIR, flush=True)
-    print("Resolved RESNET_DIR:", RESNET_DIR, flush=True)
-    print("Python sys.path:", sys.path, flush=True)
-
 
 def expose_fprime_py_namespaces():
-    """
-    Expose fprime_py submodules as top-level modules.
-
-    This allows Python components to do:
-        import Fw
-        import Components
-        import Svc
-        import Drv
-        import Os
-
-    even though the actual bindings live under:
-        fprime_py.Fw
-        fprime_py.Components
-        fprime_py.Svc
-        fprime_py.Drv
-        fprime_py.Os
-    """
     for name in dir(fprime_py):
         if name.startswith("_"):
             continue
 
         obj = getattr(fprime_py, name)
 
-        # pybind11 submodules are module-like and have __name__.
         if hasattr(obj, "__name__"):
             sys.modules.setdefault(name, obj)
 
 
-# This must happen before JetsonDeployment.setup(...), because setup loads
-# the Python component implementation.
-add_python_paths()
-expose_fprime_py_namespaces()
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="JetsonDeployment F Prime Python Flight Software Entry Point"
+    )
 
+    parser.add_argument(
+        "--hostname",
+        type=str,
+        default="127.0.0.1",
+        help="Hostname/address used by JetsonDeployment TopologyState",
+    )
 
-# ----------------------------------------------------------------------
-# Runtime state
-# ----------------------------------------------------------------------
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=50000,
+        help="Port used by JetsonDeployment TopologyState",
+    )
 
-running = True
-topology_started = False
-topology_state = None
+    return parser.parse_args()
 
 
 def handle_signal(signum, frame):
     global running
-    print(f"Received signal {signum}; shutting down...", flush=True)
+    print(f"[INFO] Received signal {signum}; shutting down", flush=True)
     running = False
 
 
-def make_topology_state():
-    """
-    Create the JetsonDeployment TopologyState required by:
-        fprime_py.JetsonDeployment.setup(topology_state)
-
-    Requires the C++ setup_user_deployment(...) hook to bind:
-        fprime_py.TopologyState
-    """
-    state = fprime_py.TopologyState()
-
-    hostname = "127.0.0.1"
-    port = 50000
-
-    state.hostname = hostname
-    state.port = port
-
-    return state, hostname, port
-
-
-def main():
-    global topology_started
-    global topology_state
-
-    signal.signal(signal.SIGINT, handle_signal)
-    signal.signal(signal.SIGTERM, handle_signal)
-
-    print("JetsonDeployment fprime-python module loaded:", fprime_py, flush=True)
-    print("Python executable:", sys.executable, flush=True)
-    print("Working directory:", os.getcwd(), flush=True)
-
+def print_available_bindings():
     print(
         "Available fprime_py bindings:",
         [x for x in dir(fprime_py) if not x.startswith("_")],
         flush=True,
     )
+
     print(
         "Available JetsonDeployment bindings:",
         [x for x in dir(fprime_py.JetsonDeployment) if not x.startswith("_")],
         flush=True,
     )
 
-    try:
-        print("Creating JetsonDeployment TopologyState...", flush=True)
-        topology_state, hostname, port = make_topology_state()
+    if hasattr(fprime_py.JetsonDeployment, "Instances"):
         print(
-            f"TopologyState created: hostname={hostname}, port={port}",
+            "Available JetsonDeployment instances:",
+            [x for x in dir(fprime_py.JetsonDeployment.Instances) if not x.startswith("_")],
             flush=True,
         )
 
-        print("Initializing F Prime OS layer...", flush=True)
-        fprime_py.Os.init()
-        print("F Prime OS layer initialized.", flush=True)
 
-        print("Calling fprime_py.JetsonDeployment.setup(topology_state)...", flush=True)
+def fsw_main():
+    global running
+
+    add_python_paths()
+    expose_fprime_py_namespaces()
+
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
+
+    args = parse_args()
+
+    topology_state = fprime_py.TopologyState()
+    topology_state.hostname = args.hostname
+    topology_state.port = args.port
+
+    topology_started = False
+
+    try:
+        print("[INFO] JetsonDeployment fprime-python module loaded:", fprime_py, flush=True)
+        print("[INFO] Python executable:", sys.executable, flush=True)
+        print("[INFO] Working directory:", os.getcwd(), flush=True)
+        print("[INFO] PROJECT_ROOT:", PROJECT_ROOT, flush=True)
+        print("[INFO] PYTHON_ARTIFACT_DIR:", PYTHON_ARTIFACT_DIR, flush=True)
+        print("[INFO] ML_COMPONENT_DIR:", ML_COMPONENT_DIR, flush=True)
+        print("[INFO] RESNET_DIR:", RESNET_DIR, flush=True)
+
+        print_available_bindings()
+
+        print("[INFO] Initializing F Prime OS layer", flush=True)
+        fprime_py.Os.init()
+
+        print(
+            f"[INFO] Launching JetsonDeployment with hostname={args.hostname}, port={args.port}",
+            flush=True,
+        )
+
         fprime_py.JetsonDeployment.setup(topology_state)
         topology_started = True
-        print("JetsonDeployment setup complete.", flush=True)
 
-        print("Flight software is running. Stop the systemd service to exit.", flush=True)
+        print("[INFO] JetsonDeployment setup complete", flush=True)
+        print("[INFO] Flight software is running. Stop service or press CTRL-C to exit.", flush=True)
 
         heartbeat_count = 0
-
         while running:
             time.sleep(5)
             heartbeat_count += 1
             print(
-                f"Heartbeat {heartbeat_count}: JetsonDeployment Python wrapper alive",
+                f"[INFO] Heartbeat {heartbeat_count}: JetsonDeployment Python wrapper alive",
                 flush=True,
             )
 
+    except KeyboardInterrupt:
+        print("[INFO] CTRL-C received, shutting down F Prime", flush=True)
+
     except Exception:
-        print("ERROR: Python exception from fsw_main.py:", flush=True)
+        print("[ERROR] Failed to start JetsonDeployment", flush=True)
         traceback.print_exc()
 
     finally:
-        if topology_started and topology_state is not None:
+        if topology_started:
             try:
-                print("Calling fprime_py.JetsonDeployment.teardown(topology_state)...", flush=True)
+                print("[INFO] Tearing down JetsonDeployment", flush=True)
                 fprime_py.JetsonDeployment.teardown(topology_state)
-                print("JetsonDeployment teardown complete.", flush=True)
+                print("[INFO] F Prime shutdown complete", flush=True)
             except Exception:
-                print("ERROR: Exception during JetsonDeployment teardown:", flush=True)
+                print("[ERROR] Exception during JetsonDeployment teardown", flush=True)
                 traceback.print_exc()
 
-        print("Exiting fsw_main.py with os._exit(0).", flush=True)
-
-        # Temporary workaround:
-        # The native fprime_py module currently segfaults during normal Python
-        # interpreter shutdown. This exits the process without running Python's
-        # final native-module cleanup/destructors.
+        # Avoid Python interpreter shutdown problems with native F Prime threads/libs.
         os._exit(0)
 
 
 if __name__ == "__main__":
-    main()
+    fsw_main()
