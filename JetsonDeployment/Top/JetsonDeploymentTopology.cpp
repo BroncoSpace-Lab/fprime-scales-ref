@@ -33,12 +33,9 @@ Fw::MallocAllocator mallocator;
 Svc::FrameDetectors::FprimeFrameDetector jetson_frameDetector;
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
-// Hub pattern disabled/commented out
-// Svc::FrameDetectors::FprimeFrameDetector hub_frameDetector;
-
-// Hub pattern disabled/commented out
 const char* REMOTE_HUB_IP_ADDRESS = "10.3.2.10"; // ip of IMX
-const U32 REMOTE_HUB_RECV_PORT = 50500;
+const U16 REMOTE_HUB_SEND_PORT = 50500;
+const U16 REMOTE_HUB_RECV_PORT = 50501;
 
 // The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
@@ -64,6 +61,7 @@ enum TopologyConstants {
     FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) +
                          Svc::FprimeProtocol::FrameHeader::SERIALIZED_SIZE +
                          Svc::FprimeProtocol::FrameTrailer::SERIALIZED_SIZE,
+    HUB_DRIVER_BUFFER_SIZE = FRAMER_BUFFER_SIZE,
     FRAMER_BUFFER_COUNT = 30,
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
@@ -179,9 +177,6 @@ void configureTopology(const TopologyState& state) {
     if (state.hostname != nullptr && state.port != 0) {
         jetson_comDriver.configure(state.hostname, state.port);
     }
-    // Hub pattern disabled/commented out
-    // jetson_hubComQueue.configure(configurationTable, 0, mallocator);
-
     // Hardware Manager Definitions
     Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 112, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
@@ -219,10 +214,10 @@ void setupTopology(const TopologyState& state) {
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    // Hub pattern disabled/commented out
-    // jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
-    // Os::TaskString hubName("hub");
-    // jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    jetson_hubComDriver.configureSend(REMOTE_HUB_IP_ADDRESS, REMOTE_HUB_SEND_PORT);
+    jetson_hubComDriver.configureRecv("0.0.0.0", REMOTE_HUB_RECV_PORT, HUB_DRIVER_BUFFER_SIZE);
+    Os::TaskString hubName("hub");
+    jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 void startSimulatedCycle(const Fw::TimeInterval& interval) {
@@ -242,9 +237,8 @@ void teardownTopology(const TopologyState& state) {
     jetson_comDriver.stop();
     (void)jetson_comDriver.join();
 
-    // Hub pattern disabled/commented out
-    // jetson_hubComDriver.stop();
-    // (void)jetson_hubComDriver.join();
+    jetson_hubComDriver.stop();
+    (void)jetson_hubComDriver.join();
 
     // Resource deallocation
     jetson_cmdSeq.deallocateBuffer(mallocator);

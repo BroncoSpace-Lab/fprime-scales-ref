@@ -173,7 +173,7 @@ module ImxDeployment {
 
   instance imx_hub: Svc.GenericHub base id 0x4000
 
-  instance imx_hubComDriver: Drv.TcpServer base id 0x4100
+  instance imx_hubComDriver: Drv.Udp base id 0x4100
 
   instance imx_hubComStub: Svc.ComStub base id 0x4200
 
@@ -182,6 +182,8 @@ module ImxDeployment {
   instance imx_hubFramer: Svc.FprimeFramer base id 0x4400
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
+
+  instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x4A00
 
   # Added timer to replace the deprecated BlockDriver
   instance imx_timer: Svc.LinuxTimer base id 0x6200

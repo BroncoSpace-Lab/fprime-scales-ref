@@ -57,6 +57,7 @@ module ImxDeployment {
     instance imx_hubComQueue
     instance imx_hubDeframer
     instance imx_hubFramer
+    instance imx_hubByteStreamAdapter
     instance imx_cmdSplitter
     instance imx_hubFileUplink
 
@@ -181,10 +182,12 @@ module ImxDeployment {
     }
 
     connections Sequencer {
-      # imx_cmdSeq.comCmdOut -> imx_cmdDisp.seqCmdBuff
       imx_cmdSeq.comCmdOut -> imx_cmdSplitter.CmdBuff[1]
+      imx_cmdSplitter.LocalCmd[1] -> imx_proxySequencer.seqCmdBuf
+      imx_proxySequencer.comCmdOut -> imx_cmdDisp.seqCmdBuff[1]
+      imx_cmdDisp.seqCmdStatus[1] -> imx_proxySequencer.cmdResponseIn
+      imx_proxySequencer.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[1]
       imx_cmdSplitter.forwardSeqCmdStatus[1] -> imx_cmdSeq.cmdResponseIn
-      # imx_cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
     }
 
  connections Uplink {
@@ -217,9 +220,13 @@ module ImxDeployment {
       imx_fprimeRouter.bufferAllocate   -> imx_bufferManager.bufferGetCallee
       imx_fprimeRouter.bufferDeallocate -> imx_bufferManager.bufferSendIn
 
-      # Router <-> CmdDispatcher/FileUplink
-      imx_fprimeRouter.commandOut  -> imx_cmdDisp.seqCmdBuff
-      imx_cmdDisp.seqCmdStatus     -> imx_fprimeRouter.cmdResponseIn
+      # Router <-> CmdSplitter/CmdDispatcher/FileUplink
+      imx_fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.LocalCmd[0] -> imx_proxyGroundInterface.seqCmdBuf
+      imx_proxyGroundInterface.comCmdOut -> imx_cmdDisp.seqCmdBuff[0]
+      imx_cmdDisp.seqCmdStatus[0] -> imx_proxyGroundInterface.cmdResponseIn
+      imx_proxyGroundInterface.seqCmdStatus -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> imx_fprimeRouter.cmdResponseIn
       imx_fprimeRouter.fileOut     -> imx_fileUplink.bufferSendIn
       imx_fileUplink.bufferSendOut -> imx_fprimeRouter.fileBufferReturnIn
 
@@ -253,17 +260,17 @@ module ImxDeployment {
     connections ImxDeployment {
       # Add here connections to user-defined components
 
-      # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
-     # imx_hub.portOut[2] -> imx_jetsonManager.currentPwrMode
+      # JetsonPowerModeManager -> hub -> JetsonManager
+      imx_hub.serialOut[2] -> imx_jetsonManager.currentPwrMode
 
-      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
-     # imx_jetsonManager.reqPwrMode -> imx_hub.portIn[2]
+      # JetsonManager -> hub -> JetsonPowerModeManager
+      imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[2]
 
-      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-     # imx_hub.portOut[3] -> imx_jetsonManager.currentJetsonPwrState
+      # JetsonPowerModeManager -> hub -> JetsonManager
+      imx_hub.serialOut[3] -> imx_jetsonManager.currentJetsonPwrState
 
-      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-     # imx_jetsonManager.reqJetsonPwrState -> imx_hub.portIn[3]
+      # JetsonManager -> hub -> JetsonPowerModeManager
+      imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[3]
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
@@ -281,35 +288,44 @@ module ImxDeployment {
     }
 
     connections send_hub {
-      # imx_hub.dataOut -> imx_hubComQueue.bufferQueueIn[0]
-      # imx_hubComQueue.dataOut -> imx_hubFramer.dataIn
-      # imx_hubFramer.dataReturnOut -> imx_hubComQueue.dataReturnIn
-      # imx_hubFramer.dataOut -> imx_hubComStub.dataIn
-      # imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
-      # imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
+      # Jetson event and telemetry packets are injected into the IMX downlink queue.
+      imx_hub.serialOut[0] -> imx_comQueue.comPacketQueueIn[Ports_ComPacketQueue.EVENTS]
+      imx_hub.serialOut[1] -> imx_comQueue.comPacketQueueIn[Ports_ComPacketQueue.TELEMETRY]
+
+      # Accept raw event/telemetry hub traffic too, for components that use
+      # GenericHub eventIn/tlmIn directly.
+      imx_hub.eventOut -> imx_eventLogger.LogRecv
+      imx_hub.tlmOut -> imx_tlmSend.TlmRecv
+
+      # File buffers from Jetson are received as an IMX file uplink.
+      imx_hub.bufferOut[0] -> imx_hubFileUplink.bufferSendIn
+      imx_hubFileUplink.bufferSendOut -> imx_hub.bufferOutReturn[0]
     }
 
     connections recv_hub {
-      # imx_hubComQueue.bufferReturnOut[0] -> imx_bufferManager.bufferSendIn
-      # imx_hubFramer.bufferAllocate -> imx_bufferManager.bufferGetCallee
-      # imx_hubFramer.bufferDeallocate -> imx_bufferManager.bufferSendIn
-      # imx_hubComDriver.deallocate -> imx_bufferManager.bufferSendIn
-      # imx_hubComDriver.ready -> imx_hubComStub.drvConnected
-      # imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
-      # imx_hubFramer.comStatusOut -> imx_hubComQueue.comStatusIn
+      imx_hubComDriver.$recv -> imx_hubByteStreamAdapter.fromByteStreamDriver
+      imx_hubByteStreamAdapter.bufferOut -> imx_hub.fromBufferDriver
+      imx_hub.fromBufferDriverReturn -> imx_hubByteStreamAdapter.bufferOutReturn
     }
 
     connections hub {
-      # imx_hub.LogSend -> imx_eventLogger.LogRecv
-      # imx_hub.TlmSend -> imx_tlmSend.TlmRecv
-      
-      # imx_cmdSplitter.RemoteCmd[0] -> imx_hub.portIn[0]
-      # imx_cmdSplitter.RemoteCmd[1] -> imx_hub.portIn[1]
-      # imx_hub.portOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
-      # imx_hub.portOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
+      imx_hub.toBufferDriver -> imx_hubByteStreamAdapter.bufferIn
+      imx_hubByteStreamAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
 
-      # imx_hub.buffersOut[0] -> imx_hubFileUplink.bufferSendIn
-      # imx_hubFileUplink.bufferSendOut -> imx_bufferManager.bufferSendIn
+      imx_hubByteStreamAdapter.toByteStreamDriver -> imx_hubComDriver.$send
+      imx_hubByteStreamAdapter.fromByteStreamDriverReturn -> imx_hubComDriver.recvReturnIn
+
+      imx_hub.allocate -> imx_bufferManager.bufferGetCallee
+      imx_hub.deallocate -> imx_bufferManager.bufferSendIn
+
+      imx_hubComDriver.allocate -> imx_bufferManager.bufferGetCallee
+      imx_hubComDriver.deallocate -> imx_bufferManager.bufferSendIn
+      imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
+
+      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
+      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
     }
 
   }

@@ -16,6 +16,7 @@ set(MOD_DEPS
   Fw/Logger
   # Communication Implementations
   Drv/Udp
+  Drv/ByteStreamBufferAdapter
   Drv/TcpServer
   Drv/TcpClient
   scales_scalesSvc_JetsonManager

@@ -28,6 +28,10 @@ Svc::FrameDetectors::FprimeFrameDetector imx_frameDetector;
 
 Svc::ComQueue::QueueConfigurationTable configurationTable;
 
+const char* REMOTE_HUB_IP_ADDRESS = "10.3.2.12";  // Jetson hub endpoint
+const U16 REMOTE_HUB_SEND_PORT = 50501;
+const U16 REMOTE_HUB_RECV_PORT = 50500;
+
 // The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
 
@@ -51,6 +55,7 @@ enum TopologyConstants {
     FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) +
                          Svc::FprimeProtocol::FrameHeader::SERIALIZED_SIZE +
                          Svc::FprimeProtocol::FrameTrailer::SERIALIZED_SIZE,
+    HUB_DRIVER_BUFFER_SIZE = FRAMER_BUFFER_SIZE,
     FRAMER_BUFFER_COUNT = 30,
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
@@ -190,7 +195,8 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    imx_hubComDriver.configure("0.0.0.0", 50500);
+    imx_hubComDriver.configureSend(REMOTE_HUB_IP_ADDRESS, REMOTE_HUB_SEND_PORT);
+    imx_hubComDriver.configureRecv("0.0.0.0", REMOTE_HUB_RECV_PORT, HUB_DRIVER_BUFFER_SIZE);
     imx_cmdSplitter.configure(0x10000);
     Os::TaskString hubName("hub");
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
