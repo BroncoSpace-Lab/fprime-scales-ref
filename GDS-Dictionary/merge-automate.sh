@@ -1,2 +1,2 @@
 #!/bin/bash
-python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
+python merger.py JetsonDeploymentTopologyDictionary.json ImxDeploymentTopologyDictionary.json GDSDictionary.json
