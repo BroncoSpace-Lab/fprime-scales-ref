@@ -110,4 +110,16 @@ module ImxDeployment {
 
   instance imx_gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x6040
 
+  # IMX HUB PATTERN SPECIFIC INSTANCES
+
+  instance imx_hub: Svc.GenericHub base id 0x4000
+
+  instance imx_hubComDriver: Drv.TcpServer base id 0x4100
+
+  instance imx_hubBufferManager: Svc.BufferManager base id 0x4200
+
+  instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x4300
+
+  instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
+
 }

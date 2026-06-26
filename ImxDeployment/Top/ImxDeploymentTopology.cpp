@@ -30,6 +30,8 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+    COM_DRIVER_BUFFER_SIZE = 3000,
+    COM_DRIVER_BUFFER_COUNT = 30
 };
 
 
@@ -51,6 +53,14 @@ void configureTopology() {
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     imx_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
+
+
+    Svc::BufferManager::BufferBins hubBuffMgrBins; // For the hub buffer manager
+    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
+    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
+    imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
+
 
     // Hardware Manager Definitions
 
@@ -109,6 +119,12 @@ void setupTopology(const TopologyState& state) {
         // Uplink is configured for receive so a socket task is started
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    /* Hub com driver configs */
+    imx_hubComDriver.configure("0.0.0.0", 50500);
+    imx_cmdSplitter.configure(0x10000);    
+    Os::TaskString hubName("hub");
+    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
@@ -133,8 +149,13 @@ void teardownTopology(const TopologyState& state) {
     imx_comDriver.stop();
     (void)imx_comDriver.join();
 
+    imx_hubComDriver.terminate();
+    imx_hubComDriver.stop();
+    (void)imx_hubComDriver.join();
+
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
+    imx_hubBufferManager.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);

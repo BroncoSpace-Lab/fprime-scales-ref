@@ -51,6 +51,13 @@ module ImxDeployment {
     instance imx_jetsonManager
     instance imx_watchdogManager
 
+    # IMX HUB PATTERN SPECIFIC INSTANCES
+    instance imx_hub
+    instance imx_hubComDriver
+    instance imx_hubBufferManager
+    instance imx_hubByteStreamAdapter
+    instance imx_cmdSplitter
+
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
   # ----------------------------------------------------------------------
@@ -143,6 +150,7 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
@@ -155,16 +163,16 @@ module ImxDeployment {
       # Add here connections to user-defined components
 
       # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
-      # imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
+      imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
 
-      # # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
-      # imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
+      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
+      imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
 
-      # # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      # imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
+      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
+      imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
 
-      # # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-      # imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
+      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
+      imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
@@ -181,6 +189,46 @@ module ImxDeployment {
       imx_watchdogManager.gpioWatchDog -> imx_gpioWatchDogDriver.gpioWrite
       
 
+    }
+
+    connections send_hub {
+      # Hub -> ByteStream adapter
+      imx_hub.toBufferDriver -> imx_hubByteStreamAdapter.bufferIn
+      imx_hubByteStreamAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+
+      # ByteStream adapter -> TCP driver
+      imx_hubByteStreamAdapter.toByteStreamDriver -> imx_hubComDriver.$send
+    }
+
+    connections recv_hub {
+      # TCP driver -> ByteStream adapter
+      imx_hubComDriver.$recv -> imx_hubByteStreamAdapter.fromByteStreamDriver
+      imx_hubByteStreamAdapter.fromByteStreamDriverReturn -> imx_hubComDriver.recvReturnIn
+
+      # ByteStream adapter -> Hub
+      imx_hubByteStreamAdapter.bufferOut -> imx_hub.fromBufferDriver
+      imx_hub.fromBufferDriverReturn -> imx_hubByteStreamAdapter.bufferOutReturn
+    }
+
+    connections hub {
+      # Hub buffer allocation/deallocation
+      imx_hub.allocate -> imx_hubBufferManager.bufferGetCallee
+      imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
+
+      # TCP driver buffer allocation/deallocation
+      imx_hubComDriver.allocate -> imx_hubBufferManager.bufferGetCallee
+      imx_hubComDriver.deallocate -> imx_hubBufferManager.bufferSendIn
+
+      # TCP driver ready signal
+      imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
+
+      # Commands going from this deployment to the remote deployment
+      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
+      imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+
+      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
+      
     }
 
   }
