@@ -100,19 +100,19 @@ module JetsonDeployment {
 
     # new things above ^
 
-    command connections instance jetson_cmdDisp
+    #command connections instance jetson_cmdDisp
 
-    event connections instance jetson_eventLogger
+    #event connections instance jetson_eventLogger
 
     param connections instance jetson_prmDb
 
-    telemetry connections instance jetson_tlmSend
+    #telemetry connections instance jetson_tlmSend
 
-    text event connections instance jetson_textLogger
+    #text event connections instance jetson_textLogger
 
     time connections instance jetson_chronoTime
 
-    health connections instance jetson_health
+    #health connections instance jetson_health
 
     # ----------------------------------------------------------------------
     # Direct graph specifiers
