@@ -90,7 +90,7 @@ module JetsonDeployment {
 
   instance systemResources: Svc.SystemResources base id CMD_SPLITTER_OFFSET + 0x7A00
 
-  instance timer: FprimePython.PythonRateGroupDriver base id CMD_SPLITTER_OFFSET + 0x9600
+  instance timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
 
   instance comDriver: Drv.TcpServer base id CMD_SPLITTER_OFFSET + 0x7000
   

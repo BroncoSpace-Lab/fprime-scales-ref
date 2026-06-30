@@ -12,13 +12,11 @@
 // fprime-python includes
 #include <pybind11/pybind11.h>
 
-// Note: Uncomment when using Svc:TlmPacketizer
-//#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
-
 // Necessary project-specified types
 #include <Fw/Logger/Logger.hpp>
 #include <Fw/Types/MallocAllocator.hpp>
 
+#include <cstdio>
 #include <string>
 
 static std::string topology_hostname_storage;
@@ -41,6 +39,9 @@ Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
 U32 rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
+
+// Track whether we started the C++ timer.
+static bool rateGroupsStarted = false;
 
 // Constants needed for construction/configuration of the topology.
 enum TopologyConstants {
@@ -102,6 +103,60 @@ void configureTopology(const TopologyState& state) {
     }
 
     std::printf("DEBUG configureTopology: complete\n");
+    std::fflush(stdout);
+}
+
+/**
+ * \brief Native C++ timer driver.
+ *
+ * This deployment now uses a C++ timer to drive C++ rate groups.
+ *
+ * Required instances.fpp setting:
+ *
+ *   instance timer: Svc.LinuxTimer ...
+ *
+ * Flow:
+ *
+ *   timer.CycleOut
+ *     -> rateGroupDriver.CycleIn
+ *     -> rateGroup1/rateGroup2/rateGroup3
+ *     -> CdhCore.tlmSend.Run, ComCcsds.comQueue.run, managers, etc.
+ */
+void startRateGroups(const Fw::TimeInterval& interval) {
+    if (rateGroupsStarted) {
+        std::printf("DEBUG startRateGroups: already started; skipping\n");
+        std::fflush(stdout);
+        return;
+    }
+
+    std::printf(
+        "DEBUG startRateGroups: starting C++ timer interval=%u sec %u usec\n",
+        static_cast<unsigned>(interval.getSeconds()),
+        static_cast<unsigned>(interval.getUSeconds())
+    );
+    std::fflush(stdout);
+
+    timer.startTimer(interval);
+    rateGroupsStarted = true;
+
+    std::printf("DEBUG startRateGroups: C++ timer started\n");
+    std::fflush(stdout);
+}
+
+void stopRateGroups() {
+    if (!rateGroupsStarted) {
+        std::printf("DEBUG stopRateGroups: timer was not started; skipping\n");
+        std::fflush(stdout);
+        return;
+    }
+
+    std::printf("DEBUG stopRateGroups: quitting C++ timer\n");
+    std::fflush(stdout);
+
+    timer.quit();
+    rateGroupsStarted = false;
+
+    std::printf("DEBUG stopRateGroups: C++ timer stopped\n");
     std::fflush(stdout);
 }
 
@@ -178,19 +233,22 @@ void setupTopology(const TopologyState& state) {
     loadParameters();
 
     // Autocoded task kick-off for active components.
-    //
-    // Important:
-    // This starts active components such as rateGroup1/rateGroup2/rateGroup3,
-    // but it does not drive the timer by itself in the fprime-python path.
-    // Python should drive:
-    //
-    //   fprime_py.JetsonDeployment.Instances.timer.driveRateGroup(
-    //       fprime_py.Fw.TimeInterval(1, 0)
-    //   )
-    //
     std::printf("DEBUG setupTopology: before startTasks\n");
     std::fflush(stdout);
     startTasks(state);
+
+    // Start the C++ timer after active component tasks are running.
+    // This is what actually drives:
+    //
+    //   timer.CycleOut -> rateGroupDriver.CycleIn
+    //
+    // Without this, RateGroupStarted can appear, but rate group member
+    // handlers such as WatchdogManager::run_handler will never fire.
+    std::printf("DEBUG setupTopology: before startRateGroups\n");
+    std::fflush(stdout);
+    startRateGroups(Fw::TimeInterval(1, 0));
+    std::printf("DEBUG setupTopology: after startRateGroups\n");
+    std::fflush(stdout);
 
     // Start the TCP receive task if hostname/port were supplied.
     if (state.hostname != nullptr && state.port != 0) {
@@ -222,34 +280,13 @@ void setupTopology(const TopologyState& state) {
     std::fflush(stdout);
 }
 
-/**
- * \brief Native C++ timer driver.
- *
- * This is still useful for the C++ binary path.
- * In the Python path, prefer:
- *
- *   fprime_py.JetsonDeployment.Instances.timer.driveRateGroup(...)
- */
-void startRateGroups(const Fw::TimeInterval& interval) {
-    (void)interval;
-
-    std::printf(
-        "DEBUG startRateGroups: no-op because timer is FprimePython::PythonRateGroupDriver. "
-        "Drive it from fsw_main.py using Instances.timer.driveRateGroup(...)\n"
-    );
-    std::fflush(stdout);
-}
-
-void stopRateGroups() {
-    std::printf(
-        "DEBUG stopRateGroups: no-op because timer is FprimePython::PythonRateGroupDriver\n"
-    );
-    std::fflush(stdout);
-}
-
 void teardownTopology(const TopologyState& state) {
     std::printf("DEBUG teardownTopology: enter\n");
     std::fflush(stdout);
+
+    // Stop the timer first so no new rate group cycles are queued while
+    // tasks are being stopped.
+    stopRateGroups();
 
     stopTasks(state);
     freeThreads(state);
@@ -276,11 +313,8 @@ void teardownTopology(const TopologyState& state) {
  *   - expose setup_custom(...)
  *   - expose teardown_custom(...)
  *
- * Rate groups should be driven from Python using:
- *
- *   fprime_py.JetsonDeployment.Instances.timer.driveRateGroup(
- *       fprime_py.Fw.TimeInterval(1, 0)
- *   )
+ * Python should only launch and keep the process alive.
+ * The C++ timer now drives the rate groups.
  */
 void setup_user_deployment(pybind11::module_& module) {
     pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")

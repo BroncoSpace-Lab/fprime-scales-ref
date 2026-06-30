@@ -5,17 +5,20 @@ fsw_main.py
 
 Main entry point for launching the JetsonDeployment F Prime topology from Python.
 
-This version follows the fprime-python-reference pattern:
-  setup topology
-  start/configure comm through C++ setup_custom
-  drive rate groups from Python through Instances.timer.driveRateGroup(...)
-  teardown on exit
+This version:
+  - Calls setup_custom(), which runs the C++ topology setup.
+  - Does NOT use FprimePython.PythonRateGroupDriver.
+  - Does NOT call timer.driveRateGroup(...).
+  - Does NOT call timer.quit().
+  - Keeps Python alive while the C++ topology runs.
+  - Assumes JetsonDeploymentTopology.cpp starts the C++ timer with startRateGroups(...).
 """
 
 import argparse
 import os
 import signal
 import sys
+import time
 import traceback
 
 import fprime_py
@@ -36,8 +39,9 @@ ML_COMPONENT_DIR = os.path.join(PROJECT_ROOT, "Components", "MLComponent")
 RESNET_DIR = os.path.join(ML_COMPONENT_DIR, "Scales-ML", "resnet")
 
 
-running = True
-
+# ----------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------
 
 def add_python_paths():
     paths = [
@@ -53,6 +57,10 @@ def add_python_paths():
 
 
 def expose_fprime_py_namespaces():
+    """
+    Some generated Python components expect generated fprime_py namespaces
+    to be importable as top-level modules.
+    """
     for name in dir(fprime_py):
         if name.startswith("_"):
             continue
@@ -86,15 +94,11 @@ def parse_args():
 
 
 def handle_signal(signum, frame):
-    global running
-    print(f"[INFO] Received signal {signum}; shutting down", flush=True)
-    running = False
+    print(f"[INFO] Received signal {signum}; forcing shutdown", flush=True)
 
-    try:
-        # This should cause driveRateGroup(...) to return.
-        fprime_py.JetsonDeployment.Instances.timer.quit()
-    except Exception:
-        pass
+    # This is intentionally forceful while debugging.
+    # It avoids Python/native thread shutdown hangs.
+    os._exit(128 + signum)
 
 
 def print_available_bindings():
@@ -118,9 +122,11 @@ def print_available_bindings():
         )
 
 
-def fsw_main():
-    global running
+# ----------------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------------
 
+def fsw_main():
     add_python_paths()
     expose_fprime_py_namespaces()
 
@@ -154,26 +160,23 @@ def fsw_main():
             flush=True,
         )
 
-        # Your C++ setup_custom calls JetsonDeployment::setupTopology(state).
-        # That handles initComponents, connections, configComponents, configureTopology,
-        # startTasks, and comDriver.configure/start.
+        # setup_custom calls your C++:
+        #
+        #   JetsonDeployment::setupTopology(topology_state)
+        #
+        # The C++ setup now starts:
+        #   - active component tasks
+        #   - C++ timer/rate groups
+        #   - TCP server
         fprime_py.JetsonDeployment.setup_custom(topology_state)
         topology_started = True
 
         print("[INFO] JetsonDeployment setup complete", flush=True)
-        print("[INFO] Driving JetsonDeployment rate groups from Python timer", flush=True)
+        print("[INFO] C++ timer should now be driving rate groups", flush=True)
+        print("[INFO] Python launcher is staying alive", flush=True)
 
-        # This is the key reference-style line.
-        # It blocks while driving:
-        # timer -> rateGroupDriver -> rateGroup1/2/3 -> telemetry/comQueue/etc.
-        fprime_py.JetsonDeployment.Instances.timer.driveRateGroup(
-            fprime_py.Fw.TimeInterval(1, 0)
-        )
-
-        print("[INFO] Timer driveRateGroup returned", flush=True)
-
-    except KeyboardInterrupt:
-        print("[INFO] CTRL-C received, shutting down F Prime", flush=True)
+        while True:
+            time.sleep(1)
 
     except Exception:
         print("[ERROR] Failed to start JetsonDeployment", flush=True)
@@ -182,18 +185,9 @@ def fsw_main():
     finally:
         if topology_started:
             try:
-                print("[INFO] Stopping JetsonDeployment timer", flush=True)
-
-                try:
-                    fprime_py.JetsonDeployment.Instances.timer.quit()
-                except Exception:
-                    pass
-
                 print("[INFO] Tearing down JetsonDeployment", flush=True)
                 fprime_py.JetsonDeployment.teardown_custom(topology_state)
-
                 print("[INFO] F Prime shutdown complete", flush=True)
-
             except Exception:
                 print("[ERROR] Exception during JetsonDeployment teardown", flush=True)
                 traceback.print_exc()
