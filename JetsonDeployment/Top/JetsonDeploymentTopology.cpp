@@ -17,9 +17,6 @@
 #include <Fw/Types/MallocAllocator.hpp>
 
 #include <cstdio>
-#include <string>
-
-static std::string topology_hostname_storage;
 
 // Allows easy reference to objects in FPP/autocoder required namespaces
 namespace JetsonDeployment {
@@ -42,6 +39,7 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 // Track whether we started the C++ timer.
 static bool rateGroupsStarted = false;
+static bool comDriverStarted = false;
 
 // Constants needed for construction/configuration of the topology.
 enum TopologyConstants {
@@ -62,8 +60,6 @@ enum TopologyConstants {
     FRAMER_BUFFER_COUNT = 30,
     DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
     DEFRAMER_BUFFER_COUNT = 30,
-    COM_DRIVER_BUFFER_SIZE = 3000,
-    COM_DRIVER_BUFFER_COUNT = 30,
     BUFFER_MANAGER_ID = 200
 };
 
@@ -168,9 +164,11 @@ void stopRateGroups() {
  *   - the fprime-python setup_custom(...) binding below
  */
 void setupTopology(const TopologyState& state) {
+    bool shouldStartComDriver = false;
+
     std::printf(
         "DEBUG setupTopology: enter hostname=%s port=%u\n",
-        state.hostname == nullptr ? "<null>" : state.hostname,
+        state.hostname.empty() ? "<empty>" : state.hostname.c_str(),
         static_cast<unsigned>(state.port)
     );
     std::fflush(stdout);
@@ -195,23 +193,32 @@ void setupTopology(const TopologyState& state) {
     std::fflush(stdout);
     configComponents(state);
 
-    // Configure the TCP server/listening driver before start().
-    if (state.hostname != nullptr && state.port != 0) {
+    // Configure and bind the TCP server before active tasks start. The receive
+    // task itself starts after active tasks, matching the stock F Prime Ref topology.
+    if (!state.hostname.empty() && state.port != 0) {
         std::printf(
             "DEBUG setupTopology: comDriver.configure hostname=%s port=%u\n",
-            state.hostname,
+            state.hostname.c_str(),
             static_cast<unsigned>(state.port)
         );
         std::fflush(stdout);
 
-        comDriver.configure(state.hostname, state.port);
+        Drv::SocketIpStatus status = comDriver.configure(state.hostname.c_str(), state.port);
 
-        std::printf("DEBUG setupTopology: comDriver.configure complete\n");
+        std::printf(
+            "DEBUG setupTopology: comDriver.configure status=%d\n",
+            static_cast<int>(status)
+        );
         std::fflush(stdout);
+
+        shouldStartComDriver = (status == Drv::SocketIpStatus::SOCK_SUCCESS);
+        if (!shouldStartComDriver) {
+            Fw::Logger::log("[ERROR] comDriver.configure failed with status %d\n", status);
+        }
     } else {
         std::printf(
             "DEBUG setupTopology: comDriver.configure skipped hostname=%s port=%u\n",
-            state.hostname == nullptr ? "<null>" : state.hostname,
+            state.hostname.empty() ? "<empty>" : state.hostname.c_str(),
             static_cast<unsigned>(state.port)
         );
         std::fflush(stdout);
@@ -237,34 +244,23 @@ void setupTopology(const TopologyState& state) {
     std::fflush(stdout);
     startTasks(state);
 
-    // Start the C++ timer after active component tasks are running.
-    // This is what actually drives:
-    //
-    //   timer.CycleOut -> rateGroupDriver.CycleIn
-    //
-    // Without this, RateGroupStarted can appear, but rate group member
-    // handlers such as WatchdogManager::run_handler will never fire.
-    std::printf("DEBUG setupTopology: before startRateGroups\n");
-    std::fflush(stdout);
-    startRateGroups(Fw::TimeInterval(1, 0));
-    std::printf("DEBUG setupTopology: after startRateGroups\n");
-    std::fflush(stdout);
-
-    // Start the TCP receive task if hostname/port were supplied.
-    if (state.hostname != nullptr && state.port != 0) {
+    // Start the TCP receive task before the timer/rate groups so the CCSDS
+    // comm queue can drain as soon as GDS connects.
+    if (shouldStartComDriver) {
         Os::TaskString name("ReceiveTask");
 
         std::printf("DEBUG setupTopology: before comDriver.start\n");
         std::fflush(stdout);
 
         comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
+        comDriverStarted = true;
 
         std::printf("DEBUG setupTopology: comDriver.start returned\n");
         std::fflush(stdout);
     } else {
         std::printf(
             "DEBUG setupTopology: comDriver.start skipped hostname=%s port=%u\n",
-            state.hostname == nullptr ? "<null>" : state.hostname,
+            state.hostname.empty() ? "<empty>" : state.hostname.c_str(),
             static_cast<unsigned>(state.port)
         );
         std::fflush(stdout);
@@ -280,6 +276,10 @@ void setupTopology(const TopologyState& state) {
     std::fflush(stdout);
 }
 
+bool isComDriverConnected() {
+    return comDriverStarted && comDriver.isOpened();
+}
+
 void teardownTopology(const TopologyState& state) {
     std::printf("DEBUG teardownTopology: enter\n");
     std::fflush(stdout);
@@ -288,11 +288,14 @@ void teardownTopology(const TopologyState& state) {
     // tasks are being stopped.
     stopRateGroups();
 
+    if (comDriverStarted) {
+        comDriver.stop();
+        (void)comDriver.join();
+        comDriverStarted = false;
+    }
+
     stopTasks(state);
     freeThreads(state);
-
-    comDriver.stop();
-    (void)comDriver.join();
 
     cmdSeq.deallocateBuffer(mallocator);
 
@@ -311,24 +314,16 @@ void teardownTopology(const TopologyState& state) {
  * Keep this minimal:
  *   - expose TopologyState safely
  *   - expose setup_custom(...)
+ *   - expose TCP connection and rate-group helpers
  *   - expose teardown_custom(...)
  *
  * Python should only launch and keep the process alive.
- * The C++ timer now drives the rate groups.
+ * The C++ topology starts the TCP server; Python starts the timer in a worker thread.
  */
 void setup_user_deployment(pybind11::module_& module) {
     pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
         .def(pybind11::init<>())
-        .def_property(
-            "hostname",
-            [](const JetsonDeployment::TopologyState& state) {
-                return state.hostname == nullptr ? "" : state.hostname;
-            },
-            [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
-                topology_hostname_storage = hostname;
-                state.hostname = topology_hostname_storage.c_str();
-            }
-        )
+        .def_readwrite("hostname", &JetsonDeployment::TopologyState::hostname)
         .def_readwrite("port", &JetsonDeployment::TopologyState::port);
 
     pybind11::module_ jetsonDeploymentModule =
@@ -337,12 +332,28 @@ void setup_user_deployment(pybind11::module_& module) {
     jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
         std::printf(
             "DEBUG setup_custom: hostname=%s port=%u\n",
-            state.hostname == nullptr ? "<null>" : state.hostname,
+            state.hostname.empty() ? "<empty>" : state.hostname.c_str(),
             static_cast<unsigned>(state.port)
         );
         std::fflush(stdout);
 
         JetsonDeployment::setupTopology(state);
+    });
+
+    jetsonDeploymentModule.def("is_com_driver_connected_custom", []() {
+        return JetsonDeployment::isComDriverConnected();
+    });
+
+    jetsonDeploymentModule.def(
+        "start_rate_groups_custom",
+        []() {
+            JetsonDeployment::startRateGroups(Fw::TimeInterval(1, 0));
+        },
+        pybind11::call_guard<pybind11::gil_scoped_release>()
+    );
+
+    jetsonDeploymentModule.def("stop_rate_groups_custom", []() {
+        JetsonDeployment::stopRateGroups();
     });
 
     jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {

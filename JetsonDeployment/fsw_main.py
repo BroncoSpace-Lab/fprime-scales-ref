@@ -6,22 +6,23 @@ fsw_main.py
 Main entry point for launching the JetsonDeployment F Prime topology from Python.
 
 This version:
-  - Calls setup_custom(), which runs the C++ topology setup.
-  - Does NOT use FprimePython.PythonRateGroupDriver.
-  - Does NOT call timer.driveRateGroup(...).
-  - Does NOT call timer.quit().
+  - Calls setup_custom(), which initializes and starts F Prime active tasks.
+  - Uses the native C++ Drv.TcpServer communication driver.
+  - Starts the blocking C++ LinuxTimer in a Python thread.
   - Keeps Python alive while the C++ topology runs.
-  - Assumes JetsonDeploymentTopology.cpp starts the C++ timer with startRateGroups(...).
 """
 
 import argparse
 import os
 import signal
 import sys
+import threading
 import time
 import traceback
 
 import fprime_py
+
+SHUTDOWN_REQUESTED = False
 
 
 # ----------------------------------------------------------------------
@@ -94,11 +95,10 @@ def parse_args():
 
 
 def handle_signal(signum, frame):
-    print(f"[INFO] Received signal {signum}; forcing shutdown", flush=True)
+    global SHUTDOWN_REQUESTED
 
-    # This is intentionally forceful while debugging.
-    # It avoids Python/native thread shutdown hangs.
-    os._exit(128 + signum)
+    print(f"[INFO] Received signal {signum}; shutting down", flush=True)
+    SHUTDOWN_REQUESTED = True
 
 
 def print_available_bindings():
@@ -140,6 +140,8 @@ def fsw_main():
     topology_state.port = args.port
 
     topology_started = False
+    rate_groups_started = False
+    rate_group_thread = None
 
     try:
         print("[INFO] JetsonDeployment fprime-python module loaded:", fprime_py, flush=True)
@@ -160,22 +162,26 @@ def fsw_main():
             flush=True,
         )
 
-        # setup_custom calls your C++:
-        #
-        #   JetsonDeployment::setupTopology(topology_state)
-        #
-        # The C++ setup now starts:
-        #   - active component tasks
-        #   - C++ timer/rate groups
-        #   - TCP server
+        # setup_custom calls JetsonDeployment::setupTopology(topology_state).
+        # It initializes, wires, configures, registers commands, loads
+        # parameters, starts active component tasks, and starts the TCP server.
         fprime_py.JetsonDeployment.setup_custom(topology_state)
         topology_started = True
 
         print("[INFO] JetsonDeployment setup complete", flush=True)
-        print("[INFO] C++ timer should now be driving rate groups", flush=True)
+        print("[INFO] Starting C++ timer/rate groups", flush=True)
+        rate_group_thread = threading.Thread(
+            target=fprime_py.JetsonDeployment.start_rate_groups_custom,
+            name="JetsonRateGroups",
+            daemon=True,
+        )
+        rate_group_thread.start()
+        rate_groups_started = True
+
+        print("[INFO] C++ TCP server and timer are running", flush=True)
         print("[INFO] Python launcher is staying alive", flush=True)
 
-        while True:
+        while not SHUTDOWN_REQUESTED:
             time.sleep(1)
 
     except Exception:
@@ -183,6 +189,17 @@ def fsw_main():
         traceback.print_exc()
 
     finally:
+        if rate_groups_started:
+            try:
+                print("[INFO] Stopping rate groups", flush=True)
+                fprime_py.JetsonDeployment.stop_rate_groups_custom()
+                if rate_group_thread is not None:
+                    rate_group_thread.join(timeout=5.0)
+                rate_groups_started = False
+            except Exception:
+                print("[ERROR] Exception while stopping rate groups", flush=True)
+                traceback.print_exc()
+
         if topology_started:
             try:
                 print("[INFO] Tearing down JetsonDeployment", flush=True)
