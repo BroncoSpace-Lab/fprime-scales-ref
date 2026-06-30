@@ -5,16 +5,17 @@ fsw_main.py
 
 Main entry point for launching the JetsonDeployment F Prime topology from Python.
 
-This version is adapted for the current JetsonDeployment topology, which uses
-jetson_comDriver / jetson_comQueue / jetson_comStub / framer / deframer /
-fprimeRouter instead of a ReferenceDeployment pythonCom instance.
+This version follows the fprime-python-reference pattern:
+  setup topology
+  start/configure comm through C++ setup_custom
+  drive rate groups from Python through Instances.timer.driveRateGroup(...)
+  teardown on exit
 """
 
 import argparse
 import os
 import signal
 import sys
-import time
 import traceback
 
 import fprime_py
@@ -70,7 +71,7 @@ def parse_args():
     parser.add_argument(
         "--hostname",
         type=str,
-        default="127.0.0.1",
+        default="0.0.0.0",
         help="Hostname/address used by JetsonDeployment TopologyState",
     )
 
@@ -88,6 +89,12 @@ def handle_signal(signum, frame):
     global running
     print(f"[INFO] Received signal {signum}; shutting down", flush=True)
     running = False
+
+    try:
+        # This should cause driveRateGroup(...) to return.
+        fprime_py.JetsonDeployment.Instances.timer.quit()
+    except Exception:
+        pass
 
 
 def print_available_bindings():
@@ -147,14 +154,23 @@ def fsw_main():
             flush=True,
         )
 
+        # Your C++ setup_custom calls JetsonDeployment::setupTopology(state).
+        # That handles initComponents, connections, configComponents, configureTopology,
+        # startTasks, and comDriver.configure/start.
         fprime_py.JetsonDeployment.setup_custom(topology_state)
         topology_started = True
 
         print("[INFO] JetsonDeployment setup complete", flush=True)
-        print("[INFO] Flight software is running. Stop service or press CTRL-C to exit.", flush=True)
+        print("[INFO] Driving JetsonDeployment rate groups from Python timer", flush=True)
 
-        while running:
-            time.sleep(1)
+        # This is the key reference-style line.
+        # It blocks while driving:
+        # timer -> rateGroupDriver -> rateGroup1/2/3 -> telemetry/comQueue/etc.
+        fprime_py.JetsonDeployment.Instances.timer.driveRateGroup(
+            fprime_py.Fw.TimeInterval(1, 0)
+        )
+
+        print("[INFO] Timer driveRateGroup returned", flush=True)
 
     except KeyboardInterrupt:
         print("[INFO] CTRL-C received, shutting down F Prime", flush=True)
@@ -166,14 +182,22 @@ def fsw_main():
     finally:
         if topology_started:
             try:
+                print("[INFO] Stopping JetsonDeployment timer", flush=True)
+
+                try:
+                    fprime_py.JetsonDeployment.Instances.timer.quit()
+                except Exception:
+                    pass
+
                 print("[INFO] Tearing down JetsonDeployment", flush=True)
                 fprime_py.JetsonDeployment.teardown_custom(topology_state)
+
                 print("[INFO] F Prime shutdown complete", flush=True)
+
             except Exception:
                 print("[ERROR] Exception during JetsonDeployment teardown", flush=True)
                 traceback.print_exc()
 
-        # Avoid Python interpreter shutdown problems with native F Prime threads/libs.
         os._exit(0)
 
 

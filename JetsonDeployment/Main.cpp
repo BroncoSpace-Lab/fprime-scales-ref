@@ -1,14 +1,5 @@
 // ======================================================================
 // \title  Main.cpp
-// \brief Stub main for fprime-python deployment
-//
-// This file exists because F´ deployment registration expects a C++
-// deployment source. The actual runtime entrypoint is fsw_main.py, which
-// imports the generated fprime_py Python extension module.
-// ======================================================================
-
-// ======================================================================
-// \title  Main.cpp
 // \brief main program for the F' application. Intended for CLI-based systems (Linux, macOS)
 //
 // ======================================================================
@@ -20,11 +11,10 @@
 #include <signal.h>
 // Used for command line argument processing
 #include <getopt.h>
-// Used for printf functions
+// Used for atoi
 #include <cstdlib>
-#include <Os/Task.hpp>
-#include <unistd.h>
-
+// Used for logging to the console
+#include <Fw/Logger/Logger.hpp>
 
 /**
  * \brief print command line help message
@@ -34,7 +24,7 @@
  * @param app: name of application
  */
 void print_usage(const char* app) {
-    (void)printf("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
+    Fw::Logger::log("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
 }
 
 /**
@@ -46,9 +36,8 @@ void print_usage(const char* app) {
  * @param signum
  */
 static void signalHandler(int signum) {
-    JetsonDeployment::stopSimulatedCycle();
+    JetsonDeployment::stopRateGroups();
 }
-
 
 /**
  * \brief execute the program
@@ -60,34 +49,35 @@ static void signalHandler(int signum) {
  * @param argv: argument values supplied to program
  * @return: 0 on success, something else on failure
  */
-int main() {
+int main(int argc, char* argv[]) {
     I32 option = 0;
-    CHAR* hostname = "127.0.0.1";
+    CHAR* hostname = const_cast<CHAR*>("0.0.0.0");
     U16 port_number = 50000;
+
     Os::init();
 
     // Loop while reading the getopt supplied options
-    // while ((option = getopt(argc, argv, "hp:a:")) != -1) {
-    //     switch (option) {
-    //         // Handle the -a argument for address/hostname
-    //         case 'a':
-    //             hostname = optarg;
-    //             break;
-    //         // Handle the -p port number argument
-    //         case 'p':
-    //             port_number = static_cast<U16>(atoi(optarg));
-    //             break;
-    //         // Cascade intended: help output
-    //         case 'h':
-    //         // Cascade intended: help output
-    //         case '?':
-    //         // Default case: output help and exit
-    //         default:
-    //             print_usage(argv[0]);
-    //             return (option == 'h') ? 0 : 1;
-    //     }
-    // }
-    // Object for communicating state to the reference topology
+    while ((option = getopt(argc, argv, "hp:a:")) != -1) {
+        switch (option) {
+            // Handle the -a argument for address/hostname
+            case 'a':
+                hostname = optarg;
+                break;
+            // Handle the -p port number argument
+            case 'p':
+                port_number = static_cast<U16>(atoi(optarg));
+                break;
+            // Cascade intended: help output
+            case 'h':
+            // Cascade intended: help output
+            case '?':
+            // Default case: output help and exit
+            default:
+                print_usage(argv[0]);
+                return (option == 'h') ? 0 : 1;
+        }
+    }
+    // Object for communicating state to the topology
     JetsonDeployment::TopologyState inputs;
     inputs.hostname = hostname;
     inputs.port = port_number;
@@ -95,20 +85,12 @@ int main() {
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
-    (void)printf("Hit Ctrl-C to quit\n");
+    Fw::Logger::log("Hit Ctrl-C to quit\n");
 
     // Setup, cycle, and teardown topology
     JetsonDeployment::setupTopology(inputs);
-
-
-    // JetsonDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
-    // JetsonDeployment::teardownTopology(inputs);
-    // (void)printf("Exiting...\n");
-    // return 0;
-
-    // trying to get jetson-startup.sh to work
-    pause();  // blocks until SIGINT/SIGTERM; signal handler calls stopSimulatedCycle()
+    JetsonDeployment::startRateGroups(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
     JetsonDeployment::teardownTopology(inputs);
-    (void)printf("Exiting...\n");
+    Fw::Logger::log("Exiting...\n");
     return 0;
 }

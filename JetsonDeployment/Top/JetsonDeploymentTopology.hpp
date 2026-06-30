@@ -3,14 +3,12 @@
 // \brief header file containing the topology instantiation definitions
 //
 // ======================================================================
-#ifndef JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGY_HPP
-#define JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGY_HPP
+#ifndef JetsonDeployment_JetsonDeploymentTOPOLOGY_HPP
+#define JetsonDeployment_JetsonDeploymentTOPOLOGY_HPP
 // Included for access to JetsonDeployment::TopologyState and JetsonDeployment::ConfigObjects::pingEntries. These definitions are required by the
 // autocoder, but are also used in this hand-coded topology.
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyDefs.hpp>
 
-// Remove unnecessary JetsonDeployment:: qualifications
-using namespace JetsonDeployment;
 namespace JetsonDeployment {
 /**
  * \brief initialize and run the F´ topology
@@ -49,6 +47,8 @@ void setupTopology(const TopologyState& state);
  *   3. Stop the tasks not owned by active components
  *   4. Join to the tasks not owned by active components
  *   5. Deallocate other resources
+ *   6. Call the autocoded `tearDownComponents()` function to tear down component-owned resources
+ *   7. Call the autocoded `deinitComponents()` function to finish component shutdown
  *
  * Step 1, 2, 3, and 4 must occur in-order as the tasks must be stopped before being joined. These tasks must be stopped
  * and joined before any active resources may be deallocated.
@@ -67,20 +67,18 @@ void teardownTopology(const TopologyState& state);
  * achieved. This function mimics the cycling via a Task::delay(milliseconds) loop that manually invokes the ISR call
  * to the example block driver.
  *
- * This loop is stopped via a startSimulatedCycle call.
  *
- * Note: projects should replace this with a component that produces an output port call at the appropriate frequency.
+ * This loop is stopped via a stopRateGroups call.
  *
- * \param milliseconds: milliseconds to delay for each cycle. Default: 1000 or 1Hz.
  */
-void startSimulatedCycle(Fw::TimeInterval interval = Fw::TimeInterval(1,0));
+void startRateGroups(const Fw::TimeInterval& interval = Fw::TimeInterval(1,0));
 
 /**
- * \brief stop the simulated cycle started by startSimulatedCycle
+ * \brief stop the rate groups 
  *
- * This stops the cycle started by startSimulatedCycle.
+ * This stops the cycle started by startRateGroups.
  */
-void stopSimulatedCycle();
+void stopRateGroups();
 
 } // namespace JetsonDeployment
 #endif
