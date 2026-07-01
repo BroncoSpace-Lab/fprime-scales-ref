@@ -122,7 +122,8 @@ void setupTopology(const TopologyState& state) {
 
     /* Hub com driver configs */
     imx_hubComDriver.configure("0.0.0.0", 50500);
-    imx_cmdSplitter.configure(0x10000);    
+    imx_cmdSplitter.configure(0x10000);
+    imx_seqCmdSplitter.configure(0x10000);
     Os::TaskString hubName("hub");
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }

@@ -122,4 +122,6 @@ module ImxDeployment {
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x4600
 
+  instance imx_seqCmdSplitter: Svc.CmdSplitter base id 0x4610
+
 }

@@ -57,6 +57,7 @@ module ImxDeployment {
     instance imx_hubBufferManager
     instance imx_hubByteStreamAdapter
     instance imx_cmdSplitter
+    instance imx_seqCmdSplitter
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -85,9 +86,10 @@ module ImxDeployment {
       CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
       CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
-      # Router to Command Dispatcher
-      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
+      # Router to command splitter. Local commands are dispatched on the i.MX;
+      # Jetson commands are forwarded over the hub.
+      ComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
       
     }
 
@@ -154,9 +156,9 @@ module ImxDeployment {
     }
 
     connections CdhCore_cmdSeq {
-      # Command Sequencer
-      imx_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+      # Command Sequencer through the same local/remote split path
+      imx_cmdSeq.comCmdOut -> imx_seqCmdSplitter.CmdBuff[0]
+      imx_seqCmdSplitter.forwardSeqCmdStatus[0] -> imx_cmdSeq.cmdResponseIn
     }
 
     connections ImxDeployment {
@@ -227,12 +229,19 @@ module ImxDeployment {
       # TCP driver ready signal
       imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
 
+      # Local command dispatch after splitting
+      imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]
+      CdhCore.cmdDisp.seqCmdStatus[0] -> imx_cmdSplitter.seqCmdStatus[0]
+
+      imx_seqCmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[1]
+      CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+
       # Commands going from this deployment to the remote deployment
       imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
       imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
 
-      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
-      imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
+      imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
       
     }
 
