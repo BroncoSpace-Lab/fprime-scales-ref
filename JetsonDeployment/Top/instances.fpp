@@ -54,10 +54,10 @@ module JetsonDeployment {
     stack size Default.STACK_SIZE \
     priority 99
   
-  # instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
-  #   queue size Default.QUEUE_SIZE \
-  #   stack size Default.STACK_SIZE \
-  #   priority 99
+  instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
 
   instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1600 \
     queue size Default.QUEUE_SIZE \

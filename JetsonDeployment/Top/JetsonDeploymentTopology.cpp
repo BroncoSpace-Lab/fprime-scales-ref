@@ -7,14 +7,14 @@
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyAc.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
-// #include <pybind11/pybind11.h> // fprime-python includes
+#include <pybind11/pybind11.h> // fprime-python includes
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Fw/Logger/Logger.hpp>
-// #include <string>
+#include <string>
 
-// static std::string topology_hostname_storage;
+static std::string topology_hostname_storage;
 // Public functions for use in main program are namespaced with deployment module JetsonDeployment
 // This is also the namespace where the topology components are instantiated by FPP.
 namespace JetsonDeployment {
@@ -142,36 +142,36 @@ void teardownTopology(const TopologyState& state) {
 }
 };  // namespace JetsonDeployment
 
-// void setup_user_deployment(pybind11::module_& module) {
-//     pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
-//         .def(pybind11::init<>())
-//         .def_property(
-//             "hostname",
-//             [](const JetsonDeployment::TopologyState& state) {
-//                 return state.hostname == nullptr ? "" : state.hostname;
-//             },
-//             [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
-//                 topology_hostname_storage = hostname;
-//                 state.hostname = topology_hostname_storage.c_str();
-//             }
-//         )
-//         .def_readwrite("port", &JetsonDeployment::TopologyState::port);
+void setup_user_deployment(pybind11::module_& module) {
+    pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
+        .def(pybind11::init<>())
+        .def_property(
+            "hostname",
+            [](const JetsonDeployment::TopologyState& state) {
+                return state.hostname == nullptr ? "" : state.hostname;
+            },
+            [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
+                topology_hostname_storage = hostname;
+                state.hostname = topology_hostname_storage.c_str();
+            }
+        )
+        .def_readwrite("port", &JetsonDeployment::TopologyState::port);
 
-//     pybind11::module_ jetsonDeploymentModule =
-//         module.attr("JetsonDeployment").cast<pybind11::module_>();
+    pybind11::module_ jetsonDeploymentModule =
+        module.attr("JetsonDeployment").cast<pybind11::module_>();
 
-//     jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
-//         std::printf(
-//             "DEBUG setup_custom: hostname=%s port=%u\n",
-//             state.hostname == nullptr ? "<null>" : state.hostname,
-//             static_cast<unsigned>(state.port)
-//         );
-//         std::fflush(stdout);
+    jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
+        std::printf(
+            "DEBUG setup_custom: hostname=%s port=%u\n",
+            state.hostname == nullptr ? "<null>" : state.hostname,
+            static_cast<unsigned>(state.port)
+        );
+        std::fflush(stdout);
 
-//         JetsonDeployment::setupTopology(state);
-//     });
+        JetsonDeployment::setupTopology(state);
+    });
 
-//     jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
-//         JetsonDeployment::teardownTopology(state);
-//     });
-// }
+    jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
+        JetsonDeployment::teardownTopology(state);
+    });
+}

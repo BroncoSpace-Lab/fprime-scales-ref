@@ -35,7 +35,7 @@ module JetsonDeployment {
 
     # SCALES SVC MANAGERS
     instance jetson_lucidCamera
-    # instance jetson_mlManager
+    instance jetson_mlManager
     instance jetson_watchdogManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
