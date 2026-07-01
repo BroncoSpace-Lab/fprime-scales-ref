@@ -17,8 +17,8 @@ export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD
 export PYTHONPATH="$ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH:-}"
 export PYTHONUNBUFFERED=1
 
-DEFAULT_HOSTNAME="0.0.0.0"
-DEFAULT_PORT="50000"
+DEFAULT_HOSTNAME=""
+DEFAULT_PORT="0"
 
 HOSTNAME="$DEFAULT_HOSTNAME"
 PORT="$DEFAULT_PORT"
@@ -50,7 +50,8 @@ while [ "$#" -gt 0 ]; do
       echo "  $0 <listen-hostname> <listen-port>"
       echo "  $0 --hostname <listen-hostname> --port <listen-port>"
       echo
-      echo "Default listen endpoint: ${DEFAULT_HOSTNAME}:${DEFAULT_PORT}"
+      echo "Default mode: hub-only (no local standalone GDS listener)"
+      echo "Enable standalone listener by passing --hostname and --port"
       exit 0
       ;;
     --*)
@@ -111,7 +112,11 @@ echo " Project:   $PROJECT_ROOT"
 echo " Python:    $VENV_PYTHON"
 echo " Artifacts: $ARTIFACT_DIR"
 echo " Main:      $FSW_MAIN"
-echo " Listen:    --hostname $HOSTNAME --port $PORT"
+if [[ -n "$HOSTNAME" && "$PORT" != "0" ]]; then
+  echo " Listen:    --hostname $HOSTNAME --port $PORT"
+else
+  echo " Mode:      hub-only (local standalone GDS listener disabled)"
+fi
 echo " Startup:   ${LAUNCH_ARGS[*]}"
 echo "========================================"
 echo
@@ -139,12 +144,14 @@ fi
 
 cd "$ARTIFACT_DIR"
 
-echo "Checking TCP port $PORT..."
-if ss -ltn 2>/dev/null | grep -q ":${PORT} "; then
-  echo "ERROR: TCP port $PORT is already in use."
-  echo "Clean it manually with:"
-  echo "  sudo fuser -k ${PORT}/tcp"
-  exit 1
+if [[ -n "$HOSTNAME" && "$PORT" != "0" ]]; then
+  echo "Checking TCP port $PORT..."
+  if ss -ltn 2>/dev/null | grep -q ":${PORT} "; then
+    echo "ERROR: TCP port $PORT is already in use."
+    echo "Clean it manually with:"
+    echo "  sudo fuser -k ${PORT}/tcp"
+    exit 1
+  fi
 fi
 
 echo "Launching fsw_main.py..."

@@ -80,15 +80,15 @@ def parse_args():
     parser.add_argument(
         "--hostname",
         type=str,
-        default="0.0.0.0",
-        help="Hostname/address used by JetsonDeployment TopologyState",
+        default="",
+        help="Hostname/address used by JetsonDeployment TopologyState (empty disables local TcpServer)",
     )
 
     parser.add_argument(
         "--port",
         type=int,
-        default=50000,
-        help="Port used by JetsonDeployment TopologyState",
+        default=0,
+        help="Port used by JetsonDeployment TopologyState (0 disables local TcpServer)",
     )
 
     return parser.parse_args()
@@ -157,10 +157,16 @@ def fsw_main():
         print("[INFO] Initializing F Prime OS layer", flush=True)
         fprime_py.Os.init()
 
-        print(
-            f"[INFO] Launching JetsonDeployment with hostname={args.hostname}, port={args.port}",
-            flush=True,
-        )
+        if args.hostname and args.port != 0:
+            print(
+                f"[INFO] Launching JetsonDeployment with standalone TcpServer hostname={args.hostname}, port={args.port}",
+                flush=True,
+            )
+        else:
+            print(
+                "[INFO] Launching JetsonDeployment in hub-only mode (local TcpServer disabled)",
+                flush=True,
+            )
 
         # setup_custom calls JetsonDeployment::setupTopology(topology_state).
         # It initializes, wires, configures, registers commands, loads

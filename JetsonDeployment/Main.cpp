@@ -51,8 +51,8 @@ static void signalHandler(int signum) {
  */
 int main(int argc, char* argv[]) {
     I32 option = 0;
-    CHAR* hostname = const_cast<CHAR*>("0.0.0.0");
-    U16 port_number = 50000;
+    CHAR* hostname = nullptr;
+    U16 port_number = 0;
 
     Os::init();
 
