@@ -80,31 +80,30 @@ if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-PORT_TO_CLEAN="$PORT"
 LAUNCH_ARGS=(--hostname "$HOSTNAME" --port "$PORT")
 
 child_pid=""
+cleaned_up=0
 
 cleanup() {
+  if [ "$cleaned_up" -eq 1 ]; then
+    return
+  fi
+  cleaned_up=1
+
   echo
   echo "[INFO] Shutting down JetsonDeployment..."
 
   if [ -n "${child_pid}" ]; then
-    # Kill the whole process group created by setsid.
     kill -TERM "-${child_pid}" >/dev/null 2>&1 || true
     sleep 1
     kill -KILL "-${child_pid}" >/dev/null 2>&1 || true
   fi
 
-  # Clean the TCP port after shutdown.
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
-  fi
-
   echo "[INFO] Shutdown complete"
 }
 
-trap cleanup INT TERM EXIT
+trap cleanup INT TERM
 
 echo "========================================"
 echo " JetsonDeployment fprime-python launcher"
@@ -114,7 +113,6 @@ echo " Artifacts: $ARTIFACT_DIR"
 echo " Main:      $FSW_MAIN"
 echo " Listen:    --hostname $HOSTNAME --port $PORT"
 echo " Startup:   ${LAUNCH_ARGS[*]}"
-echo " Cleanup:   killing anything on TCP port $PORT_TO_CLEAN"
 echo "========================================"
 echo
 
@@ -141,14 +139,13 @@ fi
 
 cd "$ARTIFACT_DIR"
 
-echo "Cleaning TCP port $PORT_TO_CLEAN..."
-if command -v fuser >/dev/null 2>&1; then
-  fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
-else
-  echo "[WARNING] fuser not found; skipping automatic port cleanup"
+echo "Checking TCP port $PORT..."
+if ss -ltn 2>/dev/null | grep -q ":${PORT} "; then
+  echo "ERROR: TCP port $PORT is already in use."
+  echo "Clean it manually with:"
+  echo "  sudo fuser -k ${PORT}/tcp"
+  exit 1
 fi
-
-sleep 1
 
 echo "Launching fsw_main.py..."
 
@@ -157,3 +154,8 @@ setsid stdbuf -oL -eL "$VENV_PYTHON" -u "$FSW_MAIN" "${LAUNCH_ARGS[@]}" &
 child_pid="$!"
 
 wait "$child_pid"
+status=$?
+
+cleanup
+
+exit "$status"
