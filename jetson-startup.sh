@@ -76,3 +76,21 @@ exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN"
 
 # To view the FSW live through systemd:
 # journalctl -u jetson-deployment.service -f -l --no-pager
+
+ln -sf libarena.so.0.1.77 libarena.so
+ln -sf libarena.so.0.1.77 libarena.so.0
+
+ln -sf libarenac.so.0.1.77 libarenac.so
+ln -sf libarenac.so.0.1.77 libarenac.so.0
+
+ln -sf libgentl.so.0.1.77 libgentl.so
+ln -sf libgentl.so.0.1.77 libgentl.so.0
+
+ln -sf liblucidlog.so.0.1.77 liblucidlog.so
+ln -sf liblucidlog.so.0.1.77 liblucidlog.so.0
+
+ln -sf libsave.so.0.1.77 libsave.so
+ln -sf libsave.so.0.1.77 libsave.so.0
+
+ln -sf libsavec.so.0.1.77 libsavec.so
+ln -sf libsavec.so.0.1.77 libsavec.so.0

@@ -35,11 +35,17 @@ module JetsonDeployment {
 
     # SCALES SVC MANAGERS
     instance jetson_lucidCamera
-    instance jetson_mlManager
+    # instance jetson_mlManager
     instance jetson_watchdogManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_gpioWatchdogDriver
+
+    # JETSON HUB PATTERN SPECIFIC INSTANCES
+    instance jetson_hub
+    instance jetson_hubComDriver
+    instance jetson_hubByteStreamAdapter
+    instance jetson_hubBufferManager
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -130,6 +136,7 @@ module JetsonDeployment {
       jetson_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
       jetson_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       jetson_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[5] -> jetson_hubBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
@@ -144,22 +151,48 @@ module JetsonDeployment {
 
       jetson_lucidCamera.sendFile -> FileHandling.fileDownlink.SendFile
 
-      # powerModeSend: JetsonPowerModeManager → hub → IMX PowerManager
-      # jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
+      # Power mode: Jetson -> i.MX
+      jetson_pwrModeManager.powerModeSend -> jetson_hub.serialIn[0]
 
-      # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
-      # jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
+      # Power mode request/state from i.MX -> Jetson
+      jetson_hub.serialOut[0] -> jetson_pwrModeManager.powerModeReceive
 
-      # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
-      # jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
+      # Jetson power state: Jetson -> i.MX
+      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.serialIn[1]
 
-      # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
-      # jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
+      # Jetson power state request from i.MX -> Jetson
+      jetson_hub.serialOut[1] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
       jetson_watchdogManager.gpioWatchDog -> jetson_gpioWatchdogDriver.gpioWrite
+      
 
     }
 
+    connections send_hub {
+      jetson_hub.toBufferDriver -> jetson_hubByteStreamAdapter.bufferIn
+      jetson_hubByteStreamAdapter.bufferInReturn -> jetson_hub.toBufferDriverReturn
+
+      jetson_hubByteStreamAdapter.toByteStreamDriver -> jetson_hubComDriver.$send
+    }
+
+
+    connections recv_hub {
+      jetson_hubComDriver.$recv -> jetson_hubByteStreamAdapter.fromByteStreamDriver
+      jetson_hubByteStreamAdapter.fromByteStreamDriverReturn -> jetson_hubComDriver.recvReturnIn
+
+      jetson_hubByteStreamAdapter.bufferOut -> jetson_hub.fromBufferDriver
+      jetson_hub.fromBufferDriverReturn -> jetson_hubByteStreamAdapter.bufferOutReturn
+    }
+
+    connections hub {
+      jetson_hub.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hub.deallocate -> jetson_hubBufferManager.bufferSendIn
+
+      jetson_hubComDriver.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
+
+      jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
+    }
   }
 
 }

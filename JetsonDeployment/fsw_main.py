@@ -162,7 +162,7 @@ def fsw_main():
     except Exception:
         print("[ERROR] Failed to start JetsonDeployment", flush=True)
         traceback.print_exc()
-FWAR
+
     finally:
         if topology_started:
             try:

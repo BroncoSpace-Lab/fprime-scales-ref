@@ -7,14 +7,14 @@
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyAc.hpp>
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
-#include <pybind11/pybind11.h> // fprime-python includes
+// #include <pybind11/pybind11.h> // fprime-python includes
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Fw/Logger/Logger.hpp>
-#include <string>
+// #include <string>
 
-static std::string topology_hostname_storage;
+// static std::string topology_hostname_storage;
 // Public functions for use in main program are namespaced with deployment module JetsonDeployment
 // This is also the namespace where the topology components are instantiated by FPP.
 namespace JetsonDeployment {
@@ -31,8 +31,14 @@ U32 rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
+
+const char* IMX_HUB_IP_ADDRESS = "10.3.2.10";
+const U32 IMX_HUB_PORT = 50500;
+
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+    COM_DRIVER_BUFFER_SIZE = 3000,
+    COM_DRIVER_BUFFER_COUNT = 30
 };
 
 /**
@@ -53,6 +59,14 @@ void configureTopology() {
 
     // Command sequencer needs to allocate memory to hold contents of command sequences
     jetson_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
+
+    Svc::BufferManager::BufferBins hubBuffMgrBins;
+    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
+
+    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
+
+    jetson_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
 
     Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
@@ -86,6 +100,11 @@ void setupTopology(const TopologyState& state) {
         // Uplink is configured for receive so a socket task is started
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    jetson_hubComDriver.configure(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
+
+    Os::TaskString hubName("hub");
+    jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
@@ -110,44 +129,49 @@ void teardownTopology(const TopologyState& state) {
     jetson_comDriver.stop();
     (void)jetson_comDriver.join();
 
+    // jetson_hubComDriver.terminate();
+    jetson_hubComDriver.stop();
+    (void)jetson_hubComDriver.join();
+
     // Resource deallocation
     jetson_cmdSeq.deallocateBuffer(mallocator);
+    jetson_hubBufferManager.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);
 }
 };  // namespace JetsonDeployment
 
-void setup_user_deployment(pybind11::module_& module) {
-    pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
-        .def(pybind11::init<>())
-        .def_property(
-            "hostname",
-            [](const JetsonDeployment::TopologyState& state) {
-                return state.hostname == nullptr ? "" : state.hostname;
-            },
-            [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
-                topology_hostname_storage = hostname;
-                state.hostname = topology_hostname_storage.c_str();
-            }
-        )
-        .def_readwrite("port", &JetsonDeployment::TopologyState::port);
+// void setup_user_deployment(pybind11::module_& module) {
+//     pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
+//         .def(pybind11::init<>())
+//         .def_property(
+//             "hostname",
+//             [](const JetsonDeployment::TopologyState& state) {
+//                 return state.hostname == nullptr ? "" : state.hostname;
+//             },
+//             [](JetsonDeployment::TopologyState& state, const std::string& hostname) {
+//                 topology_hostname_storage = hostname;
+//                 state.hostname = topology_hostname_storage.c_str();
+//             }
+//         )
+//         .def_readwrite("port", &JetsonDeployment::TopologyState::port);
 
-    pybind11::module_ jetsonDeploymentModule =
-        module.attr("JetsonDeployment").cast<pybind11::module_>();
+//     pybind11::module_ jetsonDeploymentModule =
+//         module.attr("JetsonDeployment").cast<pybind11::module_>();
 
-    jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
-        std::printf(
-            "DEBUG setup_custom: hostname=%s port=%u\n",
-            state.hostname == nullptr ? "<null>" : state.hostname,
-            static_cast<unsigned>(state.port)
-        );
-        std::fflush(stdout);
+//     jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
+//         std::printf(
+//             "DEBUG setup_custom: hostname=%s port=%u\n",
+//             state.hostname == nullptr ? "<null>" : state.hostname,
+//             static_cast<unsigned>(state.port)
+//         );
+//         std::fflush(stdout);
 
-        JetsonDeployment::setupTopology(state);
-    });
+//         JetsonDeployment::setupTopology(state);
+//     });
 
-    jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
-        JetsonDeployment::teardownTopology(state);
-    });
-}
+//     jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
+//         JetsonDeployment::teardownTopology(state);
+//     });
+// }

@@ -21,5 +21,5 @@ register_fprime_module(
         Drv_Udp
         Drv_TcpServer
         Drv_TcpClient
-        Components_MLComponent
+        # Components_MLComponent
 )
