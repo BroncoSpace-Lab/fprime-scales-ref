@@ -3,10 +3,8 @@
 // \brief required header file containing the required definitions for the topology autocoder
 //
 // ======================================================================
-#ifndef JetsonDeployment_JetsonDeploymentTOPOLOGYDEFS_HPP
-#define JetsonDeployment_JetsonDeploymentTOPOLOGYDEFS_HPP
-
-#include <string>
+#ifndef JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGYDEFS_HPP
+#define JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGYDEFS_HPP
 
 // Subtopology PingEntries includes
 #include "Svc/Subtopologies/CdhCore/PingEntries.hpp"
@@ -47,10 +45,10 @@
  * ```
  */
 namespace PingEntries {
-    namespace JetsonDeployment_rateGroup1 {enum { WARN = 3, FATAL = 5 };}
-    namespace JetsonDeployment_rateGroup2 {enum { WARN = 3, FATAL = 5 };}
-    namespace JetsonDeployment_rateGroup3 {enum { WARN = 3, FATAL = 5 };}
-    namespace JetsonDeployment_cmdSeq {enum { WARN = 3, FATAL = 5 };}
+    namespace JetsonDeployment_jetson_rateGroup1 {enum { WARN = 3, FATAL = 5 };}
+    namespace JetsonDeployment_jetson_rateGroup2 {enum { WARN = 3, FATAL = 5 };}
+    namespace JetsonDeployment_jetson_rateGroup3 {enum { WARN = 3, FATAL = 5 };}
+    namespace JetsonDeployment_jetson_cmdSeq {enum { WARN = 3, FATAL = 5 };}
 }  // namespace PingEntries
 
 // Definitions are placed within the same namespace as the FPP module that contains the topology.
@@ -64,7 +62,7 @@ namespace JetsonDeployment {
  * contents are entirely up to the definition of the project. This deployment uses subtopologies.
  */
 struct TopologyState {
-    std::string hostname;   //!< Hostname for TCP communication
+    const char* hostname;   //!< Hostname for TCP communication
     U16 port;              //!< Port for TCP communication
     CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
     ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds 

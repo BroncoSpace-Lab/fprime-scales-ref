@@ -11,19 +11,19 @@ telemetry packets JetsonDeploymentPackets {
     FileHandling.fileDownlink.PacketsSent
     FileHandling.fileManager.CommandsExecuted
 
-    cmdSeq.CS_LoadCommands
-    cmdSeq.CS_CancelCommands
-    cmdSeq.CS_CommandsExecuted
-    cmdSeq.CS_SequencesCompleted
+    JetsonDeployment.cmdSeq.CS_LoadCommands
+    JetsonDeployment.cmdSeq.CS_CancelCommands
+    JetsonDeployment.cmdSeq.CS_CommandsExecuted
+    JetsonDeployment.cmdSeq.CS_SequencesCompleted
     ComCcsds.comQueue.comQueueDepth
     ComCcsds.comQueue.buffQueueDepth
     ComCcsds.commsBufferManager.TotalBuffs
     ComCcsds.commsBufferManager.CurrBuffs
     ComCcsds.commsBufferManager.HiBuffs
 
-    rateGroup1.RgMaxTime
-    rateGroup2.RgMaxTime
-    rateGroup3.RgMaxTime
+    JetsonDeployment.rateGroup1.RgMaxTime
+    JetsonDeployment.rateGroup2.RgMaxTime
+    JetsonDeployment.rateGroup3.RgMaxTime
   }
 
   packet CDHErrors id 2 group 1 {
@@ -33,40 +33,40 @@ telemetry packets JetsonDeploymentPackets {
     FileHandling.fileDownlink.Warnings
     FileHandling.fileManager.Errors
 
-    cmdSeq.CS_Errors
+    JetsonDeployment.cmdSeq.CS_Errors
     ComCcsds.commsBufferManager.NoBuffs
     ComCcsds.commsBufferManager.EmptyBuffs
 
-    rateGroup1.RgCycleSlips
-    rateGroup2.RgCycleSlips
-    rateGroup3.RgCycleSlips
+    JetsonDeployment.rateGroup1.RgCycleSlips
+    JetsonDeployment.rateGroup2.RgCycleSlips
+    JetsonDeployment.rateGroup3.RgCycleSlips
   }
 
   packet SystemRes1 id 5 group 2 {
-    systemResources.MEMORY_TOTAL
-    systemResources.MEMORY_USED
-    systemResources.NON_VOLATILE_TOTAL
-    systemResources.NON_VOLATILE_FREE
+    JetsonDeployment.systemResources.MEMORY_TOTAL
+    JetsonDeployment.systemResources.MEMORY_USED
+    JetsonDeployment.systemResources.NON_VOLATILE_TOTAL
+    JetsonDeployment.systemResources.NON_VOLATILE_FREE
   }
 
   packet SystemRes3 id 6 group 2 {
-    systemResources.CPU
-    systemResources.CPU_00
-    systemResources.CPU_01
-    systemResources.CPU_02
-    systemResources.CPU_03
-    systemResources.CPU_04
-    systemResources.CPU_05
-    systemResources.CPU_06
-    systemResources.CPU_07
-    systemResources.CPU_08
-    systemResources.CPU_09
-    systemResources.CPU_10
-    systemResources.CPU_11
-    systemResources.CPU_12
-    systemResources.CPU_13
-    systemResources.CPU_14
-    systemResources.CPU_15
+    JetsonDeployment.systemResources.CPU
+    JetsonDeployment.systemResources.CPU_00
+    JetsonDeployment.systemResources.CPU_01
+    JetsonDeployment.systemResources.CPU_02
+    JetsonDeployment.systemResources.CPU_03
+    JetsonDeployment.systemResources.CPU_04
+    JetsonDeployment.systemResources.CPU_05
+    JetsonDeployment.systemResources.CPU_06
+    JetsonDeployment.systemResources.CPU_07
+    JetsonDeployment.systemResources.CPU_08
+    JetsonDeployment.systemResources.CPU_09
+    JetsonDeployment.systemResources.CPU_10
+    JetsonDeployment.systemResources.CPU_11
+    JetsonDeployment.systemResources.CPU_12
+    JetsonDeployment.systemResources.CPU_13
+    JetsonDeployment.systemResources.CPU_14
+    JetsonDeployment.systemResources.CPU_15
   }
 
   packet DataProducts id 21 group 3 {

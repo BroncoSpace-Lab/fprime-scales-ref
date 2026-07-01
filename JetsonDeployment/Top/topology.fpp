@@ -1,4 +1,4 @@
-module ImxDeployment {
+module JetsonDeployment {
 
   # ----------------------------------------------------------------------
   # Symbolic constants for port numbers
@@ -10,7 +10,7 @@ module ImxDeployment {
     rateGroup3
   }
 
-  topology ImxDeployment {
+  topology JetsonDeployment {
 
   # ----------------------------------------------------------------------
   # Subtopology imports
@@ -23,40 +23,29 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
-    instance imx_chronoTime
-    instance imx_rateGroup1
-    instance imx_rateGroup2
-    instance imx_rateGroup3
-    instance imx_rateGroupDriver
-    instance imx_systemResources
-    instance imx_timer
-    instance imx_comDriver
-    instance imx_cmdSeq
+    instance jetson_chronoTime
+    instance jetson_rateGroup1
+    instance jetson_rateGroup2
+    instance jetson_rateGroup3
+    instance jetson_rateGroupDriver
+    instance jetson_systemResources
+    instance jetson_timer
+    instance jetson_comDriver
+    instance jetson_cmdSeq
 
-    # Drivers and managers for SCALES-specific hardware components
-    
-    # SCALES SVC Drivers
-    instance imx_mcpI2CbusDriver
-    instance imx_inaI2CbusDriver
-    instance imx_perifGpioDriver
-    instance imx_jetsonGpioDriver
-    instance imx_gpioWatchDogDriver
-    
+    # SCALES SVC MANAGERS
+    instance jetson_lucidCamera
+    # instance jetson_mlManager
+    instance jetson_watchdogManager
+    instance jetson_pwrModeManager
+    instance jetson_thermalManager
+    instance jetson_gpioWatchdogDriver
 
-    # SCALES SVC Managers
-    instance imx_inaManager
-    instance imx_thermalManager
-    instance imx_mcpManager
-    instance imx_perifBoardManager
-    instance imx_jetsonManager
-    instance imx_watchdogManager
-
-    # IMX HUB PATTERN SPECIFIC INSTANCES
-    instance imx_hub
-    instance imx_hubComDriver
-    instance imx_hubBufferManager
-    instance imx_hubByteStreamAdapter
-    instance imx_cmdSplitter
+    # JETSON HUB PATTERN SPECIFIC INSTANCES
+    instance jetson_hub
+    instance jetson_hubComDriver
+    instance jetson_hubByteStreamAdapter
+    instance jetson_hubBufferManager
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -68,13 +57,13 @@ module ImxDeployment {
     text event connections instance CdhCore.textLogger
     health connections instance CdhCore.$health
     param connections instance FileHandling.prmDb
-    time connections instance imx_chronoTime
+    time connections instance jetson_chronoTime
 
   # ----------------------------------------------------------------------
   # Telemetry packets (only used when TlmPacketizer is used)
   # ----------------------------------------------------------------------
 
-    # include "ImxDeploymentPackets.fppi"
+    # include "JetsonDeploymentPackets.fppi"
 
   # ----------------------------------------------------------------------
   # Direct graph specifiers
@@ -103,16 +92,16 @@ module ImxDeployment {
 
     connections Communications {
       # ComDriver buffer allocations
-      imx_comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
-      imx_comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
+      jetson_comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
+      jetson_comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
       
       # ComDriver <-> ComStub (Uplink)
-      imx_comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
-      ComCcsds.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
+      jetson_comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
+      ComCcsds.comStub.drvReceiveReturnOut -> jetson_comDriver.recvReturnIn
       
       # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut      -> imx_comDriver.$send
-      imx_comDriver.ready         -> ComCcsds.comStub.drvConnected
+      ComCcsds.comStub.drvSendOut      -> jetson_comDriver.$send
+      jetson_comDriver.ready         -> ComCcsds.comStub.drvConnected
     }
 
     connections FileHandling_DataProducts {
@@ -123,114 +112,87 @@ module ImxDeployment {
 
     connections RateGroups {
       # timer to drive rate group
-      imx_timer.CycleOut -> imx_rateGroupDriver.CycleIn
+      jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
-      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn
-      imx_rateGroup1.RateGroupMemberOut[0] -> CdhCore.tlmSend.Run
-      imx_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
-      imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
-      imx_rateGroup1.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
-      imx_rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
+      jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
+      jetson_rateGroup1.RateGroupMemberOut[0] -> CdhCore.tlmSend.Run
+      jetson_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
+      jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
+      jetson_rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
 
       # Rate group 2
-      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
-      imx_rateGroup2.RateGroupMemberOut[0] -> imx_cmdSeq.schedIn
-      imx_rateGroup2.RateGroupMemberOut[1] -> imx_watchdogManager.run
-      imx_rateGroup2.RateGroupMemberOut[2] -> imx_perifBoardManager.run
-      imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
-      imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
-      imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
-      imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
-  
+      jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
+      jetson_rateGroup2.RateGroupMemberOut[0] -> jetson_cmdSeq.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[1] -> jetson_pwrModeManager.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[2] -> jetson_thermalManager.run
+      jetson_rateGroup2.RateGroupMemberOut[3] -> jetson_watchdogManager.run
+
       # Rate group 3
-      imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
-      imx_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
-      imx_rateGroup3.RateGroupMemberOut[1] -> ComCcsds.commsBufferManager.schedIn
-      imx_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
-      imx_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
-      imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
-      imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
+      jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> jetson_rateGroup3.CycleIn
+      jetson_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
+      jetson_rateGroup3.RateGroupMemberOut[1] -> ComCcsds.commsBufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[5] -> jetson_hubBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
       # Command Sequencer
-      imx_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+      jetson_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
     }
 
-    connections ImxDeployment {
+    connections JetsonDeployment {
+
       # Add here connections to user-defined components
 
-      # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
-      imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
+      jetson_lucidCamera.sendFile -> FileHandling.fileDownlink.SendFile
 
-      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
-      imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
+      # Power mode: Jetson -> i.MX
+      jetson_pwrModeManager.powerModeSend -> jetson_hub.serialIn[0]
 
-      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
-      imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
+      # Power mode request/state from i.MX -> Jetson
+      jetson_hub.serialOut[0] -> jetson_pwrModeManager.powerModeReceive
 
-      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
-      imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
+      # Jetson power state: Jetson -> i.MX
+      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.serialIn[1]
 
-      # I2C bus connections for MCP9808 and INA
-      imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
+      # Jetson power state request from i.MX -> Jetson
+      jetson_hub.serialOut[1] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
-      imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
-      
-
-      # imx GPIO connection to the GpioDriver for Peripheral Board control
-      imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
-
-      # imx GPIO connection to the GpioDriver for Jetson power control
-      imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
-
-      imx_watchdogManager.gpioWatchDog -> imx_gpioWatchDogDriver.gpioWrite
+      jetson_watchdogManager.gpioWatchDog -> jetson_gpioWatchdogDriver.gpioWrite
       
 
     }
 
     connections send_hub {
-      # Hub -> ByteStream adapter
-      imx_hub.toBufferDriver -> imx_hubByteStreamAdapter.bufferIn
-      imx_hubByteStreamAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+      jetson_hub.toBufferDriver -> jetson_hubByteStreamAdapter.bufferIn
+      jetson_hubByteStreamAdapter.bufferInReturn -> jetson_hub.toBufferDriverReturn
 
-      # ByteStream adapter -> TCP driver
-      imx_hubByteStreamAdapter.toByteStreamDriver -> imx_hubComDriver.$send
+      jetson_hubByteStreamAdapter.toByteStreamDriver -> jetson_hubComDriver.$send
     }
 
-    connections recv_hub {
-      # TCP driver -> ByteStream adapter
-      imx_hubComDriver.$recv -> imx_hubByteStreamAdapter.fromByteStreamDriver
-      imx_hubByteStreamAdapter.fromByteStreamDriverReturn -> imx_hubComDriver.recvReturnIn
 
-      # ByteStream adapter -> Hub
-      imx_hubByteStreamAdapter.bufferOut -> imx_hub.fromBufferDriver
-      imx_hub.fromBufferDriverReturn -> imx_hubByteStreamAdapter.bufferOutReturn
+    connections recv_hub {
+      jetson_hubComDriver.$recv -> jetson_hubByteStreamAdapter.fromByteStreamDriver
+      jetson_hubByteStreamAdapter.fromByteStreamDriverReturn -> jetson_hubComDriver.recvReturnIn
+
+      jetson_hubByteStreamAdapter.bufferOut -> jetson_hub.fromBufferDriver
+      jetson_hub.fromBufferDriverReturn -> jetson_hubByteStreamAdapter.bufferOutReturn
     }
 
     connections hub {
-      # Hub buffer allocation/deallocation
-      imx_hub.allocate -> imx_hubBufferManager.bufferGetCallee
-      imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
+      jetson_hub.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hub.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      # TCP driver buffer allocation/deallocation
-      imx_hubComDriver.allocate -> imx_hubBufferManager.bufferGetCallee
-      imx_hubComDriver.deallocate -> imx_hubBufferManager.bufferSendIn
+      jetson_hubComDriver.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      # TCP driver ready signal
-      imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
-
-      # Commands going from this deployment to the remote deployment
-      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
-      imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
-
-      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
-      imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
-      
+      jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
     }
-
   }
 
 }

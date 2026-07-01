@@ -98,7 +98,7 @@ cleanup() {
 
   # Clean the TCP port after shutdown.
   if command -v fuser >/dev/null 2>&1; then
-    sudo fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
+    fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
   fi
 
   echo "[INFO] Shutdown complete"
@@ -143,7 +143,7 @@ cd "$ARTIFACT_DIR"
 
 echo "Cleaning TCP port $PORT_TO_CLEAN..."
 if command -v fuser >/dev/null 2>&1; then
-  sudo fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
+  fuser -k "${PORT_TO_CLEAN}/tcp" >/dev/null 2>&1 || true
 else
   echo "[WARNING] fuser not found; skipping automatic port cleanup"
 fi

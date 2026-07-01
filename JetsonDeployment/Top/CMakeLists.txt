@@ -19,7 +19,6 @@ set(SOURCE_FILES
 set(MOD_DEPS
     Fw/Logger
     Drv/Udp
-    Drv/ByteStreamBufferAdapter
     Drv/TcpServer
     Components_MLComponent
     scales_scalesSvc_JetsonPowerModeManager

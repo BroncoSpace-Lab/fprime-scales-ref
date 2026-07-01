@@ -3,8 +3,8 @@
 // \brief header file containing the topology instantiation definitions
 //
 // ======================================================================
-#ifndef JetsonDeployment_JetsonDeploymentTOPOLOGY_HPP
-#define JetsonDeployment_JetsonDeploymentTOPOLOGY_HPP
+#ifndef JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGY_HPP
+#define JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGY_HPP
 // Included for access to JetsonDeployment::TopologyState and JetsonDeployment::ConfigObjects::pingEntries. These definitions are required by the
 // autocoder, but are also used in this hand-coded topology.
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyDefs.hpp>
@@ -81,4 +81,5 @@ void startRateGroups(const Fw::TimeInterval& interval = Fw::TimeInterval(1,0));
 void stopRateGroups();
 
 } // namespace JetsonDeployment
+
 #endif
