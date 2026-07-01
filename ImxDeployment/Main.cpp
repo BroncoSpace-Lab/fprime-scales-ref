@@ -11,8 +11,10 @@
 #include <signal.h>
 // Used for command line argument processing
 #include <getopt.h>
-// Used for printf functions
+// Used for atoi
 #include <cstdlib>
+// Used for logging to the console
+#include <Fw/Logger/Logger.hpp>
 
 /**
  * \brief print command line help message
@@ -22,7 +24,7 @@
  * @param app: name of application
  */
 void print_usage(const char* app) {
-    (void)printf("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
+    Fw::Logger::log("Usage: ./%s [options]\n-a\thostname/IP address\n-p\tport_number\n", app);
 }
 
 /**
@@ -34,7 +36,7 @@ void print_usage(const char* app) {
  * @param signum
  */
 static void signalHandler(int signum) {
-    ImxDeployment::stopSimulatedCycle();
+    ImxDeployment::stopRateGroups();
 }
 
 /**
@@ -49,8 +51,9 @@ static void signalHandler(int signum) {
  */
 int main(int argc, char* argv[]) {
     I32 option = 0;
-    const CHAR* hostname = "0.0.0.0";
-    U16 port_number = 50000;
+    CHAR* hostname = nullptr;
+    U16 port_number = 0;
+
     Os::init();
 
     // Loop while reading the getopt supplied options
@@ -74,7 +77,7 @@ int main(int argc, char* argv[]) {
                 return (option == 'h') ? 0 : 1;
         }
     }
-    // Object for communicating state to the reference topology
+    // Object for communicating state to the topology
     ImxDeployment::TopologyState inputs;
     inputs.hostname = hostname;
     inputs.port = port_number;
@@ -82,13 +85,12 @@ int main(int argc, char* argv[]) {
     // Setup program shutdown via Ctrl-C
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
-    (void)printf("Hit Ctrl-C to quit\n");
-    (void)printf("GDS TCP server listening on %s:%hu\n", inputs.hostname, inputs.port);
+    Fw::Logger::log("Hit Ctrl-C to quit\n");
 
     // Setup, cycle, and teardown topology
     ImxDeployment::setupTopology(inputs);
-    ImxDeployment::startSimulatedCycle(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
+    ImxDeployment::startRateGroups(Fw::TimeInterval(1,0));  // Program loop cycling rate groups at 1Hz
     ImxDeployment::teardownTopology(inputs);
-    (void)printf("Exiting...\n");
+    Fw::Logger::log("Exiting...\n");
     return 0;
 }
