@@ -151,6 +151,11 @@ module JetsonDeployment {
 
       jetson_lucidCamera.sendFile -> FileHandling.fileDownlink.SendFile
 
+      # Forward packetized Jetson events/tlm through the hub to i.MX.
+      # i.MX injects these packets into its ComCcsds queue for host GDS downlink.
+      CdhCore.events.PktSend -> jetson_hub.serialIn[2]
+      CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
+
       # Power mode: Jetson -> i.MX
       jetson_pwrModeManager.powerModeSend -> jetson_hub.serialIn[0]
 

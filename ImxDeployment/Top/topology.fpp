@@ -162,6 +162,11 @@ module ImxDeployment {
     connections ImxDeployment {
       # Add here connections to user-defined components
 
+      # Jetson packetized events/tlm forwarded over hub serial channels.
+      # Route directly into IMX ComCcsds packet queues for host GDS downlink.
+      imx_hub.serialOut[2] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
+      imx_hub.serialOut[3] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+
       # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
 
