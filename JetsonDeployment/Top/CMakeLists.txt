@@ -20,6 +20,10 @@ set(MOD_DEPS
     Fw/Logger
     Drv/Udp
     Drv/TcpServer
+    Drv/TcpClient
+    Drv/ByteStreamBufferAdapter
+    Svc/GenericHub
+    Svc/BufferManager
     Components_MLComponent
     scales_scalesSvc_JetsonPowerModeManager
 )

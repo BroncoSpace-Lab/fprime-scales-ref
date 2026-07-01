@@ -192,6 +192,11 @@ module JetsonDeployment {
       jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
 
       jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
+
+      # Commands arriving from the i.MX hub are dispatched locally on the Jetson.
+      # Responses return over the same hub command channel.
+      jetson_hub.cmdDispOut[0] -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus -> jetson_hub.cmdRespIn[0]
     }
   }
 
