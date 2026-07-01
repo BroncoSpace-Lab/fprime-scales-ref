@@ -229,6 +229,9 @@ module ImxDeployment {
       imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
       imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
       
+      # Remote Jetson events/telemetry coming out of the hub into local i.MX downlink path
+      imx_hub.eventOut -> CdhCore.events.LogRecv
+      imx_hub.tlmOut   -> CdhCore.tlmSend.TlmRecv
     }
 
   }
