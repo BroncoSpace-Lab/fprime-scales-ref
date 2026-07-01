@@ -15,6 +15,7 @@
 // Necessary project-specified types
 #include <Fw/Logger/Logger.hpp>
 #include <Fw/Types/MallocAllocator.hpp>
+#include <Os/Task.hpp>
 
 #include <cstdio>
 #include <cstring>
@@ -39,13 +40,27 @@ const U32 IMX_HUB_PORT = 50500;
 enum TopologyConstants {
     COMM_PRIORITY = 34,
     COM_DRIVER_BUFFER_SIZE = 3000,
-    COM_DRIVER_BUFFER_COUNT = 30
+    COM_DRIVER_BUFFER_COUNT = 30,
+    HUB_CONNECT_WAIT_ATTEMPTS = 100,
+    HUB_CONNECT_WAIT_USEC = 50000
 };
 
 bool isComDriverConnected(const TopologyState& state) {
     return state.hostname != nullptr &&
            state.hostname[0] != '\0' &&
            state.port != 0;
+}
+
+bool waitForHubConnection() {
+    for (U32 attempt = 0; attempt < HUB_CONNECT_WAIT_ATTEMPTS; ++attempt) {
+        if (jetson_hubComDriver.isOpened()) {
+            // Give the TcpClient ready port time to mark the adapter ready.
+            (void)Os::Task::delay(Fw::TimeInterval(0, 10000));
+            return true;
+        }
+        (void)Os::Task::delay(Fw::TimeInterval(0, HUB_CONNECT_WAIT_USEC));
+    }
+    return false;
 }
 
 /**
@@ -105,6 +120,13 @@ void setupTopology(const TopologyState& state) {
 
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    if (!waitForHubConnection()) {
+        Fw::Logger::log(
+            "[WARNING] Jetson hub TCP client did not connect to %s:%u before startup traffic began\n",
+            IMX_HUB_IP_ADDRESS,
+            static_cast<unsigned>(IMX_HUB_PORT)
+        );
+    }
 
     loadParameters();
     startTasks(state);
