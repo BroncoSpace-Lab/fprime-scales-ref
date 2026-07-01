@@ -93,9 +93,9 @@ void setupTopology(const TopologyState& state) {
     }
 
     configureTopology();
-    loadParameters();
-    startTasks(state);
 
+    // Start comm drivers before active tasks begin producing traffic.
+    // This reduces early hub drops logged as ByteStreamAdapter DriverNotReady.
     if (isComDriverConnected(state)) {
         Os::TaskString name("ReceiveTask");
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
@@ -105,6 +105,9 @@ void setupTopology(const TopologyState& state) {
 
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+
+    loadParameters();
+    startTasks(state);
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
