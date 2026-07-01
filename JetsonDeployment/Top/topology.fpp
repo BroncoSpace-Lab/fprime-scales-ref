@@ -70,9 +70,10 @@ module JetsonDeployment {
   # ----------------------------------------------------------------------
 
     connections ComCcsds_CdhCore {
-      # Core events and telemetry to communication queue
-      CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      # Core events and telemetry are forwarded over hub to i.MX.
+      # i.MX injects these packets into its local ComCcsds queue for host GDS downlink.
+      CdhCore.events.PktSend -> jetson_hub.serialIn[2]
+      CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
 
       # Router to Command Dispatcher
       ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
@@ -150,11 +151,6 @@ module JetsonDeployment {
       # Add here connections to user-defined components
 
       jetson_lucidCamera.sendFile -> FileHandling.fileDownlink.SendFile
-
-      # Forward packetized Jetson events/tlm through the hub to i.MX.
-      # i.MX injects these packets into its ComCcsds queue for host GDS downlink.
-      CdhCore.events.PktSend -> jetson_hub.serialIn[2]
-      CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
 
       # Power mode: Jetson -> i.MX
       jetson_pwrModeManager.powerModeSend -> jetson_hub.serialIn[0]
