@@ -23,29 +23,28 @@ module JetsonDeployment {
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
-    instance jetson_chronoTime
-    instance jetson_rateGroup1
-    instance jetson_rateGroup2
-    instance jetson_rateGroup3
-    instance jetson_rateGroupDriver
-    instance jetson_systemResources
-    instance jetson_timer
-    instance jetson_comDriver
-    instance jetson_cmdSeq
-
-    # SCALES SVC MANAGERS
     instance jetson_lucidCamera
     # instance jetson_mlManager
-    instance jetson_watchdogManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
-    instance jetson_gpioWatchdogDriver
+    instance jetson_watchdogManager
 
-    # JETSON HUB PATTERN SPECIFIC INSTANCES
+    instance jetson_systemResources
+
     instance jetson_hub
     instance jetson_hubComDriver
     instance jetson_hubByteStreamAdapter
     instance jetson_hubBufferManager
+
+    instance jetson_rateGroup1
+    instance jetson_rateGroup2
+    instance jetson_rateGroup3
+    instance jetson_rateGroupDriver
+    instance jetson_cmdSeq
+    instance jetson_chronoTime
+    instance jetson_timer
+    instance jetson_comDriver
+    instance jetson_gpioWatchdogDriver
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers

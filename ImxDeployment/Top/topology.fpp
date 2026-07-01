@@ -23,41 +23,36 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
-    instance imx_chronoTime
+    instance imx_jetsonManager
+    instance imx_inaManager
+    instance imx_thermalManager
+    instance imx_mcpManager
+    instance imx_perifBoardManager
+    instance imx_watchdogManager
+
+    instance imx_systemResources
+
+    instance imx_hub
+    instance imx_hubComDriver
+    instance imx_hubByteStreamAdapter
+    instance imx_hubBufferManager
+    instance imx_cmdSplitter
+    instance imx_seqCmdSplitter
+
     instance imx_rateGroup1
     instance imx_rateGroup2
     instance imx_rateGroup3
     instance imx_rateGroupDriver
-    instance imx_systemResources
+    instance imx_cmdSeq
+    instance imx_chronoTime
     instance imx_timer
     instance imx_comDriver
-    instance imx_cmdSeq
 
-    # Drivers and managers for SCALES-specific hardware components
-    
-    # SCALES SVC Drivers
     instance imx_mcpI2CbusDriver
     instance imx_inaI2CbusDriver
     instance imx_perifGpioDriver
     instance imx_jetsonGpioDriver
     instance imx_gpioWatchDogDriver
-    
-
-    # SCALES SVC Managers
-    instance imx_inaManager
-    instance imx_thermalManager
-    instance imx_mcpManager
-    instance imx_perifBoardManager
-    instance imx_jetsonManager
-    instance imx_watchdogManager
-
-    # IMX HUB PATTERN SPECIFIC INSTANCES
-    instance imx_hub
-    instance imx_hubComDriver
-    instance imx_hubBufferManager
-    instance imx_hubByteStreamAdapter
-    instance imx_cmdSplitter
-    instance imx_seqCmdSplitter
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers

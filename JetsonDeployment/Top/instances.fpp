@@ -14,58 +14,50 @@ module JetsonDeployment {
   # Active component instances
   # ----------------------------------------------------------------------
 
-  # Rate Groups
+  instance jetson_lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1000 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
 
-  instance jetson_rateGroup1: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x5200 \
+  instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1100 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1200 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_thermalManager: scalesSvc.JetsonThermalManager base id CMD_SPLITTER_OFFSET + 0x1300 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  instance jetson_rateGroup1: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x4000 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 120
 
-  instance jetson_rateGroup2: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x5300 \
+  instance jetson_rateGroup2: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x4100 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 119
 
-  instance jetson_rateGroup3: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x5400 \
+  instance jetson_rateGroup3: Svc.ActiveRateGroup base id CMD_SPLITTER_OFFSET + 0x4200 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 118
 
-  instance jetson_cmdSeq: Svc.CmdSequencer base id CMD_SPLITTER_OFFSET + 0x5600 \
+  instance jetson_cmdSeq: Svc.CmdSequencer base id CMD_SPLITTER_OFFSET + 0x4400 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 100
-
-# ----------------------------------------------------
-# SCALES Service Managers
-
-  instance jetson_watchdogManager: scalesSvc.WatchdogManager base id CMD_SPLITTER_OFFSET + 0x1600 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-
-  instance jetson_thermalManager: scalesSvc.JetsonThermalManager base id CMD_SPLITTER_OFFSET + 0x1800 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-
-   instance jetson_pwrModeManager: scalesSvc.JetsonPowerModeManager base id CMD_SPLITTER_OFFSET + 0x1700 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-
-# ----------------------------------------------------
-# Core SCALES Components
-
-  instance jetson_lucidCamera: Components.RunLucidCamera base id CMD_SPLITTER_OFFSET + 0x1400 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
-
-  instance jetson_mlManager: Components.MLComponent base id CMD_SPLITTER_OFFSET + 0x1500 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
 
 
   # ----------------------------------------------------------------------
@@ -79,26 +71,24 @@ module JetsonDeployment {
 
   @ Communications driver. May be swapped with other com drivers like UART or TCP
 
-  instance jetson_chronoTime: Svc.ChronoTime base id CMD_SPLITTER_OFFSET + 0x7500
+  instance jetson_systemResources: Svc.SystemResources base id CMD_SPLITTER_OFFSET + 0x2000
 
-  instance jetson_rateGroupDriver: Svc.RateGroupDriver base id CMD_SPLITTER_OFFSET + 0x7600
+  instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x3000
 
-  instance jetson_systemResources: Svc.SystemResources base id CMD_SPLITTER_OFFSET + 0x7A00
+  instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x3100
 
-  instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x9600
+  instance jetson_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id CMD_SPLITTER_OFFSET + 0x3200
 
-  instance jetson_comDriver: Drv.TcpServer base id CMD_SPLITTER_OFFSET + 0x7000
+  instance jetson_hubBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x3300
+
+  instance jetson_rateGroupDriver: Svc.RateGroupDriver base id CMD_SPLITTER_OFFSET + 0x4300
+
+  instance jetson_chronoTime: Svc.ChronoTime base id CMD_SPLITTER_OFFSET + 0x4500
+
+  instance jetson_timer: Svc.LinuxTimer base id CMD_SPLITTER_OFFSET + 0x4600
+
+  instance jetson_comDriver: Drv.TcpServer base id CMD_SPLITTER_OFFSET + 0x4700
   
-  instance jetson_gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x9650
-
-  # JETSON HUB PATTERN SPECIFIC INSTANCES
-
-  instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x10000
-
-  instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x20000
-
-  instance jetson_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id CMD_SPLITTER_OFFSET + 0x30000
-
-  instance jetson_hubBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x40000
+  instance jetson_gpioWatchdogDriver: Drv.LinuxGpioDriver base id CMD_SPLITTER_OFFSET + 0x4800
 
 }
