@@ -1,5 +1,5 @@
 module JetsonDeployment {
-  constant CMD_SPLITTER_OFFSET = 0x10000
+  constant CMD_SPLITTER_OFFSET = 0x10000000
 
   # ----------------------------------------------------------------------
   # Defaults
