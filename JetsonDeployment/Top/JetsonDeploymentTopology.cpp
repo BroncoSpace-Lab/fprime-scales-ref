@@ -3,38 +3,27 @@
 // \brief cpp file containing the topology instantiation code
 //
 // ======================================================================
+
 // Provides access to autocoded functions
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyAc.hpp>
-// Note: Uncomment when using Svc:TlmPacketizer
-//#include <JetsonDeployment/Top/JetsonDeploymentPacketsAc.hpp>
+#include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
+#include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
+
+// fprime-python includes
+#include <pybind11/pybind11.h>
 
 // Necessary project-specified types
-#include <Fw/Types/MallocAllocator.hpp>
-#include <Svc/FramingProtocol/FprimeProtocol.hpp>
 #include <Fw/Logger/Logger.hpp>
+#include <Fw/Types/MallocAllocator.hpp>
+#include <Os/Task.hpp>
 
-// Used for 1Hz synthetic cycling
-#include <Os/Mutex.hpp>
+#include <cstdio>
+#include <cstring>
 
-// Allows easy reference to objects in FPP/autocoder required namespaces
-using namespace JetsonDeployment;
+namespace JetsonDeployment {
 
-// The reference topology uses a malloc-based allocator for components that need to allocate memory during the
-// initialization phase.
+// Instantiate a malloc allocator for cmdSeq buffer allocation
 Fw::MallocAllocator mallocator;
-
-// The reference topology uses the F´ packet protocol when communicating with the ground and therefore uses the F´
-// framing and deframing implementations.
-Svc::FprimeFraming framing;
-Svc::FprimeDeframing deframing;
-Svc::FprimeFraming hubFraming;
-Svc::FprimeDeframing hubDeframing;
-
-const char* REMOTE_HUIP_ADDRESS = "10.3.2.10"; // ip of JPL IMX
-// const char* REMOTE_HUIP_ADDRESS = "10.3.2.6"; // ip of CPP IMX
-const U32 REMOTE_HUPORT = 50500;
-
-Svc::ComQueue::QueueConfigurationTable configurationTable;
 
 // The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
@@ -45,50 +34,34 @@ U32 rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
+const char* IMX_HUB_IP_ADDRESS = "10.3.2.10";
+const U32 IMX_HUB_PORT = 50500;
 
-Os::Task rateTask;
-/**
- * Task function to drive rate groups
- */
-void rateGroups(void *) {
-    jetson_timer.startTimer(1000);
-}
-
-
-// A number of constants are needed for construction of the topology. These are specified here.
 enum TopologyConstants {
-    CMD_SEQ_BUFFER_SIZE = 5 * 1024,
-    FILE_DOWNLINK_TIMEOUT = 1000,
-    FILE_DOWNLINK_COOLDOWN = 1000,
-    FILE_DOWNLINK_CYCLE_TIME = 1000,
-    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
-    HEALTH_WATCHDOG_CODE = 0x123,
-    COMM_PRIORITY = 100,
-    // bufferManager constants
-    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) + HASH_DIGEST_LENGTH + Svc::FpFrameHeader::SIZE,
-    FRAMER_BUFFER_COUNT = 30,
-    DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
-    DEFRAMER_BUFFER_COUNT = 30,
+    COMM_PRIORITY = 34,
     COM_DRIVER_BUFFER_SIZE = 3000,
     COM_DRIVER_BUFFER_COUNT = 30,
-    BUFFER_MANAGER_ID = 200
+    HUB_CONNECT_WAIT_ATTEMPTS = 100,
+    HUB_CONNECT_WAIT_USEC = 50000
 };
 
-// Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
-Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::JetsonDeployment_jetson_blockDrv::WARN, PingEntries::JetsonDeployment_jetson_blockDrv::FATAL, "blockDrv"},
-    {PingEntries::JetsonDeployment_jetson_tlmSend::WARN, PingEntries::JetsonDeployment_jetson_tlmSend::FATAL, "chanTlm"},
-    {PingEntries::JetsonDeployment_jetson_cmdDisp::WARN, PingEntries::JetsonDeployment_jetson_cmdDisp::FATAL, "cmdDisp"},
-    {PingEntries::JetsonDeployment_jetson_cmdSeq::WARN, PingEntries::JetsonDeployment_jetson_cmdSeq::FATAL, "cmdSeq"},
-    {PingEntries::JetsonDeployment_jetson_eventLogger::WARN, PingEntries::JetsonDeployment_jetson_eventLogger::FATAL, "eventLogger"},
-    {PingEntries::JetsonDeployment_jetson_fileDownlink::WARN, PingEntries::JetsonDeployment_jetson_fileDownlink::FATAL, "fileDownlink"},
-    {PingEntries::JetsonDeployment_jetson_fileManager::WARN, PingEntries::JetsonDeployment_jetson_fileManager::FATAL, "fileManager"},
-    {PingEntries::JetsonDeployment_jetson_fileUplink::WARN, PingEntries::JetsonDeployment_jetson_fileUplink::FATAL, "fileUplink"},
-    {PingEntries::JetsonDeployment_jetson_prmDb::WARN, PingEntries::JetsonDeployment_jetson_prmDb::FATAL, "prmDb"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup1::WARN, PingEntries::JetsonDeployment_jetson_rateGroup1::FATAL, "rateGroup1"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup2::WARN, PingEntries::JetsonDeployment_jetson_rateGroup2::FATAL, "rateGroup2"},
-    {PingEntries::JetsonDeployment_jetson_rateGroup3::WARN, PingEntries::JetsonDeployment_jetson_rateGroup3::FATAL, "rateGroup3"},
-};
+bool isComDriverConnected(const TopologyState& state) {
+    return state.hostname != nullptr &&
+           state.hostname[0] != '\0' &&
+           state.port != 0;
+}
+
+bool waitForHubConnection() {
+    for (U32 attempt = 0; attempt < HUB_CONNECT_WAIT_ATTEMPTS; ++attempt) {
+        if (jetson_hubComDriver.isOpened()) {
+            // Give the TcpClient ready port time to mark the adapter ready.
+            (void)Os::Task::delay(Fw::TimeInterval(0, 10000));
+            return true;
+        }
+        (void)Os::Task::delay(Fw::TimeInterval(0, HUB_CONNECT_WAIT_USEC));
+    }
+    return false;
+}
 
 /**
  * \brief configure/setup components in project-specific way
@@ -97,27 +70,7 @@ Svc::Health::PingEntry pingEntries[] = {
  * allocating resources, passing-in arguments, etc. This function may be inlined into the topology setup function if
  * desired, but is extracted here for clarity.
  */
-void configureTopology(const TopologyState& state) {
-    // Buffer managers need a configured set of buckets and an allocator used to allocate memory for those buckets.
-    Svc::BufferManager::BufferBins upBuffMgrBins;
-    memset(&upBuffMgrBins, 0, sizeof(upBuffMgrBins));
-    upBuffMgrBins.bins[0].bufferSize = FRAMER_BUFFER_SIZE;
-    upBuffMgrBins.bins[0].numBuffers = FRAMER_BUFFER_COUNT;
-    upBuffMgrBins.bins[1].bufferSize = DEFRAMER_BUFFER_SIZE;
-    upBuffMgrBins.bins[1].numBuffers = DEFRAMER_BUFFER_COUNT;
-    upBuffMgrBins.bins[2].bufferSize = COM_DRIVER_BUFFER_SIZE;
-    upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    jetson_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
-
-    // Framer and Deframer components need to be passed a protocol handler
-    jetson_framer.setup(framing);
-    jetson_deframer.setup(deframing);
-    jetson_hubFramer.setup(hubFraming);
-    jetson_hubDeframer.setup(hubDeframing);
-
-    // Command sequencer needs to allocate memory to hold contents of command sequences
-    jetson_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
-
+void configureTopology() {
     // Rate group driver needs a divisor list
     jetson_rateGroupDriver.configure(rateGroupDivisorsSet);
 
@@ -126,115 +79,127 @@ void configureTopology(const TopologyState& state) {
     jetson_rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
     jetson_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
-    // File downlink requires some project-derived properties.
-    jetson_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
-                           FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    // Command sequencer needs to allocate memory to hold contents of command sequences
+    jetson_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
-    // Parameter database is configured with a database file name, and that file must be initially read.
-    jetson_prmDb.configure("PrmDb.dat");
-    jetson_prmDb.readParamFile();
+    Svc::BufferManager::BufferBins hubBuffMgrBins;
+    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
 
-    // Health is supplied a set of ping entires.
-    jetson_health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
+    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
 
-    // Note: Uncomment when using Svc:TlmPacketizer
-    // tlmSend.setPacketList(JetsonDeploymentPacketsPkts, JetsonDeploymentPacketsIgnore, 1);
+    jetson_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
 
-    // Events (highest-priority)
-    configurationTable.entries[0] = {.depth = 100, .priority = 0};
-    // Telemetry
-    configurationTable.entries[1] = {.depth = 500, .priority = 2};
-    // File Downlink
-    configurationTable.entries[2] = {.depth = 100, .priority = 1};
-    // Allocation identifier is 0 as the MallocAllocator discards it
-    jetson_comQueue.configure(configurationTable, 0, mallocator);
-    jetson_hubComQueue.configure(configurationTable, 0, mallocator);
-
-    if (state.hostname != nullptr && state.port != 0) {
-        jetson_comDriver.configure(state.hostname, state.port);
-    }
-
-    Os::File::Status jetson_gpio_status = gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
 }
 
-// Public functions for use in main program are namespaced with deployment name JetsonDeployment
-namespace JetsonDeployment {
 void setupTopology(const TopologyState& state) {
-    // Autocoded initialization. Function provided by autocoder.
     initComponents(state);
-    // Autocoded id setup. Function provided by autocoder.
     setBaseIds();
-    // Autocoded connection wiring. Function provided by autocoder.
     connectComponents();
-    // Autocoded configuration. Function provided by autocoder.
-    configComponents(state);
-    // Deployment-specific component configuration. Function provided above. May be inlined, if desired.
-    configureTopology(state);
-    // Autocoded command registration. Function provided by autocoder.
     regCommands();
-    // Autocoded parameter loading. Function provided by autocoder.
-    loadParameters();
-    // Autocoded task kick-off (active components). Function provided by autocoder.
-    startTasks(state);
-    // Initialize socket communication if and only if there is a valid specification
-    if (state.hostname != nullptr && state.port != 0) {
-        Os::TaskString name("ReceiveTask");
-        // Uplink is configured for receive so a socket task is started
+    configComponents(state);
+
+    if (isComDriverConnected(state)) {
         jetson_comDriver.configure(state.hostname, state.port);
+    }
+
+    configureTopology();
+
+    // Start comm drivers before active tasks begin producing traffic.
+    // This reduces early hub drops logged as ByteStreamAdapter DriverNotReady.
+    if (isComDriverConnected(state)) {
+        Os::TaskString name("ReceiveTask");
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    jetson_hubComDriver.configure(REMOTE_HUIP_ADDRESS, REMOTE_HUPORT);
+    jetson_hubComDriver.configure(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
+
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
-
-    Os::TaskString taskName("RateGroupTask");
-    Os::TaskInterface::Arguments taskArgs(taskName, rateGroups, nullptr, 99, 3*1024);
-    rateTask.start(taskArgs);
-}
-
-// Variables used for cycle simulation
-Os::Mutex cycleLock;
-volatile bool cycleFlag = true;
-
-void startSimulatedCycle(Fw::TimeInterval interval) {
-    cycleLock.lock();
-    bool cycling = cycleFlag;
-    cycleLock.unLock();
-
-    // Main loop
-    while (cycling) {
-        JetsonDeployment::jetson_blockDrv.callIsr();
-        Os::Task::delay(interval);
-
-        cycleLock.lock();
-        cycling = cycleFlag;
-        cycleLock.unLock();
+    if (!waitForHubConnection()) {
+        Fw::Logger::log(
+            "[WARNING] Jetson hub TCP client did not connect to %s:%u before startup traffic began\n",
+            IMX_HUB_IP_ADDRESS,
+            static_cast<unsigned>(IMX_HUB_PORT)
+        );
     }
+
+    loadParameters();
+    startTasks(state);
 }
 
-void stopSimulatedCycle() {
-    cycleLock.lock();
-    cycleFlag = false;
-    cycleLock.unLock();
+void startRateGroups(const Fw::TimeInterval& interval) {
+    jetson_timer.startTimer(interval);
+}
+
+void stopRateGroups() {
+    jetson_timer.quit();
 }
 
 void teardownTopology(const TopologyState& state) {
-    // Autocoded (active component) task clean-up. Functions provided by topology autocoder.
     stopTasks(state);
     freeThreads(state);
 
-    // Other task clean-up.
+    jetson_comDriver.terminate();
     jetson_comDriver.stop();
     (void)jetson_comDriver.join();
+
     jetson_hubComDriver.stop();
     (void)jetson_hubComDriver.join();
 
-    // Resource deallocation
     jetson_cmdSeq.deallocateBuffer(mallocator);
-    jetson_bufferManager.cleanup();
+    jetson_hubBufferManager.cleanup();
+
+    tearDownComponents(state);
+    deinitComponents(state);
 }
-};  // namespace JetsonDeployment
+
+}  // namespace JetsonDeployment
+
+void setup_user_deployment(pybind11::module_& module) {
+    pybind11::class_<JetsonDeployment::TopologyState>(module, "TopologyState")
+        .def(pybind11::init<>())
+        .def_readwrite("hostname", &JetsonDeployment::TopologyState::hostname)
+        .def_readwrite("port", &JetsonDeployment::TopologyState::port);
+
+    pybind11::module_ jetsonDeploymentModule =
+        module.attr("JetsonDeployment").cast<pybind11::module_>();
+
+    jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
+        std::printf(
+            "DEBUG setup_custom: hostname=%s port=%u\n",
+            (state.hostname == nullptr || state.hostname[0] == '\0') ? "<empty>" : state.hostname,
+            static_cast<unsigned>(state.port)
+        );
+        std::fflush(stdout);
+
+        JetsonDeployment::setupTopology(state);
+    });
+
+    jetsonDeploymentModule.def("is_com_driver_connected_custom", [](JetsonDeployment::TopologyState& state) {
+        return JetsonDeployment::isComDriverConnected(state);
+    });
+
+    jetsonDeploymentModule.def(
+        "start_rate_groups_custom",
+        []() {
+            JetsonDeployment::startRateGroups(Fw::TimeInterval(1, 0));
+        },
+        pybind11::call_guard<pybind11::gil_scoped_release>()
+    );
+
+    jetsonDeploymentModule.def("stop_rate_groups_custom", []() {
+        JetsonDeployment::stopRateGroups();
+    });
+
+    jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
+        std::printf("DEBUG teardown_custom: requested\n");
+        std::fflush(stdout);
+
+        JetsonDeployment::teardownTopology(state);
+    });
+}

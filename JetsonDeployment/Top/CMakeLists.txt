@@ -1,26 +1,31 @@
 ####
-# F prime CMakeLists.txt:
+# F Prime CMakeLists.txt:
 #
-# SOURCE_FILES: combined list of source and autocoding files
-# MOD_DEPS: (optional) module dependencies
+# SOURCES: list of source files (to be compiled)
+# AUTOCODER_INPUTS: list of files to be passed to the autocoders
+# DEPENDS: list of libraries that this module depends on
+#
+# More information in the F´ CMake API documentation:
+# https://fprime.jpl.nasa.gov/latest/docs/reference/api/cmake/API/
+#
 ####
 
-restrict_platforms(aarch64-linux)
-
 set(SOURCE_FILES
-  "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
-  # Note: Uncomment when using Svc:TlmPacketizer
-  #"${CMAKE_CURRENT_LIST_DIR}/JetsonDeploymentPackets.xml"
-  "${CMAKE_CURRENT_LIST_DIR}/topology.fpp"
-  "${CMAKE_CURRENT_LIST_DIR}/JetsonDeploymentTopology.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/topology.fpp"
+    "${CMAKE_CURRENT_LIST_DIR}/instances.fpp"
+    "${CMAKE_CURRENT_LIST_DIR}/JetsonDeploymentTopology.cpp"
 )
+
 set(MOD_DEPS
-  Fw/Logger
-  # Communication Implementations
-  Drv/Udp
-  Drv/TcpServer
-  pybind
-  scales_scalesSvc_JetsonPowerModeManager
+    Fw/Logger
+    Drv/Udp
+    Drv/TcpServer
+    Drv/TcpClient
+    Drv/ByteStreamBufferAdapter
+    Svc/GenericHub
+    Svc/BufferManager
+    Components_MLComponent
+    scales_scalesSvc_JetsonPowerModeManager
 )
 
 register_fprime_module()

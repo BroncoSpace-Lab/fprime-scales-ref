@@ -10,10 +10,11 @@
 #
 ####
 restrict_platforms(aarch64-linux)
-# 
-set(SOURCE_FILES
-  "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
-  # "${CMAKE_CURRENT_LIST_DIR}/MLComponent.cpp"
+register_fprime_library(
+  AUTOCODER_INPUTS
+    "${CMAKE_CURRENT_LIST_DIR}/MLComponent.fpp"
+  SOURCES
+    "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py"
 )
 
 # Uncomment and add any modules that this component depends on, else
@@ -41,8 +42,8 @@ set(SOURCE_FILES
 # XML path.
 
 
-register_fprime_module()
-register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.xml" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
+#egister_fprime_module()
+#register_python_component("${CMAKE_BINARY_DIR}/Components/MLComponent/MLComponentComponentAi.json" "${CMAKE_CURRENT_LIST_DIR}/MLComponent.py")
 
 # if(COMMAND register_python_component)
 #   register_python_component(

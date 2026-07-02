@@ -23,40 +23,36 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
   # Instances used in the topology
   # ----------------------------------------------------------------------
-    instance imx_chronoTime
+    instance imx_jetsonManager
+    instance imx_inaManager
+    instance imx_thermalManager
+    instance imx_mcpManager
+    instance imx_perifBoardManager
+    instance imx_watchdogManager
+
+    instance imx_systemResources
+
+    instance imx_hub
+    instance imx_hubComDriver
+    instance imx_hubByteStreamAdapter
+    instance imx_hubBufferManager
+    instance imx_cmdSplitter
+    instance imx_seqCmdSplitter
+
     instance imx_rateGroup1
     instance imx_rateGroup2
     instance imx_rateGroup3
     instance imx_rateGroupDriver
-    instance imx_systemResources
+    instance imx_cmdSeq
+    instance imx_chronoTime
     instance imx_timer
     instance imx_comDriver
-    instance imx_cmdSeq
 
-    # Drivers and managers for SCALES-specific hardware components
-    
-    # SCALES SVC Drivers
     instance imx_mcpI2CbusDriver
     instance imx_inaI2CbusDriver
     instance imx_perifGpioDriver
     instance imx_jetsonGpioDriver
     instance imx_gpioWatchDogDriver
-    
-
-    # SCALES SVC Managers
-    instance imx_inaManager
-    instance imx_thermalManager
-    instance imx_mcpManager
-    instance imx_perifBoardManager
-    instance imx_jetsonManager
-    instance imx_watchdogManager
-
-    # IMX HUB PATTERN SPECIFIC INSTANCES
-    instance imx_hub
-    instance imx_hubComDriver
-    instance imx_hubBufferManager
-    instance imx_hubByteStreamAdapter
-    instance imx_cmdSplitter
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -85,9 +81,10 @@ module ImxDeployment {
       CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
       CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
-      # Router to Command Dispatcher
-      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
+      # Router to command splitter. Local commands are dispatched on the i.MX;
+      # Jetson commands are forwarded over the hub.
+      ComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
       
     }
 
@@ -154,13 +151,18 @@ module ImxDeployment {
     }
 
     connections CdhCore_cmdSeq {
-      # Command Sequencer
-      imx_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> imx_cmdSeq.cmdResponseIn
+      # Command Sequencer through the same local/remote split path
+      imx_cmdSeq.comCmdOut -> imx_seqCmdSplitter.CmdBuff[0]
+      imx_seqCmdSplitter.forwardSeqCmdStatus[0] -> imx_cmdSeq.cmdResponseIn
     }
 
     connections ImxDeployment {
       # Add here connections to user-defined components
+
+      # Jetson packetized events/tlm forwarded over hub serial channels.
+      # Route directly into IMX ComCcsds packet queues for host GDS downlink.
+      imx_hub.serialOut[2] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
+      imx_hub.serialOut[3] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
       # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
@@ -222,16 +224,20 @@ module ImxDeployment {
       # TCP driver ready signal
       imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
 
+      # Local command dispatch after splitting
+      imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]
+      CdhCore.cmdDisp.seqCmdStatus[0] -> imx_cmdSplitter.seqCmdStatus[0]
+
+      imx_seqCmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[1]
+      CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+
       # Commands going from this deployment to the remote deployment
       imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
       imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
 
-      imx_cmdSplitter.RemoteCmd[1] -> imx_hub.cmdDispIn[1]
-      imx_hub.cmdRespOut[1] -> imx_cmdSplitter.seqCmdStatus[1]
+      imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
       
-      # Remote Jetson events/telemetry coming out of the hub into local i.MX downlink path
-      imx_hub.eventOut -> CdhCore.events.LogRecv
-      imx_hub.tlmOut   -> CdhCore.tlmSend.TlmRecv
     }
 
   }

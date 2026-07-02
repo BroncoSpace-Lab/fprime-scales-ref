@@ -12,211 +12,192 @@ module JetsonDeployment {
 
   topology JetsonDeployment {
 
-    # ----------------------------------------------------------------------
-    # Instances used in the topology
-    # ----------------------------------------------------------------------
+  # ----------------------------------------------------------------------
+  # Subtopology imports
+  # ----------------------------------------------------------------------
+    import CdhCore.Subtopology
+    import ComCcsds.Subtopology
+    import DataProducts.Subtopology
+    import FileHandling.Subtopology
+    
+  # ----------------------------------------------------------------------
+  # Instances used in the topology
+  # ----------------------------------------------------------------------
+    instance jetson_lucidCamera
+    # instance jetson_mlManager
+    instance jetson_pwrModeManager
+    instance jetson_thermalManager
+    instance jetson_watchdogManager
 
-    instance jetson_health
-    instance jetson_blockDrv
-    instance jetson_tlmSend
-    instance jetson_cmdDisp
-    instance jetson_cmdSeq
-    instance jetson_comDriver
-    instance jetson_comQueue
-    instance jetson_comStub
-    instance jetson_deframer
-    instance jetson_eventLogger
-    instance jetson_fatalAdapter
-    instance jetson_fatalHandler
-    instance jetson_fileDownlink
-    instance jetson_fileManager
-    instance jetson_fileUplink
-    instance jetson_bufferManager
-    instance jetson_framer
-    instance jetson_chronoTime
-    instance jetson_prmDb
-    instance jetson_rateGroup1
-    instance jetson_rateGroup2
-    instance jetson_rateGroup3
-    instance jetson_rateGroupDriver
-    instance jetson_textLogger
     instance jetson_systemResources
 
     instance jetson_hub
     instance jetson_hubComDriver
-    instance jetson_hubComStub
-    instance jetson_hubComQueue
-    instance jetson_hubDeframer
-    instance jetson_hubFramer
-    instance jetson_proxyGroundInterface
-    instance jetson_proxySequencer
+    instance jetson_hubByteStreamAdapter
+    instance jetson_hubBufferManager
+
+    instance jetson_rateGroup1
+    instance jetson_rateGroup2
+    instance jetson_rateGroup3
+    instance jetson_rateGroupDriver
+    instance jetson_cmdSeq
+    instance jetson_chronoTime
     instance jetson_timer
+    instance jetson_comDriver
+    instance jetson_gpioWatchdogDriver
 
-    instance jetson_lucidCamera
-    instance jetson_mlManager
-    instance jetson_pwrModeManager
-    instance jetson_thermalManager
-    instance jetson_watchdogManager
-    instance gpioWatchdogDriver
+  # ----------------------------------------------------------------------
+  # Pattern graph specifiers
+  # ----------------------------------------------------------------------
 
-    # ----------------------------------------------------------------------
-    # Pattern graph specifiers
-    # ----------------------------------------------------------------------
-
-    command connections instance jetson_cmdDisp
-
-    # event connections instance jetson_eventLogger
-    event connections instance jetson_hub
-
-    param connections instance jetson_prmDb
-
-    # telemetry connections instance jetson_tlmSend
-    telemetry connections instance jetson_hub
-
-    text event connections instance jetson_textLogger
-
+    command connections instance CdhCore.cmdDisp
+    event connections instance CdhCore.events
+    telemetry connections instance CdhCore.tlmSend
+    text event connections instance CdhCore.textLogger
+    health connections instance CdhCore.$health
+    param connections instance FileHandling.prmDb
     time connections instance jetson_chronoTime
 
-    health connections instance jetson_health
+  # ----------------------------------------------------------------------
+  # Telemetry packets (only used when TlmPacketizer is used)
+  # ----------------------------------------------------------------------
 
-    # ----------------------------------------------------------------------
-    # Direct graph specifiers
-    # ----------------------------------------------------------------------
+    # include "JetsonDeploymentPackets.fppi"
 
-    connections Downlink {
+  # ----------------------------------------------------------------------
+  # Direct graph specifiers
+  # ----------------------------------------------------------------------
 
-      jetson_eventLogger.PktSend -> jetson_comQueue.comQueueIn[0]
-      jetson_tlmSend.PktSend -> jetson_comQueue.comQueueIn[1]
-      #jetson_fileDownlink.bufferSendOut -> jetson_comQueue.buffQueueIn[0]
+    connections ComCcsds_CdhCore {
+      # Core events and telemetry are forwarded over hub to i.MX.
+      # i.MX injects these packets into its local ComCcsds queue for host GDS downlink.
+      CdhCore.events.PktSend -> jetson_hub.serialIn[2]
+      CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
 
-      jetson_comQueue.comQueueSend -> jetson_framer.comIn
-      jetson_comQueue.buffQueueSend -> jetson_framer.bufferIn
-
-      jetson_framer.framedAllocate -> jetson_bufferManager.bufferGetCallee
-      jetson_framer.framedOut -> jetson_comStub.comDataIn
-      jetson_framer.bufferDeallocate -> jetson_fileDownlink.bufferReturn
-
-      jetson_comDriver.deallocate -> jetson_bufferManager.bufferSendIn
-      jetson_comDriver.ready -> jetson_comStub.drvConnected
-
-      jetson_comStub.comStatus -> jetson_framer.comStatusIn
-      jetson_framer.comStatusOut -> jetson_comQueue.comStatusIn
-      jetson_comStub.drvDataOut -> jetson_comDriver.$send
-
+      # Router to Command Dispatcher
+      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
+      
     }
 
-    connections FaultProtection {
-      jetson_eventLogger.FatalAnnounce -> jetson_fatalHandler.FatalReceive
+    connections ComCcsds_FileHandling {
+      # File Downlink to Communication Queue
+      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
+      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+
+      # Router to File Uplink
+      ComCcsds.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
+      FileHandling.fileUplink.bufferSendOut -> ComCcsds.fprimeRouter.fileBufferReturnIn
+    }
+
+    connections Communications {
+      # ComDriver buffer allocations
+      jetson_comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
+      jetson_comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
+      
+      # ComDriver <-> ComStub (Uplink)
+      jetson_comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
+      ComCcsds.comStub.drvReceiveReturnOut -> jetson_comDriver.recvReturnIn
+      
+      # ComStub <-> ComDriver (Downlink)
+      ComCcsds.comStub.drvSendOut      -> jetson_comDriver.$send
+      jetson_comDriver.ready         -> ComCcsds.comStub.drvConnected
+    }
+
+    connections FileHandling_DataProducts {
+      # Data Products to File Downlink
+      DataProducts.dpCat.fileOut -> FileHandling.fileDownlink.SendFile
+      FileHandling.fileDownlink.FileComplete -> DataProducts.dpCat.fileDone
     }
 
     connections RateGroups {
-      # Block driver
-      timer.CycleOut -> jetson_rateGroupDriver.CycleIn
+      # timer to drive rate group
+      jetson_timer.CycleOut -> jetson_rateGroupDriver.CycleIn
 
       # Rate group 1
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> jetson_rateGroup1.CycleIn
-      jetson_rateGroup1.RateGroupMemberOut[0] -> jetson_pwrModeManager.schedIn
-      jetson_rateGroup1.RateGroupMemberOut[1] -> jetson_fileDownlink.Run
+      jetson_rateGroup1.RateGroupMemberOut[0] -> CdhCore.tlmSend.Run
+      jetson_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
       jetson_rateGroup1.RateGroupMemberOut[2] -> jetson_systemResources.run
-      jetson_rateGroup1.RateGroupMemberOut[3] -> jetson_thermalManager.run
-      jetson_rateGroup1.RateGroupMemberOut[4] -> jetson_watchdogManager.run
+      jetson_rateGroup1.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
+      jetson_rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
 
       # Rate group 2
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> jetson_rateGroup2.CycleIn
-      # rateGroup2.RateGroupMemberOut[0] -> cmdSeq.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[0] -> jetson_cmdSeq.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[1] -> jetson_pwrModeManager.schedIn
+      jetson_rateGroup2.RateGroupMemberOut[2] -> jetson_thermalManager.run
+      jetson_rateGroup2.RateGroupMemberOut[3] -> jetson_watchdogManager.run
 
       # Rate group 3
       jetson_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> jetson_rateGroup3.CycleIn
-      jetson_rateGroup3.RateGroupMemberOut[0] -> jetson_health.Run
-      jetson_rateGroup3.RateGroupMemberOut[1] -> jetson_blockDrv.Sched
-      jetson_rateGroup3.RateGroupMemberOut[2] -> jetson_bufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
+      jetson_rateGroup3.RateGroupMemberOut[1] -> ComCcsds.commsBufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[5] -> jetson_hubBufferManager.schedIn
     }
 
-    connections Sequencer {
-      jetson_cmdSeq.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-      jetson_cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
-    }
-
-    connections Uplink {
-
-      jetson_comDriver.allocate -> jetson_bufferManager.bufferGetCallee
-      jetson_comDriver.$recv -> jetson_comStub.drvDataIn
-      jetson_comStub.comDataOut -> jetson_deframer.framedIn
-
-      jetson_deframer.framedDeallocate -> jetson_bufferManager.bufferSendIn
-      jetson_deframer.comOut -> jetson_cmdDisp.seqCmdBuff
-
-      jetson_cmdDisp.seqCmdStatus -> jetson_deframer.cmdResponseIn
-
-      jetson_deframer.bufferAllocate -> jetson_bufferManager.bufferGetCallee
-      jetson_deframer.bufferOut -> jetson_fileUplink.bufferSendIn
-      jetson_deframer.bufferDeallocate -> jetson_bufferManager.bufferSendIn
-      jetson_fileUplink.bufferSendOut -> jetson_bufferManager.bufferSendIn
+    connections CdhCore_cmdSeq {
+      # Command Sequencer
+      jetson_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
     }
 
     connections JetsonDeployment {
+
       # Add here connections to user-defined components
 
-      jetson_lucidCamera.sendFile -> jetson_fileDownlink.SendFile
+      jetson_lucidCamera.sendFile -> FileHandling.fileDownlink.SendFile
 
-      # powerModeSend: JetsonPowerModeManager → hub → IMX PowerManager
-      jetson_pwrModeManager.powerModeSend -> jetson_hub.portIn[2]
+      # Power mode: Jetson -> i.MX
+      jetson_pwrModeManager.powerModeSend -> jetson_hub.serialIn[0]
 
-      # powerModeRecieve: IMX PowerManager → hub → JetsonPowerModeManager
-      jetson_hub.portOut[2] -> jetson_pwrModeManager.powerModeReceive
+      # Power mode request/state from i.MX -> Jetson
+      jetson_hub.serialOut[0] -> jetson_pwrModeManager.powerModeReceive
 
-      # jetsonPowerStateSend: JetsonPowerModeManager → hub → IMX PowerManager
-      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.portIn[3]
+      # Jetson power state: Jetson -> i.MX
+      jetson_pwrModeManager.jetsonPowerStateSend -> jetson_hub.serialIn[1]
 
-      # jetsonPowerStateReceive: IMX PowerManager → hub → JetsonPowerModeManager
-      jetson_hub.portOut[3] -> jetson_pwrModeManager.jetsonPowerStateReceive
+      # Jetson power state request from i.MX -> Jetson
+      jetson_hub.serialOut[1] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
-      jetson_watchdogManager.gpioWatchDog -> gpioWatchdogDriver.gpioWrite
+      jetson_watchdogManager.gpioWatchDog -> jetson_gpioWatchdogDriver.gpioWrite
+      
 
     }
 
     connections send_hub {
-      jetson_hub.dataOut -> jetson_hubFramer.bufferIn
-      jetson_hub.dataOutAllocate -> jetson_bufferManager.bufferGetCallee
-      
-      jetson_hubFramer.framedOut -> jetson_hubComDriver.$send
-      jetson_hubFramer.bufferDeallocate -> jetson_bufferManager.bufferSendIn
-      jetson_hubFramer.framedAllocate -> jetson_bufferManager.bufferGetCallee
-      
-      jetson_hubComDriver.deallocate -> jetson_bufferManager.bufferSendIn
+      jetson_hub.toBufferDriver -> jetson_hubByteStreamAdapter.bufferIn
+      jetson_hubByteStreamAdapter.bufferInReturn -> jetson_hub.toBufferDriverReturn
 
+      jetson_hubByteStreamAdapter.toByteStreamDriver -> jetson_hubComDriver.$send
     }
 
+
     connections recv_hub {
-      jetson_hubComDriver.$recv -> jetson_hubDeframer.framedIn
-      jetson_hubComDriver.allocate -> jetson_bufferManager.bufferGetCallee
+      jetson_hubComDriver.$recv -> jetson_hubByteStreamAdapter.fromByteStreamDriver
+      jetson_hubByteStreamAdapter.fromByteStreamDriverReturn -> jetson_hubComDriver.recvReturnIn
 
-      jetson_hubDeframer.bufferOut -> jetson_hub.dataIn
-      jetson_hubDeframer.bufferAllocate -> jetson_bufferManager.bufferGetCallee
-      jetson_hubDeframer.framedDeallocate -> jetson_bufferManager.bufferSendIn
-
-      jetson_hub.dataInDeallocate -> jetson_bufferManager.bufferSendIn
+      jetson_hubByteStreamAdapter.bufferOut -> jetson_hub.fromBufferDriver
+      jetson_hub.fromBufferDriverReturn -> jetson_hubByteStreamAdapter.bufferOutReturn
     }
 
     connections hub {
-      jetson_fileDownlink.bufferSendOut -> jetson_hub.buffersIn[0]
-      jetson_hub.bufferDeallocate -> jetson_fileDownlink.bufferReturn
+      jetson_hub.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hub.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      jetson_hub.portOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
-      jetson_hub.portOut[1] -> jetson_proxySequencer.seqCmdBuf
+      jetson_hubComDriver.allocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      jetson_proxyGroundInterface.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-      jetson_proxySequencer.comCmdOut -> jetson_cmdDisp.seqCmdBuff
-      
-      jetson_cmdDisp.seqCmdStatus -> jetson_proxyGroundInterface.cmdResponseIn
-      jetson_cmdDisp.seqCmdStatus -> jetson_proxySequencer.cmdResponseIn
+      jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
 
-      jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.portIn[0]
-      jetson_proxySequencer.seqCmdStatus -> jetson_hub.portIn[1]
-
-      jetson_hub.buffersOut -> jetson_bufferManager.bufferSendIn
+      # Commands arriving from the i.MX hub are dispatched locally on the Jetson.
+      # Responses return over the same hub command channel.
+      jetson_hub.cmdDispOut[0] -> CdhCore.cmdDisp.seqCmdBuff
+      CdhCore.cmdDisp.seqCmdStatus -> jetson_hub.cmdRespIn[0]
     }
-
   }
 
 }

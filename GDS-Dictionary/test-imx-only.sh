@@ -8,7 +8,6 @@ cd "${SCRIPT_DIR}"
 exec fprime-gds -n \
   --dictionary ImxDeploymentTopologyDictionary.json \
   --communication-selection ip \
-  --framing-selection fprime \
   --ip-client \
   --ip-address "${IP_ADDRESS}" \
   --ip-port 50000 \
