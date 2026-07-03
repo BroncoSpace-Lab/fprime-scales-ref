@@ -24,7 +24,7 @@ module JetsonDeployment {
   # Instances used in the topology
   # ----------------------------------------------------------------------
     instance jetson_lucidCamera
-    # instance jetson_mlManager
+    instance jetson_mlManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_watchdogManager
@@ -82,8 +82,12 @@ module JetsonDeployment {
 
     connections ComCcsds_FileHandling {
       # File Downlink to Communication Queue
-      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+      # FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
+      # ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+
+      # File downlink to the hub
+      FileHandling.fileDownlink.bufferSendOut -> jetson_hub.bufferIn[0]
+      jetson_hub.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn
 
       # Router to File Uplink
       ComCcsds.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
