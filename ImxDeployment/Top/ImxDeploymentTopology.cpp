@@ -38,7 +38,7 @@ enum TopologyConstants {
     //
     // Important:
     // The old value was 0x10000. That was too low because framework/CDH commands
-    // like CdhCore.cmdDisp.CMD_NO_OP live around 0x01000000, causing NO_OP to be
+    // like ImxCdhCore.cmdDisp.CMD_NO_OP live around 0x01000000, causing NO_OP to be
     // incorrectly routed to the Jetson hub path.
     //
     // With this value:

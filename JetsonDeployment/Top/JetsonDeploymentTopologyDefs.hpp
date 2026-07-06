@@ -7,20 +7,20 @@
 #define JETSONDEPLOYMENT_JETSONDEPLOYMENTTOPOLOGYDEFS_HPP
 
 // Subtopology PingEntries includes
-#include "Svc/Subtopologies/CdhCore/PingEntries.hpp"
-#include "Svc/Subtopologies/ComCcsds/PingEntries.hpp"
-#include "Svc/Subtopologies/DataProducts/PingEntries.hpp"
-#include "Svc/Subtopologies/FileHandling/PingEntries.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonCdhCore/PingEntries.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonComCcsds/PingEntries.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonDataProducts/PingEntries.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonFileHandling/PingEntries.hpp"
 
 // SubtopologyTopologyDefs includes
-#include "Svc/Subtopologies/CdhCore/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/ComCcsds/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/DataProducts/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/FileHandling/SubtopologyTopologyDefs.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonCdhCore/SubtopologyTopologyDefs.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonComCcsds/SubtopologyTopologyDefs.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonDataProducts/SubtopologyTopologyDefs.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonFileHandling/SubtopologyTopologyDefs.hpp"
 
-//ComCcsds Enum Includes
-#include "Svc/Subtopologies/ComCcsds/Ports_ComPacketQueueEnumAc.hpp"
-#include "Svc/Subtopologies/ComCcsds/Ports_ComBufferQueueEnumAc.hpp"
+//JetsonComCcsds Enum Includes
+#include "JetsonDeployment/Subtopologies/JetsonComCcsds/Ports_ComPacketQueueEnumAc.hpp"
+#include "JetsonDeployment/Subtopologies/JetsonComCcsds/Ports_ComBufferQueueEnumAc.hpp"
 
 // Include autocoded FPP constants
 #include "JetsonDeployment/Top/FppConstantsAc.hpp"
@@ -64,10 +64,10 @@ namespace JetsonDeployment {
 struct TopologyState {
     const char* hostname;   //!< Hostname for TCP communication
     U16 port;              //!< Port for TCP communication
-    CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
-    ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds 
-    DataProducts::SubtopologyState dataProducts; //!< Subtopology state for DataProducts
-    FileHandling::SubtopologyState fileHandling; //!< Subtopology state for FileHandling
+    JetsonCdhCore::SubtopologyState cdhCore;           //!< Subtopology state for JetsonCdhCore
+    JetsonComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for JetsonComCcsds
+    JetsonDataProducts::SubtopologyState dataProducts; //!< Subtopology state for JetsonDataProducts
+    JetsonFileHandling::SubtopologyState fileHandling; //!< Subtopology state for JetsonFileHandling
 };
 
 namespace PingEntries = ::PingEntries;

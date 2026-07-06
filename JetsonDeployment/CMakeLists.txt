@@ -21,10 +21,10 @@ register_fprime_deployment(
         Os_Console_Posix
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
-        Svc_Subtopologies_CdhCore
-        Svc_Subtopologies_ComCcsds
-        Svc_Subtopologies_DataProducts
-        Svc_Subtopologies_FileHandling
+        JetsonDeployment_Subtopologies_JetsonCdhCore
+        JetsonDeployment_Subtopologies_JetsonComCcsds
+        JetsonDeployment_Subtopologies_JetsonDataProducts
+        JetsonDeployment_Subtopologies_JetsonFileHandling
 )
 if (NOT DEFINED FPRIME_SUB_BUILD_TARGETS)
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)

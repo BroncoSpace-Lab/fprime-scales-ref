@@ -15,10 +15,10 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
   # Subtopology imports
   # ----------------------------------------------------------------------
-    import CdhCore.Subtopology
-    import ComCcsds.Subtopology
-    import DataProducts.Subtopology
-    import FileHandling.Subtopology
+    import ImxCdhCore.Subtopology
+    import ImxComCcsds.Subtopology
+    import ImxDataProducts.Subtopology
+    import ImxFileHandling.Subtopology
     
   # ----------------------------------------------------------------------
   # Instances used in the topology
@@ -58,12 +58,12 @@ module ImxDeployment {
   # Pattern graph specifiers
   # ----------------------------------------------------------------------
 
-    command connections instance CdhCore.cmdDisp
-    event connections instance CdhCore.events
-    telemetry connections instance CdhCore.tlmSend
-    text event connections instance CdhCore.textLogger
-    health connections instance CdhCore.$health
-    param connections instance FileHandling.prmDb
+    command connections instance ImxCdhCore.cmdDisp
+    event connections instance ImxCdhCore.events
+    telemetry connections instance ImxCdhCore.tlmSend
+    text event connections instance ImxCdhCore.textLogger
+    health connections instance ImxCdhCore.$health
+    param connections instance ImxFileHandling.prmDb
     time connections instance imx_chronoTime
 
   # ----------------------------------------------------------------------
@@ -76,46 +76,46 @@ module ImxDeployment {
   # Direct graph specifiers
   # ----------------------------------------------------------------------
 
-    connections ComCcsds_CdhCore {
+    connections ImxComCcsds_CdhCore {
       # Core events and telemetry to communication queue
-      CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      ImxCdhCore.events.PktSend -> ImxComCcsds.comQueue.comPacketQueueIn[ImxComCcsds.Ports_ComPacketQueue.EVENTS]
+      ImxCdhCore.tlmSend.PktSend -> ImxComCcsds.comQueue.comPacketQueueIn[ImxComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
       # Router to command splitter. Local commands are dispatched on the i.MX;
       # Jetson commands are forwarded over the hub.
-      ComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
-      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
+      ImxComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ImxComCcsds.fprimeRouter.cmdResponseIn
       
     }
 
-    connections ComCcsds_FileHandling {
+    connections ImxComCcsds_ImxFileHandling {
       # File Downlink to Communication Queue
-      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+      ImxFileHandling.fileDownlink.bufferSendOut -> ImxComCcsds.comQueue.bufferQueueIn[ImxComCcsds.Ports_ComBufferQueue.FILE]
+      ImxComCcsds.comQueue.bufferReturnOut[ImxComCcsds.Ports_ComBufferQueue.FILE] -> ImxFileHandling.fileDownlink.bufferReturn
 
       # Router to File Uplink
-      ComCcsds.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
-      FileHandling.fileUplink.bufferSendOut -> ComCcsds.fprimeRouter.fileBufferReturnIn
+      ImxComCcsds.fprimeRouter.fileOut -> ImxFileHandling.fileUplink.bufferSendIn
+      ImxFileHandling.fileUplink.bufferSendOut -> ImxComCcsds.fprimeRouter.fileBufferReturnIn
     }
 
     connections Communications {
       # ComDriver buffer allocations
-      imx_comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
-      imx_comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
+      imx_comDriver.allocate      -> ImxComCcsds.commsBufferManager.bufferGetCallee
+      imx_comDriver.deallocate    -> ImxComCcsds.commsBufferManager.bufferSendIn
       
       # ComDriver <-> ComStub (Uplink)
-      imx_comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
-      ComCcsds.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
+      imx_comDriver.$recv                     -> ImxComCcsds.comStub.drvReceiveIn
+      ImxComCcsds.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
       
       # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut      -> imx_comDriver.$send
-      imx_comDriver.ready         -> ComCcsds.comStub.drvConnected
+      ImxComCcsds.comStub.drvSendOut      -> imx_comDriver.$send
+      imx_comDriver.ready         -> ImxComCcsds.comStub.drvConnected
     }
 
-    connections FileHandling_DataProducts {
+    connections ImxFileHandling_ImxDataProducts {
       # Data Products to File Downlink
-      DataProducts.dpCat.fileOut -> FileHandling.fileDownlink.SendFile
-      FileHandling.fileDownlink.FileComplete -> DataProducts.dpCat.fileDone
+      ImxDataProducts.dpCat.fileOut -> ImxFileHandling.fileDownlink.SendFile
+      ImxFileHandling.fileDownlink.FileComplete -> ImxDataProducts.dpCat.fileDone
     }
 
     connections RateGroups {
@@ -124,11 +124,11 @@ module ImxDeployment {
 
       # Rate group 1
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup1] -> imx_rateGroup1.CycleIn
-      imx_rateGroup1.RateGroupMemberOut[0] -> CdhCore.tlmSend.Run
-      imx_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
+      imx_rateGroup1.RateGroupMemberOut[0] -> ImxCdhCore.tlmSend.Run
+      imx_rateGroup1.RateGroupMemberOut[1] -> ImxFileHandling.fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
-      imx_rateGroup1.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
-      imx_rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
+      imx_rateGroup1.RateGroupMemberOut[3] -> ImxComCcsds.comQueue.run
+      imx_rateGroup1.RateGroupMemberOut[4] -> ImxComCcsds.aggregator.timeout
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -142,11 +142,11 @@ module ImxDeployment {
   
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
-      imx_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
-      imx_rateGroup3.RateGroupMemberOut[1] -> ComCcsds.commsBufferManager.schedIn
-      imx_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
-      imx_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
-      imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
+      imx_rateGroup3.RateGroupMemberOut[0] -> ImxCdhCore.$health.Run
+      imx_rateGroup3.RateGroupMemberOut[1] -> ImxComCcsds.commsBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[2] -> ImxDataProducts.dpBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[3] -> ImxDataProducts.dpWriter.schedIn
+      imx_rateGroup3.RateGroupMemberOut[4] -> ImxDataProducts.dpMgr.schedIn
       imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
     }
 
@@ -160,9 +160,9 @@ module ImxDeployment {
       # Add here connections to user-defined components
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
-      # Route directly into IMX ComCcsds packet queues for host GDS downlink.
-      imx_hub.serialOut[2] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      imx_hub.serialOut[3] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      # Route directly into IMX ImxComCcsds packet queues for host GDS downlink.
+      imx_hub.serialOut[2] -> ImxComCcsds.comQueue.comPacketQueueIn[ImxComCcsds.Ports_ComPacketQueue.EVENTS]
+      imx_hub.serialOut[3] -> ImxComCcsds.comQueue.comPacketQueueIn[ImxComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
       # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
@@ -225,11 +225,11 @@ module ImxDeployment {
       imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
 
       # Local command dispatch after splitting
-      imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]
-      CdhCore.cmdDisp.seqCmdStatus[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_cmdSplitter.LocalCmd[0] -> ImxCdhCore.cmdDisp.seqCmdBuff[0]
+      ImxCdhCore.cmdDisp.seqCmdStatus[0] -> imx_cmdSplitter.seqCmdStatus[0]
 
-      imx_seqCmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[1]
-      CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+      imx_seqCmdSplitter.LocalCmd[0] -> ImxCdhCore.cmdDisp.seqCmdBuff[1]
+      ImxCdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
 
       # Commands going from this deployment to the remote deployment
       imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]

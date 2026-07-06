@@ -7,20 +7,20 @@
 #define IMXDEPLOYMENT_IMXDEPLOYMENTTOPOLOGYDEFS_HPP
 
 // Subtopology PingEntries includes
-#include "Svc/Subtopologies/CdhCore/PingEntries.hpp"
-#include "Svc/Subtopologies/ComCcsds/PingEntries.hpp"
-#include "Svc/Subtopologies/DataProducts/PingEntries.hpp"
-#include "Svc/Subtopologies/FileHandling/PingEntries.hpp"
+#include "ImxDeployment/Subtopologies/ImxCdhCore/PingEntries.hpp"
+#include "ImxDeployment/Subtopologies/ImxComCcsds/PingEntries.hpp"
+#include "ImxDeployment/Subtopologies/ImxDataProducts/PingEntries.hpp"
+#include "ImxDeployment/Subtopologies/ImxFileHandling/PingEntries.hpp"
 
 // SubtopologyTopologyDefs includes
-#include "Svc/Subtopologies/CdhCore/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/ComCcsds/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/DataProducts/SubtopologyTopologyDefs.hpp"
-#include "Svc/Subtopologies/FileHandling/SubtopologyTopologyDefs.hpp"
+#include "ImxDeployment/Subtopologies/ImxCdhCore/SubtopologyTopologyDefs.hpp"
+#include "ImxDeployment/Subtopologies/ImxComCcsds/SubtopologyTopologyDefs.hpp"
+#include "ImxDeployment/Subtopologies/ImxDataProducts/SubtopologyTopologyDefs.hpp"
+#include "ImxDeployment/Subtopologies/ImxFileHandling/SubtopologyTopologyDefs.hpp"
 
-//ComCcsds Enum Includes
-#include "Svc/Subtopologies/ComCcsds/Ports_ComPacketQueueEnumAc.hpp"
-#include "Svc/Subtopologies/ComCcsds/Ports_ComBufferQueueEnumAc.hpp"
+//ImxComCcsds Enum Includes
+#include "ImxDeployment/Subtopologies/ImxComCcsds/Ports_ComPacketQueueEnumAc.hpp"
+#include "ImxDeployment/Subtopologies/ImxComCcsds/Ports_ComBufferQueueEnumAc.hpp"
 
 // Include autocoded FPP constants
 #include "ImxDeployment/Top/FppConstantsAc.hpp"
@@ -64,10 +64,10 @@ namespace ImxDeployment {
 struct TopologyState {
     const char* hostname;   //!< Hostname for TCP communication
     U16 port;              //!< Port for TCP communication
-    CdhCore::SubtopologyState cdhCore;           //!< Subtopology state for CdhCore
-    ComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ComCcsds 
-    DataProducts::SubtopologyState dataProducts; //!< Subtopology state for DataProducts
-    FileHandling::SubtopologyState fileHandling; //!< Subtopology state for FileHandling
+    ImxCdhCore::SubtopologyState imxCdhCore;     //!< Subtopology state for ImxCdhCore
+    ImxComCcsds::SubtopologyState comCcsds;         //!< Subtopology state for ImxComCcsds
+    ImxDataProducts::SubtopologyState dataProducts; //!< Subtopology state for ImxDataProducts
+    ImxFileHandling::SubtopologyState fileHandling; //!< Subtopology state for ImxFileHandling
 };
 
 namespace PingEntries = ::PingEntries;

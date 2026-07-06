@@ -13,6 +13,7 @@
 
 restrict_platforms(imx8x)
 
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Subtopologies/")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
 
 # Add custom components to this specific deployment here
