@@ -4,7 +4,9 @@ module JetsonCdhCoreConfig {
 
     module QueueSizes {
         constant cmdDisp     = 10
-        constant events      = 10
+        # Jetson tends to emit a burst of startup and command-related events,
+        # so give the EventManager more headroom before packets start dropping.
+        constant events      = 50
         constant tlmSend     = 10
         constant $health     = 25
     }
