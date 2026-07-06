@@ -1,6 +1,6 @@
 module JetsonCdhCoreConfig {
     # Base ID for the JetsonCdhCore subtopology, all components are offsets from this base ID
-    constant BASE_ID = 0x01000000
+    constant BASE_ID = 0x11000000
 
     module QueueSizes {
         constant cmdDisp     = 10

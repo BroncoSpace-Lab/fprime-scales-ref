@@ -1,6 +1,6 @@
 module JetsonFileHandlingConfig {
     #Base ID for the JetsonFileHandling Subtopology, all components are offsets from this base ID
-    constant BASE_ID = 0x05000000
+    constant BASE_ID = 0x14000000
     
     module QueueSizes {
         constant fileUplink    = 10
