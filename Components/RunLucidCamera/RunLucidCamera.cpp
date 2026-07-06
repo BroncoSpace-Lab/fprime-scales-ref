@@ -15,6 +15,8 @@
 #include <sstream>
 #include <iomanip>
 #include <iostream>
+#include <cstdlib>
+#include <sys/wait.h>
 
 
 
@@ -29,6 +31,8 @@
 
 #define EXPOSURE_TIME 5000.0
 
+const std::string IMX_IP_ADDRESS = "10.3.2.10";
+const std::string jetson_base_path = "/home/scales/fprime-scales-ref/build-artifacts/python/";
 // file name
 //#define FILE_NAME "Images/image.png" //make parameter later
 //also change to make a new image each time and not just replace the previous one
@@ -41,6 +45,38 @@ std::string generatefileName(){
   std::ostringstream oss;
   oss << "Images/image_" << std::setw(4) << std::setfill('0') << imageCounter++ << ".png";
   return oss.str();
+}
+
+// Helper function to copy image to IMX via scp
+int copyImageToImx(const std::string& imagePath){
+  const std::string fullLocalPath = jetson_base_path + imagePath;
+  const std::string remotePath = "root@" + IMX_IP_ADDRESS + ":/root/image.png";
+
+
+  std::ostringstream cmd;
+
+  cmd
+    << "scp "
+    << "-o BatchMode=yes "
+    << "-o ConnectTimeout=5 "
+    << "-o StrictHostKeyChecking=no "
+    << "'" << fullLocalPath << "' "
+    << remotePath;
+
+  std::cout << "Running SCP command: " << cmd.str() << std::endl;
+
+  int ret = std::system(cmd.str().c_str());
+
+  if (ret == -1) {
+    std::cout << "SCP failed: system() call failed\n";
+    return -1;
+  }
+
+  if (WIFEXITED(ret)) {
+    return WEXITSTATUS(ret);
+  }
+
+  return -1;
 }
 
 void SaveImage(Arena::IImage* pImage, const char* filename)
@@ -186,16 +222,22 @@ Arena::IDevice* pDevice;
 
       this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(imageDispchar));
 
-      const char* filepathchar = filename.c_str();
-      this->m_filename=filepathchar;
-      Fw::FileNameString destination("./image.png");
+      // const char* filepathchar = filename.c_str();
+      // this->m_filename=filepathchar;
+      // Fw::FileNameString destination("./image.png");
       
-      Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
-            if (resp.get_status() != Svc::SendFileStatus::STATUS_OK) {
-                // warn, but keep going since it may be an issue with this file but others could
-                // make it
-                this->log_WARNING_HI_FileSendError(this->m_filename,resp.get_status());
-            }
+      // Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
+      //       if (resp.get_status() != Svc::SendFileStatus::STATUS_OK) {
+      //           // warn, but keep going since it may be an issue with this file but others could
+      //           // make it
+      //           this->log_WARNING_HI_FileSendError(this->m_filename,resp.get_status());
+      //       }
+
+      if (copyImageToImx(filename) == 0) {
+        std::cout << "Image copied to IMX successfully.\n";
+      } else {
+        std::cout << "Failed to copy image to IMX.\n";
+      }
 
       std::cout << "\nExample complete\n";
 

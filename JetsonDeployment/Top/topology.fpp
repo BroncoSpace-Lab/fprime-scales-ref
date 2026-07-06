@@ -24,7 +24,7 @@ module JetsonDeployment {
   # Instances used in the topology
   # ----------------------------------------------------------------------
     instance jetson_lucidCamera
-    # instance jetson_mlManager
+    instance jetson_mlManager
     instance jetson_pwrModeManager
     instance jetson_thermalManager
     instance jetson_watchdogManager
