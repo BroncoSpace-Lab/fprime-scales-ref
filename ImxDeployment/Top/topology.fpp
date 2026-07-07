@@ -198,12 +198,12 @@ module ImxDeployment {
       imx_hub.toBufferDriver -> imx_hubByteStreamAdapter.bufferIn
       imx_hubByteStreamAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
 
-      # ByteStream adapter -> TCP driver
+      # ByteStream adapter -> UDP driver
       imx_hubByteStreamAdapter.toByteStreamDriver -> imx_hubComDriver.$send
     }
 
     connections recv_hub {
-      # TCP driver -> ByteStream adapter
+      # UDP driver -> ByteStream adapter
       imx_hubComDriver.$recv -> imx_hubByteStreamAdapter.fromByteStreamDriver
       imx_hubByteStreamAdapter.fromByteStreamDriverReturn -> imx_hubComDriver.recvReturnIn
 
@@ -217,11 +217,11 @@ module ImxDeployment {
       imx_hub.allocate -> imx_hubBufferManager.bufferGetCallee
       imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
 
-      # TCP driver buffer allocation/deallocation
+      # UDP driver buffer allocation/deallocation
       imx_hubComDriver.allocate -> imx_hubBufferManager.bufferGetCallee
       imx_hubComDriver.deallocate -> imx_hubBufferManager.bufferSendIn
 
-      # TCP driver ready signal
+      # UDP driver ready signal
       imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
 
       # Local command dispatch after splitting

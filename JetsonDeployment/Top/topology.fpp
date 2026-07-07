@@ -75,8 +75,8 @@ module JetsonDeployment {
       CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
 
       # Router to Command Dispatcher
-      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> ComCcsds.fprimeRouter.cmdResponseIn
+      ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff[0]
+      CdhCore.cmdDisp.seqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
       
     }
 
@@ -141,8 +141,8 @@ module JetsonDeployment {
 
     connections CdhCore_cmdSeq {
       # Command Sequencer
-      jetson_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> jetson_cmdSeq.cmdResponseIn
+      jetson_cmdSeq.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff[1]
+      CdhCore.cmdDisp.seqCmdStatus[1] -> jetson_cmdSeq.cmdResponseIn
     }
 
     connections JetsonDeployment {
@@ -195,8 +195,8 @@ module JetsonDeployment {
 
       # Commands arriving from the i.MX hub are dispatched locally on the Jetson.
       # Responses return over the same hub command channel.
-      jetson_hub.cmdDispOut[0] -> CdhCore.cmdDisp.seqCmdBuff
-      CdhCore.cmdDisp.seqCmdStatus -> jetson_hub.cmdRespIn[0]
+      jetson_hub.cmdDispOut[0] -> CdhCore.cmdDisp.seqCmdBuff[2]
+      CdhCore.cmdDisp.seqCmdStatus[2] -> jetson_hub.cmdRespIn[0]
     }
   }
 

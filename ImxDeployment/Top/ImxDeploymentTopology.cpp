@@ -48,6 +48,10 @@ enum TopologyConstants {
     REMOTE_JETSON_COMMAND_BASE = 0x10000000
 };
 
+const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
+const U32 IMX_HUB_PORT = 50500;
+const U32 JETSON_HUB_PORT = 50501;
+
 /**
  * \brief configure/setup components in project-specific way
  *
@@ -160,8 +164,10 @@ void setupTopology(const TopologyState& state) {
     // Hub communication path
     // ----------------------------------------------------------------------
 
-    // IMX hub server listens for the Jetson hub client.
-    imx_hubComDriver.configure("0.0.0.0", 50500);
+    // Use UDP for the GenericHub transport so each hub buffer is received as
+    // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
+    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
+    imx_hubComDriver.configureSend(JETSON_HUB_IP_ADDRESS, JETSON_HUB_PORT);
 
     // CRITICAL FIX:
     //
@@ -204,7 +210,6 @@ void teardownTopology(const TopologyState& state) {
     (void)imx_comDriver.join();
 
     // Hub comm cleanup
-    imx_hubComDriver.terminate();
     imx_hubComDriver.stop();
     (void)imx_hubComDriver.join();
 

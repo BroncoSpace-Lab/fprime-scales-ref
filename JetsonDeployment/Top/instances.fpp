@@ -75,7 +75,7 @@ module JetsonDeployment {
 
   instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x3000
 
-  instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x3100
+  instance jetson_hubComDriver: Drv.Udp base id CMD_SPLITTER_OFFSET + 0x3100
 
   instance jetson_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id CMD_SPLITTER_OFFSET + 0x3200
 

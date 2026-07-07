@@ -85,7 +85,7 @@ module ImxDeployment {
 
   instance imx_hub: Svc.GenericHub base id 0x3000
 
-  instance imx_hubComDriver: Drv.TcpServer base id 0x3100
+  instance imx_hubComDriver: Drv.Udp base id 0x3100
 
   instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x3200
 

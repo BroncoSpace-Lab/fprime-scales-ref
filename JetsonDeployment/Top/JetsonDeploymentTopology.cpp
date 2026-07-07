@@ -36,6 +36,7 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 const char* IMX_HUB_IP_ADDRESS = "10.3.2.10";
 const U32 IMX_HUB_PORT = 50500;
+const U32 JETSON_HUB_PORT = 50501;
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
@@ -51,10 +52,10 @@ bool isComDriverConnected(const TopologyState& state) {
            state.port != 0;
 }
 
-bool waitForHubConnection() {
+bool waitForHubReady() {
     for (U32 attempt = 0; attempt < HUB_CONNECT_WAIT_ATTEMPTS; ++attempt) {
         if (jetson_hubComDriver.isOpened()) {
-            // Give the TcpClient ready port time to mark the adapter ready.
+            // Give the UDP ready port time to mark the adapter ready.
             (void)Os::Task::delay(Fw::TimeInterval(0, 10000));
             return true;
         }
@@ -116,15 +117,19 @@ void setupTopology(const TopologyState& state) {
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    jetson_hubComDriver.configure(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
+    // Use UDP for the GenericHub transport so each hub buffer is received as
+    // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
+    jetson_hubComDriver.configureRecv("0.0.0.0", JETSON_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
+    jetson_hubComDriver.configureSend(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
 
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
-    if (!waitForHubConnection()) {
+    if (!waitForHubReady()) {
         Fw::Logger::log(
-            "[WARNING] Jetson hub TCP client did not connect to %s:%u before startup traffic began\n",
+            "[WARNING] Jetson hub UDP driver did not open before startup traffic began. Remote=%s:%u local=%u\n",
             IMX_HUB_IP_ADDRESS,
-            static_cast<unsigned>(IMX_HUB_PORT)
+            static_cast<unsigned>(IMX_HUB_PORT),
+            static_cast<unsigned>(JETSON_HUB_PORT)
         );
     }
 
