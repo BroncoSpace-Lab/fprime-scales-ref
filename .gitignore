@@ -17,6 +17,7 @@ build-python-fprime/
 .DS_Store
 *.gcov
 /Images/
+/__pycache__/
 
 # Ignore all XML/JSON files in the GDS-Dictionary folder
 GDS-Dictionary/*.xml

@@ -12,7 +12,7 @@
 ###
 
 restrict_platforms(imx8x)
-
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/SubtopologyConfig/")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
 
 # Add custom components to this specific deployment here
@@ -23,4 +23,8 @@ register_fprime_deployment(
         "${CMAKE_CURRENT_LIST_DIR}/Main.cpp"
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
+        Svc_Subtopologies_CdhCore
+        Svc_Subtopologies_ComCcsds
+        Svc_Subtopologies_DataProducts
+        Svc_Subtopologies_FileHandling
 )

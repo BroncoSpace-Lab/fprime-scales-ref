@@ -15,6 +15,21 @@ REQUIRED_SECTIONS = [
     "telemetryChannels",
 ]
 
+SHARED_SUBTOPOLOGY_PREFIXES = (
+    "CdhCore.",
+    "ComCcsds.",
+    "DataProducts.",
+    "FileHandling.",
+)
+
+NAME_PREFIX_SECTIONS = (
+    "commands",
+    "events",
+    "telemetryChannels",
+    "parameters",
+    "records",
+)
+
 
 def load_json_dictionary(dict_file: Path) -> JsonDict:
     try:
@@ -57,6 +72,37 @@ def find_existing_entry(section: List[JsonDict], key: str, value: Any) -> Option
             return entry
 
     return None
+
+
+def is_shared_subtopology_name(name: str) -> bool:
+    return name.startswith(SHARED_SUBTOPOLOGY_PREFIXES)
+
+
+def prefix_shared_subtopology_names(dictionary: JsonDict, prefix: str) -> None:
+    """
+    Prefix shared subtopology names so merged GDS displays can distinguish
+    deployment-local copies without changing the runtime opcode or ID.
+    """
+    if not prefix:
+        return
+
+    for section_name in NAME_PREFIX_SECTIONS:
+        section = dictionary.get(section_name)
+
+        if section is None:
+            continue
+
+        if not isinstance(section, list):
+            print(f"[ERROR] Section '{section_name}' is not a list")
+            sys.exit(-1)
+
+        for entry in section:
+            if not isinstance(entry, dict):
+                continue
+
+            name = entry.get("name")
+            if isinstance(name, str) and is_shared_subtopology_name(name):
+                entry["name"] = f"{prefix}{name}"
 
 
 def merge_list_section(
@@ -134,8 +180,23 @@ def merge_metadata(base_dict: JsonDict, filtered_dict: JsonDict):
         }
 
 
-def merge_dicts(base_dict: JsonDict, filtered_dict: JsonDict) -> JsonDict:
+def merge_dicts(
+    base_dict: JsonDict,
+    filtered_dict: JsonDict,
+    base_prefix: str,
+    secondary_prefix: str,
+) -> JsonDict:
+    prefix_shared_subtopology_names(base_dict, base_prefix)
+    prefix_shared_subtopology_names(filtered_dict, secondary_prefix)
     merge_metadata(base_dict, filtered_dict)
+
+    metadata = base_dict.setdefault("metadata", {})
+    if isinstance(metadata, dict):
+        metadata["namePrefixes"] = {
+            "baseDictionary": base_prefix,
+            "secondaryDictionary": secondary_prefix,
+            "prefixedSubtopologies": list(SHARED_SUBTOPOLOGY_PREFIXES),
+        }
 
     # Type-level definitions. These can repeat across deployments, so duplicate
     # qualified names are skipped unless they are new.
@@ -236,6 +297,18 @@ def parse_args() -> argparse.Namespace:
         help="File to save the resulting combined JSON dictionary into.",
     )
 
+    parser.add_argument(
+        "--base-prefix",
+        default="jetson_",
+        help="Prefix applied to shared subtopology names in the base dictionary.",
+    )
+
+    parser.add_argument(
+        "--secondary-prefix",
+        default="imx_",
+        help="Prefix applied to shared subtopology names in the secondary dictionary.",
+    )
+
     return parser.parse_args()
 
 
@@ -255,7 +328,12 @@ def main() -> int:
     base_dict = load_json_dictionary(base_dict_file)
     filtered_dict = load_json_dictionary(dict_file)
 
-    combined_dict = merge_dicts(base_dict, filtered_dict)
+    combined_dict = merge_dicts(
+        base_dict,
+        filtered_dict,
+        args.base_prefix,
+        args.secondary_prefix,
+    )
 
     result_file = Path(args.result)
     with open(result_file, "w") as f:
