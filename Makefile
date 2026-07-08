@@ -12,7 +12,7 @@ help: ## Display this help.
 setup: ## Set up the repo
 	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout lucadev_v4.2.2
+	git checkout main
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Sourcing fprime virtual environment..."
