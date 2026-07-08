@@ -3,107 +3,61 @@
 // \brief cpp file containing the topology instantiation code
 //
 // ======================================================================
+
 // Provides access to autocoded functions
 #include <ImxDeployment/Top/ImxDeploymentTopologyAc.hpp>
+
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ImxDeployment/Top/ImxDeploymentPacketsAc.hpp>
 
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
-#include <Svc/FramingProtocol/FprimeProtocol.hpp>
 #include <Fw/Logger/Logger.hpp>
 
-// Used for 1Hz synthetic cycling
-#include <Os/Mutex.hpp>
+// Public functions for use in main program are namespaced with deployment module ImxDeployment.
+// This is also the namespace where the topology components are instantiated by FPP.
+namespace ImxDeployment {
 
-// Allows easy reference to objects in FPP/autocoder required namespaces
-using namespace ImxDeployment;
-
-// The reference topology uses a malloc-based allocator for components that need to allocate memory during the
-// initialization phase.
+// Instantiate a malloc allocator for cmdSeq buffer allocation
 Fw::MallocAllocator mallocator;
 
-// The reference topology uses the F´ packet protocol when communicating with the ground and therefore uses the F´
-// framing and deframing implementations.
-Svc::FprimeFraming framing;
-Svc::FprimeDeframing deframing;
-Svc::FprimeFraming hubFraming;
-Svc::FprimeDeframing hubDeframing;
-
-Svc::ComQueue::QueueConfigurationTable configurationTable;
-
-// The reference topology divides the incoming clock signal (1Hz) into sub-signals: 1Hz, 1/2Hz, and 1/4Hz with 0 offset
+// The reference topology divides the incoming clock signal into sub-signals:
+// 1Hz, 1/2Hz, and 1/4Hz with 0 offset.
 Svc::RateGroupDriver::DividerSet rateGroupDivisorsSet{{{1, 0}, {2, 0}, {4, 0}}};
 
-// Rate groups may supply a context token to each of the attached children whose purpose is set by the project. The
-// reference topology sets each token to zero as these contexts are unused in this project.
-NATIVE_INT_TYPE rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
-NATIVE_INT_TYPE rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
-NATIVE_INT_TYPE rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
+// Rate groups may supply a context token to each attached child.
+U32 rateGroup1Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
+U32 rateGroup2Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
+U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
-// A number of constants are needed for construction of the topology. These are specified here.
 enum TopologyConstants {
-    CMD_SEQ_BUFFER_SIZE = 5 * 1024,
-    FILE_DOWNLINK_TIMEOUT = 1000,
-    FILE_DOWNLINK_COOLDOWN = 1000,
-    FILE_DOWNLINK_CYCLE_TIME = 1000,
-    FILE_DOWNLINK_FILE_QUEUE_DEPTH = 10,
-    HEALTH_WATCHDOG_CODE = 0x123,
-    COMM_PRIORITY = 100,
-    // bufferManager constants
-    FRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)) + HASH_DIGEST_LENGTH + Svc::FpFrameHeader::SIZE,
-    FRAMER_BUFFER_COUNT = 30,
-    DEFRAMER_BUFFER_SIZE = FW_MAX(FW_COM_BUFFER_MAX_SIZE, FW_FILE_BUFFER_MAX_SIZE + sizeof(U32)),
-    DEFRAMER_BUFFER_COUNT = 30,
+    COMM_PRIORITY = 34,
     COM_DRIVER_BUFFER_SIZE = 3000,
     COM_DRIVER_BUFFER_COUNT = 30,
-    BUFFER_MANAGER_ID = 200
+
+    // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
+    //
+    // Important:
+    // The old value was 0x10000. That was too low because framework/CDH commands
+    // like CdhCore.cmdDisp.CMD_NO_OP live around 0x01000000, causing NO_OP to be
+    // incorrectly routed to the Jetson hub path.
+    //
+    // With this value:
+    //   local IMX/CDH commands: opcode <  0x10000000
+    //   remote Jetson commands: opcode >= 0x10000000
+    REMOTE_JETSON_COMMAND_BASE = 0x10000000
 };
 
-// Ping entries are autocoded, however; this code is not properly exported. Thus, it is copied here.
-Svc::Health::PingEntry pingEntries[] = {
-    {PingEntries::ImxDeployment_imx_blockDrv::WARN, PingEntries::ImxDeployment_imx_blockDrv::FATAL, "imx_blockDrv"},
-    {PingEntries::ImxDeployment_imx_tlmSend::WARN, PingEntries::ImxDeployment_imx_tlmSend::FATAL, "imx_chanTlm"},
-    {PingEntries::ImxDeployment_imx_cmdDisp::WARN, PingEntries::ImxDeployment_imx_cmdDisp::FATAL, "imx_cmdDisp"},
-    {PingEntries::ImxDeployment_imx_cmdSeq::WARN, PingEntries::ImxDeployment_imx_cmdSeq::FATAL, "imx_cmdSeq"},
-    {PingEntries::ImxDeployment_imx_eventLogger::WARN, PingEntries::ImxDeployment_imx_eventLogger::FATAL, "imx_eventLogger"},
-    {PingEntries::ImxDeployment_imx_fileDownlink::WARN, PingEntries::ImxDeployment_imx_fileDownlink::FATAL, "imx_fileDownlink"},
-    {PingEntries::ImxDeployment_imx_fileManager::WARN, PingEntries::ImxDeployment_imx_fileManager::FATAL, "imx_fileManager"},
-    {PingEntries::ImxDeployment_imx_fileUplink::WARN, PingEntries::ImxDeployment_imx_fileUplink::FATAL, "imx_fileUplink"},
-    {PingEntries::ImxDeployment_imx_prmDb::WARN, PingEntries::ImxDeployment_imx_prmDb::FATAL, "imx_prmDb"},
-    {PingEntries::ImxDeployment_imx_rateGroup1::WARN, PingEntries::ImxDeployment_imx_rateGroup1::FATAL, "imx_rateGroup1"},
-    {PingEntries::ImxDeployment_imx_rateGroup2::WARN, PingEntries::ImxDeployment_imx_rateGroup2::FATAL, "imx_rateGroup2"},
-    {PingEntries::ImxDeployment_imx_rateGroup3::WARN, PingEntries::ImxDeployment_imx_rateGroup3::FATAL, "imx_rateGroup3"},
-};
+const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
+const U32 IMX_HUB_PORT = 50500;
+const U32 JETSON_HUB_PORT = 50501;
 
 /**
  * \brief configure/setup components in project-specific way
  *
- * This is a *helper* function which configures/sets up each component requiring project specific input. This includes
- * allocating resources, passing-in arguments, etc. This function may be inlined into the topology setup function if
- * desired, but is extracted here for clarity.
+ * This helper configures/sets up each component requiring project-specific input.
  */
-void configureTopology(const TopologyState& state) {
-    // Buffer managers need a configured set of buckets and an allocator used to allocate memory for those buckets.
-    Svc::BufferManager::BufferBins upBuffMgrBins;
-    memset(&upBuffMgrBins, 0, sizeof(upBuffMgrBins));
-    upBuffMgrBins.bins[0].bufferSize = FRAMER_BUFFER_SIZE;
-    upBuffMgrBins.bins[0].numBuffers = FRAMER_BUFFER_COUNT;
-    upBuffMgrBins.bins[1].bufferSize = DEFRAMER_BUFFER_SIZE;
-    upBuffMgrBins.bins[1].numBuffers = DEFRAMER_BUFFER_COUNT;
-    upBuffMgrBins.bins[2].bufferSize = COM_DRIVER_BUFFER_SIZE;
-    upBuffMgrBins.bins[2].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    imx_bufferManager.setup(BUFFER_MANAGER_ID, 0, mallocator, upBuffMgrBins);
-
-    // Framer and Deframer components need to be passed a protocol handler
-    imx_framer.setup(framing);
-    imx_deframer.setup(deframing);
-    imx_hubFramer.setup(hubFraming);
-    imx_hubDeframer.setup(hubDeframing);
-
-    // Command sequencer needs to allocate memory to hold contents of command sequences
-    imx_cmdSeq.allocateBuffer(0, mallocator, CMD_SEQ_BUFFER_SIZE);
-
+void configureTopology() {
     // Rate group driver needs a divisor list
     imx_rateGroupDriver.configure(rateGroupDivisorsSet);
 
@@ -112,51 +66,53 @@ void configureTopology(const TopologyState& state) {
     imx_rateGroup2.configure(rateGroup2Context, FW_NUM_ARRAY_ELEMENTS(rateGroup2Context));
     imx_rateGroup3.configure(rateGroup3Context, FW_NUM_ARRAY_ELEMENTS(rateGroup3Context));
 
-    // File downlink requires some project-derived properties.
-    imx_fileDownlink.configure(FILE_DOWNLINK_TIMEOUT, FILE_DOWNLINK_COOLDOWN, FILE_DOWNLINK_CYCLE_TIME,
-                           FILE_DOWNLINK_FILE_QUEUE_DEPTH);
+    // Command sequencer needs memory for command sequences.
+    imx_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
-    // Parameter database is configured with a database file name, and that file must be initially read.
-    imx_prmDb.configure("PrmDb.dat");
-    imx_prmDb.readParamFile();
-
-    // Health is supplied a set of ping entires.
-    imx_health.setPingEntries(pingEntries, FW_NUM_ARRAY_ELEMENTS(pingEntries), HEALTH_WATCHDOG_CODE);
-
-    // Note: Uncomment when using Svc:TlmPacketizer
-    // tlmSend.setPacketList(ImxDeploymentPacketsPkts, ImxDeploymentPacketsIgnore, 1);
-
-    // Events (highest-priority)
-    configurationTable.entries[0] = {.depth = 100, .priority = 0};
-    // Telemetry
-    configurationTable.entries[1] = {.depth = 500, .priority = 2};
-    // File Downlink
-    configurationTable.entries[2] = {.depth = 100, .priority = 1};
-    // Allocation identifier is 0 as the MallocAllocator discards it
-    imx_comQueue.configure(configurationTable, 0, mallocator);
-    if (state.hostname != nullptr && state.port != 0) {
-        imx_comDriver.configure(state.hostname, state.port);
-    }
+    // Hub buffer manager
+    Svc::BufferManager::BufferBins hubBuffMgrBins;
+    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
+    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
+    imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
 
     // Hardware Manager Definitions
 
-    Os::File::Status watchdog_gpio_status = gpioWatchDogDriver.open("/dev/gpiochip2", 20, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
-    if (watchdog_gpio_status!= Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", watchdog_gpio_status);
+    Os::File::Status watchdog_gpio_status =
+        imx_gpioWatchDogDriver.open(
+            "/dev/gpiochip2",
+            20,
+            Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT
+        );
 
+    if (watchdog_gpio_status != Os::File::Status::OP_OK) {
+        Fw::Logger::log("[ERROR] Failed to open watchdog GPIO pin: %d\n", watchdog_gpio_status);
     }
 
-    Os::File::Status perif_gpio_status = imx_perifGpioDriver.open("/dev/gpiochip2", 18, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status perif_gpio_status =
+        imx_perifGpioDriver.open(
+            "/dev/gpiochip2",
+            18,
+            Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT
+        );
+
     if (perif_gpio_status != Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", perif_gpio_status);
-
+        Fw::Logger::log("[ERROR] Failed to open peripheral GPIO pin: %d\n", perif_gpio_status);
     }
 
-    Os::File::Status jetson_gpio_status = imx_jetsonGpioDriver.open("/dev/gpiochip2", 19, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status jetson_gpio_status =
+        imx_jetsonGpioDriver.open(
+            "/dev/gpiochip2",
+            19,
+            Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT
+        );
+
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
-        Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
+        Fw::Logger::log("[ERROR] Failed to open Jetson GPIO pin: %d\n", jetson_gpio_status);
     }
+
     // Manager Definitions
+
     bool mcp_status = imx_mcpI2CbusDriver.open("/dev/i2c-0");
     if (!mcp_status) {
         Fw::Logger::log("[ERROR] Failed to open MCP I2C bus driver\n");
@@ -166,80 +122,103 @@ void configureTopology(const TopologyState& state) {
     if (!ina_status) {
         Fw::Logger::log("[ERROR] Failed to open INA I2C bus driver\n");
     }
-
 }
 
-// Public functions for use in main program are namespaced with deployment name ImxDeployment
-namespace ImxDeployment {
 void setupTopology(const TopologyState& state) {
-    // Autocoded initialization. Function provided by autocoder.
+    // Autocoded initialization
     initComponents(state);
-    // Autocoded id setup. Function provided by autocoder.
+
+    // Autocoded ID setup
     setBaseIds();
-    // Autocoded connection wiring. Function provided by autocoder.
+
+    // Autocoded connection wiring
     connectComponents();
-    // Autocoded configuration. Function provided by autocoder.
-    configComponents(state);
-    // Deployment-specific component configuration. Function provided above. May be inlined, if desired.
-    configureTopology(state);
-    // Autocoded command registration. Function provided by autocoder.
+
+    // Autocoded command registration
     regCommands();
-    // Autocoded parameter loading. Function provided by autocoder.
+
+    // Autocoded configuration
+    configComponents(state);
+
+    // Configure direct GDS-facing comm driver
+    if (state.hostname != nullptr && state.port != 0) {
+        imx_comDriver.configure(state.hostname, state.port);
+    }
+
+    // Project-specific component configuration
+    configureTopology();
+
+    // Autocoded parameter loading
     loadParameters();
-    // Autocoded task kick-off (active components). Function provided by autocoder.
+
+    // Autocoded task kick-off
     startTasks(state);
-    // Initialize socket communication if and only if there is a valid specification
+
+    // Start direct GDS-facing TCP server
     if (state.hostname != nullptr && state.port != 0) {
         Os::TaskString name("ReceiveTask");
-        // Uplink is configured for receive so a socket task is started
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    imx_hubComDriver.configure("0.0.0.0", 50500);
-    imx_cmdSplitter.configure(0x10000);
+    // ----------------------------------------------------------------------
+    // Hub communication path
+    // ----------------------------------------------------------------------
+
+    // Use UDP for the GenericHub transport so each hub buffer is received as
+    // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
+    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
+    imx_hubComDriver.configureSend(JETSON_HUB_IP_ADDRESS, JETSON_HUB_PORT);
+
+    // CRITICAL FIX:
+    //
+    // Old value:
+    //   0x10000
+    //
+    // That incorrectly classified framework/CDH commands such as NO_OP
+    // as remote Jetson commands because NO_OP is around 0x01000000.
+    //
+    // New value:
+    //   0x10000000
+    //
+    // This keeps IMX/CDH commands local and only routes Jetson commands
+    // in the high 0x10000000+ range over the hub.
+    imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+    imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+
     Os::TaskString hubName("hub");
     imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
-// Variables used for cycle simulation
-Os::Mutex cycleLock;
-volatile bool cycleFlag = true;
-
-void startSimulatedCycle(Fw::TimeInterval interval) {
-    cycleLock.lock();
-    bool cycling = cycleFlag;
-    cycleLock.unLock();
-
-    // Main loop
-    while (cycling) {
-        ImxDeployment::imx_blockDrv.callIsr();
-        Os::Task::delay(interval);
-
-        cycleLock.lock();
-        cycling = cycleFlag;
-        cycleLock.unLock();
-    }
+void startRateGroups(const Fw::TimeInterval& interval) {
+    // The timer component drives the fundamental tick rate of the system.
+    // Svc::RateGroupDriver divides this down to the slower rate groups.
+    imx_timer.startTimer(interval);
 }
 
-void stopSimulatedCycle() {
-    cycleLock.lock();
-    cycleFlag = false;
-    cycleLock.unLock();
+void stopRateGroups() {
+    imx_timer.quit();
 }
 
 void teardownTopology(const TopologyState& state) {
-    // Autocoded (active component) task clean-up. Functions provided by topology autocoder.
+    // Autocoded active component task cleanup
     stopTasks(state);
     freeThreads(state);
 
-    // Other task clean-up.
+    // Direct GDS comm cleanup
+    imx_comDriver.terminate();
     imx_comDriver.stop();
     (void)imx_comDriver.join();
+
+    // Hub comm cleanup
     imx_hubComDriver.stop();
     (void)imx_hubComDriver.join();
 
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
-    imx_bufferManager.cleanup();
+    imx_hubBufferManager.cleanup();
+
+    tearDownComponents(state);
+    deinitComponents(state);
 }
-};  // namespace ImxDeployment
+
+}  // namespace ImxDeployment

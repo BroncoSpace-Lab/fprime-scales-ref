@@ -1,5 +1,7 @@
-PYTHON_VERSION = 3.11
+PYTHON_VERSION = 3.12
 PROJECT_ROOT = $(CURDIR)
+# Make sure you have python3.12 installed prio to running make setup
+# JRE is also required, it is included in make setup (line 28)
 
 .PHONY: help
 help: ## Display this help.
@@ -8,15 +10,24 @@ help: ## Display this help.
 .PHONY: setup
 .ONESHELL:
 setup: ## Set up the repo
+	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout main
+	git checkout lucadev_v4.2.2
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
+	@echo "Sourcing fprime virtual environment..."
+	. fprime-venv/bin/activate
 	@echo "Initializing and updating all git submodules recursively..."
 	git submodule update --init --recursive
 	@echo "Installing Python requirements into venv..."
-	fprime-venv/bin/pip install -r lib/fprime/requirements.txt
-	fprime-venv/bin/pip install torch transformers datasets pillow ultralytics
+	fprime-venv/bin/pip install -r ./lib/fprime/requirements.txt
+	fprime-venv/bin/pip install -r requirements-fprime.txt
+	@echo "Installing fprime-python dependencies..."
+	fprime-venv/bin/pip install -e ./lib/fprime-python
+	@echo "Downloading python ML dependencies..."
+	fprime-venv/bin/pip install -r requirements-ml.txt
+	@echo "Installing fpp dependencies..."
+	sudo apt install default-jre -y
 	@echo "Finished setup."
 	@echo ""
 	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
@@ -63,15 +74,16 @@ arena-init: ## Set up the Arena SDK
 
 .PHONY: build-jetson
 .ONESHELL:
-build-jetson: ## Build fprime for the Jetson
-	@echo "Building aarch64-linux..."
+build-jetson: ## Build fprime for the Jetson and restart the systemd service
+	@set -e
+	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
-	./jetson-python.sh
 	@echo "Making the Images folder..."
-	cd build-python-fprime-aarch64-linux
-	mkdir Images
-	@echo "Restaring the F Prime auto-connect service..."
+	mkdir -p Images
+	@echo "Restarting the JetsonDeployment systemd service..."
 	sudo systemctl restart jetson-deployment.service
+	@echo "Checking service status..."
+	systemctl status jetson-deployment.service --no-pager
 	@echo "make build-jetson Done"
 
 .PHONY: clean

@@ -1,2 +1,7 @@
 #!/bin/bash
-python merger.py JetsonDeploymentTopologyAppDictionary.xml ImxDeploymentTopologyAppDictionary.xml GDSDictionary.xml
+python merger.py \
+  --base-prefix jetson_ \
+  --secondary-prefix imx_ \
+  JetsonDeploymentTopologyDictionary.json \
+  ImxDeploymentTopologyDictionary.json \
+  GDSDictionary.json

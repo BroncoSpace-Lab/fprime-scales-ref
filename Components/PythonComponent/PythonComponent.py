@@ -5,14 +5,14 @@ map to this component. **Note:** ensure this file is renamed to PythonComponent.
 """
 
 # Required imports for the implementation to work
-import fprime_pybind
+import fprime_py
 
 # Typical, but optional, imports
 import Fw
 import Components
 
 
-class PythonComponent(fprime_pybind.PythonComponentBase):
+class PythonComponent(fprime_py.PythonComponentBase):
     """ Implementation of PythonComponent component. """
 
     def __init__(self):

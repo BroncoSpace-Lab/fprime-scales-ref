@@ -29,7 +29,7 @@ namespace Components {
       //! Destroy CmdSequenceForwarder object
       ~CmdSequenceForwarder();
 
-    PRIVATE:
+    private:
 
       // ----------------------------------------------------------------------
       // Handler implementations for user-defined typed input ports
@@ -54,7 +54,7 @@ namespace Components {
           U32 context //!< Call context value; meaning chosen by user
       ) override;
 
-    PRIVATE:
+    private:
 
       // ----------------------------------------------------------------------
       // Handler implementations for commands
