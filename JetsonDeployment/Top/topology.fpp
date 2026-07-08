@@ -45,6 +45,8 @@ module JetsonDeployment {
     instance jetson_timer
     instance jetson_comDriver
     instance jetson_gpioWatchdogDriver
+    instance jetson_proxySequencer
+    instance jetson_proxyGroundInterface
 
   # ----------------------------------------------------------------------
   # Pattern graph specifiers
@@ -193,14 +195,17 @@ module JetsonDeployment {
 
       jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
 
-      # Commands arriving from the i.MX hub are dispatched locally on the Jetson.
-      # Responses return over the same hub command channel. Channel 0 is used
-      # for direct GDS commands; channel 1 is used for IMX command sequences.
-      jetson_hub.cmdDispOut[0] -> CdhCore.cmdDisp.seqCmdBuff[2]
-      CdhCore.cmdDisp.seqCmdStatus[2] -> jetson_hub.cmdRespIn[0]
+      # Channel 0: GDS remote commands from i.MX
+      jetson_hub.cmdDispOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
+      jetson_proxyGroundInterface.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff[2]
+      CdhCore.cmdDisp.seqCmdStatus[2] -> jetson_proxyGroundInterface.cmdResponseIn
+      jetson_proxyGroundInterface.seqCmdStatus -> jetson_hub.cmdRespIn[0]
 
-      jetson_hub.cmdDispOut[1] -> CdhCore.cmdDisp.seqCmdBuff[3]
-      CdhCore.cmdDisp.seqCmdStatus[3] -> jetson_hub.cmdRespIn[1]
+      # Channel 1: i.MX command-sequencer remote commands
+      jetson_hub.cmdDispOut[1] -> jetson_proxySequencer.seqCmdBuf
+      jetson_proxySequencer.comCmdOut -> CdhCore.cmdDisp.seqCmdBuff[3]
+      CdhCore.cmdDisp.seqCmdStatus[3] -> jetson_proxySequencer.cmdResponseIn
+      jetson_proxySequencer.seqCmdStatus -> jetson_hub.cmdRespIn[1]
     }
   }
 
