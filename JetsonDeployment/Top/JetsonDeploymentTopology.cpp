@@ -91,7 +91,7 @@ void configureTopology() {
 
     jetson_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
 
-    Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 108, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
