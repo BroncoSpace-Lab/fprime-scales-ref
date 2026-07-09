@@ -1,85 +1,78 @@
 #!/bin/bash
-# jetson-startup.sh
-# Starts the JetsonDeployment flight software and connects to fprime.
-# Uses the fprime-venv Python interpreter directly (no source activate needed).
-# Retries automatically on crash.
+set -e
 
-# ---- Configuration ----
-MAX_RETRIES=5       # Max number of crash restarts (0 = run once, no retry)
-RETRY_DELAY=5       # Seconds to wait between restarts
-
-# ---- Paths ----
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
-PYTHON="$PROJECT_ROOT/fprime-venv/bin/python"
-BUILD_DIR="$PROJECT_ROOT/build-python-fprime-aarch64-linux"
 
-# ---- Runtime linker paths ----
-# Ensure Arena SDK libraries are discoverable at runtime (needed for python_extension.so deps)
+PYTHON="$PROJECT_ROOT/fprime-venv/bin/python"
+PYTHON_ARTIFACT_DIR="$PROJECT_ROOT/build-artifacts/python"
+FSW_MAIN="$PYTHON_ARTIFACT_DIR/fsw_main.py"
+
 ARENA_SDK_LIB="$PROJECT_ROOT/lib/ArenaSDK/lib"
 ARENA_SDK_FFMPEG="$PROJECT_ROOT/lib/ArenaSDK/ffmpeg"
 ARENA_SDK_GENICAM="$PROJECT_ROOT/lib/ArenaSDK/GenICam/library/lib/Linux64_ARM"
+
+export FPRIME_SCALES_ROOT="$PROJECT_ROOT"
+
 export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
 
-# Small Python script to run — more reliable than python -c "..." one-liner
-# (see README troubleshooting: running each import step separately is stabler)
-RUN_SCRIPT="$BUILD_DIR/run_jetson.py"
+export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH}"
 
-# ---- Preflight checks ----
-if [ ! -f "$PYTHON" ]; then
-    echo "ERROR: fprime-venv not found at $PYTHON"
-    echo "       Run 'make setup' first."
-    exit 1
-fi
+# Force Python and native stdout/stderr to appear immediately in systemd logs.
+export PYTHONUNBUFFERED=1
 
-if [ ! -d "$BUILD_DIR" ]; then
-    echo "ERROR: Build directory not found: $BUILD_DIR"
-    echo "       Run 'make build-jetson' first."
-    exit 1
-fi
-
-# Write the launcher script into the build dir so python_extension is importable
-cat > "$RUN_SCRIPT" << 'EOF'
-import python_extension
-python_extension.main()
-EOF
+mkdir -p "$PROJECT_ROOT/Images"
 
 echo "========================================"
-echo " JetsonDeployment Flight Software"
-echo " Project: $PROJECT_ROOT"
-echo " Python:  $PYTHON"
-echo " Build:   $BUILD_DIR"
+echo " JetsonDeployment fprime-python launcher"
+echo " Project:   $PROJECT_ROOT"
+echo " Python:    $PYTHON"
+echo " Artifacts: $PYTHON_ARTIFACT_DIR"
+echo " Main:      $FSW_MAIN"
 echo "========================================"
 echo ""
 
-echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+if [ ! -x "$PYTHON" ]; then
+    echo "ERROR: Python interpreter not found or not executable:"
+    echo "  $PYTHON"
+    exit 1
+fi
+
+if [ ! -d "$PYTHON_ARTIFACT_DIR" ]; then
+    echo "ERROR: Python artifact directory not found:"
+    echo "  $PYTHON_ARTIFACT_DIR"
+    echo "Build first:"
+    echo "  fprime-util build JetsonDeployment"
+    exit 1
+fi
+
+if [ ! -f "$FSW_MAIN" ]; then
+    echo "ERROR: fsw_main.py not found:"
+    echo "  $FSW_MAIN"
+    exit 1
+fi
+
+if ! ls "$PYTHON_ARTIFACT_DIR"/fprime_py*.so >/dev/null 2>&1; then
+    echo "ERROR: generated fprime_py shared object not found in:"
+    echo "  $PYTHON_ARTIFACT_DIR"
+    exit 1
+fi
+
+cd "$PYTHON_ARTIFACT_DIR"
+
+echo "PWD=$(pwd)"
+echo "FPRIME_SCALES_ROOT=$FPRIME_SCALES_ROOT"
+echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+echo "PYTHONPATH=$PYTHONPATH"
+echo "Python version:"
+"$PYTHON" --version
 echo ""
 
-cd "$BUILD_DIR"
+echo "Launching fsw_main.py..."
 
-attempt=0
-while true; do
-    attempt=$((attempt + 1))
+# stdbuf makes C/C++ stdout/stderr line-buffered, which helps F Prime/native logs
+# show up immediately in journalctl instead of being delayed.
+exec stdbuf -oL -eL "$PYTHON" -u "$FSW_MAIN"
 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Attempt $attempt — launching python_extension..."
-    "$PYTHON" "$RUN_SCRIPT"
-    EXIT_CODE=$?
-
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Flight software exited cleanly (exit 0)."
-        break
-    fi
-
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Flight software exited with code $EXIT_CODE."
-
-    if [ $MAX_RETRIES -gt 0 ] && [ $attempt -ge $MAX_RETRIES ]; then
-        echo "Max retries ($MAX_RETRIES) reached. Giving up."
-        rm -f "$RUN_SCRIPT"
-        exit $EXIT_CODE
-    fi
-
-    echo "Restarting in $RETRY_DELAY seconds... (Ctrl+C to abort)"
-    sleep $RETRY_DELAY
-done
-
-rm -f "$RUN_SCRIPT"
+# To view the FSW live through systemd:
+# journalctl -u jetson-deployment.service -f -l --no-pager
