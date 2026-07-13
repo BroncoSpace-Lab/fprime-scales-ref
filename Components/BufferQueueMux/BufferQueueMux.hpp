@@ -22,7 +22,7 @@ class BufferQueueMux final : public BufferQueueMuxComponentBase {
         bool inUse;
     };
 
-    static constexpr FwSizeType MAX_OUTSTANDING_BUFFERS = 256;
+    static constexpr FwSizeType MAX_OUTSTANDING_BUFFERS = 8192;
 
     void bufferIn_handler(FwIndexType portNum, Fw::Buffer& buffer) override;
     void bufferReturn_handler(FwIndexType portNum, Fw::Buffer& buffer) override;
