@@ -34,8 +34,13 @@ module ImxDeployment {
 
     instance imx_hub
     instance imx_hubComDriver
-    instance imx_hubByteStreamAdapter
+    instance imx_hubComAdapter
     instance imx_hubBufferManager
+    instance imx_hubFramer
+    instance imx_hubFrameAccumulator
+    instance imx_hubDeframer
+    instance imx_hubComStub
+    instance imx_fileDownlinkMux
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
 
@@ -89,13 +94,14 @@ module ImxDeployment {
     }
 
     connections ComCcsds_FileHandling {
-      # File Downlink to Communication Queue
-      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+      # Local and remote file packets share the communication queue through an
+      # ownership-preserving mux. The remote producer is connected below.
+      FileHandling.fileDownlink.bufferSendOut -> imx_fileDownlinkMux.bufferIn[0]
+      imx_fileDownlinkMux.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn
+      imx_fileDownlinkMux.bufferOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
+      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> imx_fileDownlinkMux.bufferReturn
 
-      # Router to File Uplink
-      ComCcsds.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
-      FileHandling.fileUplink.bufferSendOut -> ComCcsds.fprimeRouter.fileBufferReturnIn
+      # File uplinks are forwarded to the Jetson over hub buffer channel 1.
     }
 
     connections Communications {
@@ -194,22 +200,32 @@ module ImxDeployment {
     }
 
     connections send_hub {
-      # Hub -> ByteStream adapter
-      imx_hub.toBufferDriver -> imx_hubByteStreamAdapter.bufferIn
-      imx_hubByteStreamAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+      # Frame each complete GenericHub record before passing it to the UDP link.
+      imx_hub.toBufferDriver -> imx_hubComAdapter.bufferIn
+      imx_hubComAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+      imx_hubComAdapter.comOut -> imx_hubFramer.dataIn
+      imx_hubFramer.dataReturnOut -> imx_hubComAdapter.comReturnIn
 
-      # ByteStream adapter -> UDP driver
-      imx_hubByteStreamAdapter.toByteStreamDriver -> imx_hubComDriver.$send
+      imx_hubFramer.dataOut -> imx_hubComStub.dataIn
+      imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
+      imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
+      imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
     }
 
     connections recv_hub {
-      # UDP driver -> ByteStream adapter
-      imx_hubComDriver.$recv -> imx_hubByteStreamAdapter.fromByteStreamDriver
-      imx_hubByteStreamAdapter.fromByteStreamDriverReturn -> imx_hubComDriver.recvReturnIn
+      # Accumulate transport reads into complete frames, then deframe to hub records.
+      imx_hubComDriver.$recv -> imx_hubComStub.drvReceiveIn
+      imx_hubComStub.drvReceiveReturnOut -> imx_hubComDriver.recvReturnIn
+      imx_hubComStub.dataOut -> imx_hubFrameAccumulator.dataIn
+      imx_hubFrameAccumulator.dataReturnOut -> imx_hubComStub.dataReturnIn
 
-      # ByteStream adapter -> Hub
-      imx_hubByteStreamAdapter.bufferOut -> imx_hub.fromBufferDriver
-      imx_hub.fromBufferDriverReturn -> imx_hubByteStreamAdapter.bufferOutReturn
+      imx_hubFrameAccumulator.dataOut -> imx_hubDeframer.dataIn
+      imx_hubDeframer.dataReturnOut -> imx_hubFrameAccumulator.dataReturnIn
+      imx_hubDeframer.dataOut -> imx_hubComAdapter.comIn
+      imx_hubComAdapter.comInReturn -> imx_hubDeframer.dataReturnIn
+
+      imx_hubComAdapter.bufferOut -> imx_hub.fromBufferDriver
+      imx_hub.fromBufferDriverReturn -> imx_hubComAdapter.bufferOutReturn
     }
 
     connections hub {
@@ -221,8 +237,21 @@ module ImxDeployment {
       imx_hubComDriver.allocate -> imx_hubBufferManager.bufferGetCallee
       imx_hubComDriver.deallocate -> imx_hubBufferManager.bufferSendIn
 
-      # UDP driver ready signal
-      imx_hubComDriver.ready -> imx_hubByteStreamAdapter.byteStreamDriverReady
+      imx_hubFramer.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
+      imx_hubFramer.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
+
+      imx_hubFrameAccumulator.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
+      imx_hubFrameAccumulator.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
+
+      imx_hubComDriver.ready -> imx_hubComStub.drvConnected
+
+      # Channel 0 feeds Jetson file-downlink packets into the i.MX/GDS queue.
+      imx_hub.bufferOut[0] -> imx_fileDownlinkMux.bufferIn[1]
+      imx_fileDownlinkMux.bufferInReturn[1] -> imx_hub.bufferOutReturn[0]
+
+      # Channel 1 forwards i.MX/GDS file-uplink packets to the Jetson.
+      ComCcsds.fprimeRouter.fileOut -> imx_hub.bufferIn[1]
+      imx_hub.bufferInReturn[1] -> ComCcsds.fprimeRouter.fileBufferReturnIn
 
       # Local command dispatch after splitting
       imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]

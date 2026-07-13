@@ -21,4 +21,12 @@ register_fprime_module(
         Drv_Udp
         Drv_TcpServer
         Drv_TcpClient
+        Svc_GenericHub
+        Svc_BufferManager
+        Svc_ComStub
+        Svc_FprimeFramer
+        Svc_FprimeDeframer
+        Svc_FrameAccumulator
+        Components_HubComAdapter
+        Components_BufferQueueMux
 )

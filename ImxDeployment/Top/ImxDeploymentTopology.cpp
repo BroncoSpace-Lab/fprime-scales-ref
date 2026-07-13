@@ -6,6 +6,7 @@
 
 // Provides access to autocoded functions
 #include <ImxDeployment/Top/ImxDeploymentTopologyAc.hpp>
+#include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
 
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ImxDeployment/Top/ImxDeploymentPacketsAc.hpp>
@@ -32,7 +33,10 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
-    COM_DRIVER_BUFFER_SIZE = 3000,
+    // The file service splits files into bounded packets. This larger pool also
+    // leaves room for the GenericHub envelope and F Prime frame overhead.
+    HUB_BUFFER_SIZE = 64 * 1024,
+    HUB_UDP_RECEIVE_SIZE = 65507,
     COM_DRIVER_BUFFER_COUNT = 30,
 
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
@@ -51,6 +55,8 @@ enum TopologyConstants {
 const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
+
+Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
 
 /**
  * \brief configure/setup components in project-specific way
@@ -72,9 +78,10 @@ void configureTopology() {
     // Hub buffer manager
     Svc::BufferManager::BufferBins hubBuffMgrBins;
     memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
-    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
+    hubBuffMgrBins.bins[0].bufferSize = HUB_BUFFER_SIZE;
     hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
     imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
+    imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_BUFFER_SIZE);
 
     // Hardware Manager Definitions
 
@@ -166,7 +173,7 @@ void setupTopology(const TopologyState& state) {
 
     // Use UDP for the GenericHub transport so each hub buffer is received as
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
+    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, HUB_UDP_RECEIVE_SIZE);
     imx_hubComDriver.configureSend(JETSON_HUB_IP_ADDRESS, JETSON_HUB_PORT);
 
     // CRITICAL FIX:
@@ -215,6 +222,7 @@ void teardownTopology(const TopologyState& state) {
 
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
+    imx_hubFrameAccumulator.cleanup();
     imx_hubBufferManager.cleanup();
 
     tearDownComponents(state);

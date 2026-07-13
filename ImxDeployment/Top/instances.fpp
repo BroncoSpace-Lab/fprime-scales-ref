@@ -87,9 +87,19 @@ module ImxDeployment {
 
   instance imx_hubComDriver: Drv.Udp base id 0x3100
 
-  instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x3200
+  instance imx_hubComAdapter: Components.HubComAdapter base id 0x3200
 
   instance imx_hubBufferManager: Svc.BufferManager base id 0x3300
+
+  instance imx_hubFramer: Svc.FprimeFramer base id 0x3500
+
+  instance imx_hubFrameAccumulator: Svc.FrameAccumulator base id 0x3600
+
+  instance imx_hubDeframer: Svc.FprimeDeframer base id 0x3700
+
+  instance imx_hubComStub: Svc.ComStub base id 0x3800
+
+  instance imx_fileDownlinkMux: Components.BufferQueueMux base id 0x3900
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x3400
 

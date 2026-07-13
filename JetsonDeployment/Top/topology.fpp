@@ -33,8 +33,12 @@ module JetsonDeployment {
 
     instance jetson_hub
     instance jetson_hubComDriver
-    instance jetson_hubByteStreamAdapter
+    instance jetson_hubComAdapter
     instance jetson_hubBufferManager
+    instance jetson_hubFramer
+    instance jetson_hubFrameAccumulator
+    instance jetson_hubDeframer
+    instance jetson_hubComStub
 
     instance jetson_rateGroup1
     instance jetson_rateGroup2
@@ -80,16 +84,6 @@ module JetsonDeployment {
       ComCcsds.fprimeRouter.commandOut -> CdhCore.cmdDisp.seqCmdBuff[0]
       CdhCore.cmdDisp.seqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
       
-    }
-
-    connections ComCcsds_FileHandling {
-      # File Downlink to Communication Queue
-      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
-
-      # Router to File Uplink
-      ComCcsds.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
-      FileHandling.fileUplink.bufferSendOut -> ComCcsds.fprimeRouter.fileBufferReturnIn
     }
 
     connections Communications {
@@ -171,19 +165,33 @@ module JetsonDeployment {
     }
 
     connections send_hub {
-      jetson_hub.toBufferDriver -> jetson_hubByteStreamAdapter.bufferIn
-      jetson_hubByteStreamAdapter.bufferInReturn -> jetson_hub.toBufferDriverReturn
+      # Frame each complete GenericHub record before passing it to the UDP link.
+      jetson_hub.toBufferDriver -> jetson_hubComAdapter.bufferIn
+      jetson_hubComAdapter.bufferInReturn -> jetson_hub.toBufferDriverReturn
+      jetson_hubComAdapter.comOut -> jetson_hubFramer.dataIn
+      jetson_hubFramer.dataReturnOut -> jetson_hubComAdapter.comReturnIn
 
-      jetson_hubByteStreamAdapter.toByteStreamDriver -> jetson_hubComDriver.$send
+      jetson_hubFramer.dataOut -> jetson_hubComStub.dataIn
+      jetson_hubComStub.dataReturnOut -> jetson_hubFramer.dataReturnIn
+      jetson_hubComStub.comStatusOut -> jetson_hubFramer.comStatusIn
+      jetson_hubComStub.drvSendOut -> jetson_hubComDriver.$send
     }
 
 
     connections recv_hub {
-      jetson_hubComDriver.$recv -> jetson_hubByteStreamAdapter.fromByteStreamDriver
-      jetson_hubByteStreamAdapter.fromByteStreamDriverReturn -> jetson_hubComDriver.recvReturnIn
+      # Accumulate transport reads into complete frames, then deframe to hub records.
+      jetson_hubComDriver.$recv -> jetson_hubComStub.drvReceiveIn
+      jetson_hubComStub.drvReceiveReturnOut -> jetson_hubComDriver.recvReturnIn
+      jetson_hubComStub.dataOut -> jetson_hubFrameAccumulator.dataIn
+      jetson_hubFrameAccumulator.dataReturnOut -> jetson_hubComStub.dataReturnIn
 
-      jetson_hubByteStreamAdapter.bufferOut -> jetson_hub.fromBufferDriver
-      jetson_hub.fromBufferDriverReturn -> jetson_hubByteStreamAdapter.bufferOutReturn
+      jetson_hubFrameAccumulator.dataOut -> jetson_hubDeframer.dataIn
+      jetson_hubDeframer.dataReturnOut -> jetson_hubFrameAccumulator.dataReturnIn
+      jetson_hubDeframer.dataOut -> jetson_hubComAdapter.comIn
+      jetson_hubComAdapter.comInReturn -> jetson_hubDeframer.dataReturnIn
+
+      jetson_hubComAdapter.bufferOut -> jetson_hub.fromBufferDriver
+      jetson_hub.fromBufferDriverReturn -> jetson_hubComAdapter.bufferOutReturn
     }
 
     connections hub {
@@ -193,7 +201,21 @@ module JetsonDeployment {
       jetson_hubComDriver.allocate -> jetson_hubBufferManager.bufferGetCallee
       jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      jetson_hubComDriver.ready -> jetson_hubByteStreamAdapter.byteStreamDriverReady
+      jetson_hubFramer.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hubFramer.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn
+
+      jetson_hubFrameAccumulator.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
+      jetson_hubFrameAccumulator.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn
+
+      jetson_hubComDriver.ready -> jetson_hubComStub.drvConnected
+
+      # Channel 0 carries Jetson file-downlink packets to the i.MX downlink stack.
+      FileHandling.fileDownlink.bufferSendOut -> jetson_hub.bufferIn[0]
+      jetson_hub.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn
+
+      # Channel 1 carries file-uplink packets received and routed by the i.MX.
+      jetson_hub.bufferOut[1] -> FileHandling.fileUplink.bufferSendIn
+      FileHandling.fileUplink.bufferSendOut -> jetson_hub.bufferOutReturn[1]
 
       # Channel 0: GDS remote commands from i.MX
       jetson_hub.cmdDispOut[0] -> jetson_proxyGroundInterface.seqCmdBuf
