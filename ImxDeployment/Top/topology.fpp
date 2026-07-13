@@ -12,17 +12,19 @@ module ImxDeployment {
 
   topology ImxDeployment {
 
-  # ----------------------------------------------------------------------
-  # Subtopology imports
-  # ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Subtopology imports
+    # ----------------------------------------------------------------------
+
     import CdhCore.Subtopology
     import ComCcsds.Subtopology
     import DataProducts.Subtopology
     import FileHandling.Subtopology
-    
-  # ----------------------------------------------------------------------
-  # Instances used in the topology
-  # ----------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------
+    # Instances used in the topology
+    # ----------------------------------------------------------------------
+
     instance imx_jetsonManager
     instance imx_inaManager
     instance imx_thermalManager
@@ -49,6 +51,7 @@ module ImxDeployment {
     instance imx_rateGroup2
     instance imx_rateGroup3
     instance imx_rateGroupDriver
+
     instance imx_cmdSeq
     instance imx_chronoTime
     instance imx_timer
@@ -60,9 +63,9 @@ module ImxDeployment {
     instance imx_jetsonGpioDriver
     instance imx_gpioWatchDogDriver
 
-  # ----------------------------------------------------------------------
-  # Pattern graph specifiers
-  # ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Pattern graph specifiers
+    # ----------------------------------------------------------------------
 
     command connections instance CdhCore.cmdDisp
     event connections instance CdhCore.events
@@ -72,60 +75,70 @@ module ImxDeployment {
     param connections instance FileHandling.prmDb
     time connections instance imx_chronoTime
 
-  # ----------------------------------------------------------------------
-  # Telemetry packets (only used when TlmPacketizer is used)
-  # ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Telemetry packets
+    # ----------------------------------------------------------------------
 
     # include "ImxDeploymentPackets.fppi"
 
-  # ----------------------------------------------------------------------
-  # Direct graph specifiers
-  # ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Direct graph specifiers
+    # ----------------------------------------------------------------------
 
     connections ComCcsds_CdhCore {
+
       # Core events and telemetry to communication queue
       CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
       CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
-      # Router to command splitter. Local commands are dispatched on the i.MX;
+      # Router to command splitter.
+      # Local commands are dispatched on the i.MX.
       # Jetson commands are forwarded over the hub.
       ComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
       imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
-      
+
     }
 
     connections ComCcsds_FileHandling {
+
       # Local and remote file packets share the communication queue through an
       # ownership-preserving mux. The remote producer is connected below.
       FileHandling.fileDownlink.bufferSendOut -> imx_fileDownlinkMux.bufferIn[0]
       imx_fileDownlinkMux.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn
+
       imx_fileDownlinkMux.bufferOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
       ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> imx_fileDownlinkMux.bufferReturn
 
       # File uplinks are forwarded to the Jetson over hub buffer channel 1.
+
     }
 
     connections Communications {
+
       # ComDriver buffer allocations
-      imx_comDriver.allocate      -> ComCcsds.commsBufferManager.bufferGetCallee
-      imx_comDriver.deallocate    -> ComCcsds.commsBufferManager.bufferSendIn
-      
+      imx_comDriver.allocate -> ComCcsds.commsBufferManager.bufferGetCallee
+      imx_comDriver.deallocate -> ComCcsds.commsBufferManager.bufferSendIn
+
       # ComDriver <-> ComStub (Uplink)
-      imx_comDriver.$recv                     -> ComCcsds.comStub.drvReceiveIn
+      imx_comDriver.$recv -> ComCcsds.comStub.drvReceiveIn
       ComCcsds.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
-      
+
       # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut      -> imx_comDriver.$send
-      imx_comDriver.ready         -> ComCcsds.comStub.drvConnected
+      ComCcsds.comStub.drvSendOut -> imx_comDriver.$send
+      imx_comDriver.ready -> ComCcsds.comStub.drvConnected
+
     }
 
     connections FileHandling_DataProducts {
+
       # Data Products to File Downlink
       DataProducts.dpCat.fileOut -> FileHandling.fileDownlink.SendFile
       FileHandling.fileDownlink.FileComplete -> DataProducts.dpCat.fileDone
+
     }
 
     connections RateGroups {
+
       # timer to drive rate group
       imx_timer.CycleOut -> imx_rateGroupDriver.CycleIn
 
@@ -146,7 +159,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
-  
+
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
       imx_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
@@ -156,93 +169,105 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
       imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[6] -> imx_hubIoBufferManager.schedIn
+
     }
 
     connections CdhCore_cmdSeq {
+
       # Command Sequencer through the same local/remote split path
       imx_cmdSeq.comCmdOut -> imx_seqCmdSplitter.CmdBuff[0]
       imx_seqCmdSplitter.forwardSeqCmdStatus[0] -> imx_cmdSeq.cmdResponseIn
+
     }
 
     connections ImxDeployment {
-      # Add here connections to user-defined components
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
       # Route directly into IMX ComCcsds packet queues for host GDS downlink.
       imx_hub.serialOut[2] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
       imx_hub.serialOut[3] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
 
-      # powerModeSend: Jetson JetsonPowerModeManager → hub → JetsonManager
+      # powerModeSend: Jetson JetsonPowerModeManager -> hub -> JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
 
-      # powerModeRecieve: JetsonManager → hub → Jetson JetsonPowerModeManager
+      # powerModeReceive: JetsonManager -> hub -> Jetson JetsonPowerModeManager
       imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
 
-      # jetsonPowerStateSend: Jetson JetsonPowerModeManager → hub → PowerManager
+      # jetsonPowerStateSend: Jetson JetsonPowerModeManager -> hub -> PowerManager
       imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
 
-      # jetsonPowerStateReceive: PowerManager → hub → Jetson JetsonPowerModeManager
+      # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
-
       imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
-      
 
-      # imx GPIO connection to the GpioDriver for Peripheral Board control
+      # i.MX GPIO connection to the GpioDriver for Peripheral Board control
       imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
 
-      # imx GPIO connection to the GpioDriver for Jetson power control
+      # i.MX GPIO connection to the GpioDriver for Jetson power control
       imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
-
       imx_watchdogManager.gpioWatchDog -> imx_gpioWatchDogDriver.gpioWrite
-      
 
     }
 
     connections send_hub {
-      # Frame each complete GenericHub record before passing it to the UDP link.
+
+      # Frame each complete GenericHub record before passing it to TCP.
       imx_hub.toBufferDriver -> imx_hubComAdapter.bufferIn
       imx_hubComAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+
       imx_hubComAdapter.comOut -> imx_hubFramer.dataIn
       imx_hubFramer.dataReturnOut -> imx_hubComAdapter.comReturnIn
 
       imx_hubFramer.dataOut -> imx_hubComStub.dataIn
       imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
       imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
+
       imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
+
     }
 
     connections recv_hub {
-      # Accumulate transport reads into complete frames, then deframe to hub records.
+
+      # Accumulate TCP stream reads into complete frames, then deframe to hub records.
       imx_hubComDriver.$recv -> imx_hubComStub.drvReceiveIn
       imx_hubComStub.drvReceiveReturnOut -> imx_hubComDriver.recvReturnIn
+
       imx_hubComStub.dataOut -> imx_hubFrameAccumulator.dataIn
       imx_hubFrameAccumulator.dataReturnOut -> imx_hubComStub.dataReturnIn
 
       imx_hubFrameAccumulator.dataOut -> imx_hubDeframer.dataIn
       imx_hubDeframer.dataReturnOut -> imx_hubFrameAccumulator.dataReturnIn
+
       imx_hubDeframer.dataOut -> imx_hubComAdapter.comIn
       imx_hubComAdapter.comInReturn -> imx_hubDeframer.dataReturnIn
 
       imx_hubComAdapter.bufferOut -> imx_hub.fromBufferDriver
       imx_hub.fromBufferDriverReturn -> imx_hubComAdapter.bufferOutReturn
+
     }
 
     connections hub {
+
+      # GenericHub retained records use the large packet pool.
       imx_hub.allocate -> imx_hubBufferManager.bufferGetCallee
       imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
 
-      # Wire/framed buffers must come from the large IO pool.
+      # TCP driver receive buffers use the IO pool.
       imx_hubComDriver.allocate -> imx_hubIoBufferManager.bufferGetCallee
       imx_hubComDriver.deallocate -> imx_hubIoBufferManager.bufferSendIn
 
+      # Framer output buffers go directly to the TCP driver, so they use the IO pool.
       imx_hubFramer.bufferAllocate -> imx_hubIoBufferManager.bufferGetCallee
       imx_hubFramer.bufferDeallocate -> imx_hubIoBufferManager.bufferSendIn
 
-      imx_hubFrameAccumulator.bufferAllocate -> imx_hubIoBufferManager.bufferGetCallee
-      imx_hubFrameAccumulator.bufferDeallocate -> imx_hubIoBufferManager.bufferSendIn
+      # FrameAccumulator output buffers become deframed hub records.
+      # These may be retained by GenericHub, BufferQueueMux, and ComQueue,
+      # so they must use the larger packet pool.
+      imx_hubFrameAccumulator.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
+      imx_hubFrameAccumulator.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
 
       imx_hubComDriver.ready -> imx_hubComStub.drvConnected
 
@@ -267,7 +292,7 @@ module ImxDeployment {
 
       imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
       imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
-      
+
     }
 
   }
