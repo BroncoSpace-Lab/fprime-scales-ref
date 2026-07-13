@@ -224,12 +224,11 @@ module JetsonDeployment {
       jetson_hubComDriver.allocate -> jetson_hubIoBufferManager.bufferGetCallee
       jetson_hubComDriver.deallocate -> jetson_hubIoBufferManager.bufferSendIn
 
-      # Framer output buffers go directly to the TCP driver, so they use the IO pool.
+      # Framer output buffers go directly to TCP, so they use the IO pool.
       jetson_hubFramer.bufferAllocate -> jetson_hubIoBufferManager.bufferGetCallee
       jetson_hubFramer.bufferDeallocate -> jetson_hubIoBufferManager.bufferSendIn
 
-      # FrameAccumulator output buffers become deframed hub records.
-      # These may be retained downstream, so they must use the larger packet pool.
+      # FrameAccumulator output buffers become retained hub records.
       jetson_hubFrameAccumulator.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
       jetson_hubFrameAccumulator.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn
 

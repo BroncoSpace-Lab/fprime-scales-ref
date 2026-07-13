@@ -33,8 +33,8 @@ module ComCcsdsConfig {
         constant frameAccumulatorSize = 2048
         constant commsBuffSize = 2048
         constant commsFileBuffSize = 3000
-        constant commsBuffCount = 20
-        constant commsFileBuffCount = 30
+        constant commsBuffCount = 128
+        constant commsFileBuffCount = 512
         constant commsBuffMgrId = 200
     }
 }

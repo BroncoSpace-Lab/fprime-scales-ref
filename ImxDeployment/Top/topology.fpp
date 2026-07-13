@@ -259,13 +259,11 @@ module ImxDeployment {
       imx_hubComDriver.allocate -> imx_hubIoBufferManager.bufferGetCallee
       imx_hubComDriver.deallocate -> imx_hubIoBufferManager.bufferSendIn
 
-      # Framer output buffers go directly to the TCP driver, so they use the IO pool.
+      # Framer output buffers go directly to TCP, so they use the IO pool.
       imx_hubFramer.bufferAllocate -> imx_hubIoBufferManager.bufferGetCallee
       imx_hubFramer.bufferDeallocate -> imx_hubIoBufferManager.bufferSendIn
 
-      # FrameAccumulator output buffers become deframed hub records.
-      # These may be retained by GenericHub, BufferQueueMux, and ComQueue,
-      # so they must use the larger packet pool.
+      # FrameAccumulator output buffers become retained hub records.
       imx_hubFrameAccumulator.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
       imx_hubFrameAccumulator.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
 

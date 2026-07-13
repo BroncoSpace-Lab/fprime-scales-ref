@@ -37,7 +37,7 @@ enum TopologyConstants {
     // Buffers retained by GenericHub after deserializing hub records.
     // These must be large enough for file-packet hub payloads.
     HUB_PACKET_BUFFER_SIZE = 4 * 1024,
-    HUB_PACKET_BUFFER_COUNT = 1024,
+    HUB_PACKET_BUFFER_COUNT = 8192,
 
     // Buffers used on the wire/framed side of the hub.
     // TCP gives reliable byte delivery, but it is still a byte stream.
