@@ -185,7 +185,13 @@ void setupTopology(const TopologyState& state) {
     // ----------------------------------------------------------------------
 
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    imx_hubComDriver.configureSend("0.0.0.0", IMX_HUB_PORT);
+    imx_hubComDriver.configure(
+    "0.0.0.0",
+    IMX_HUB_PORT,
+    Drv::SOCKET_SEND_TIMEOUT_SECONDS,
+    Drv::SOCKET_SEND_TIMEOUT_MICROSECONDS,
+    HUB_WIRE_BUFFER_SIZE
+    );
 
     imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
     imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);

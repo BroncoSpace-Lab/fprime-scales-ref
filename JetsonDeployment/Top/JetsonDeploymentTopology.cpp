@@ -136,7 +136,13 @@ void setupTopology(const TopologyState& state) {
     }
 
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    jetson_hubComDriver.configureSend(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
+    jetson_hubComDriver.configure(
+    IMX_HUB_IP_ADDRESS,
+    IMX_HUB_PORT,
+    Drv::SOCKET_SEND_TIMEOUT_SECONDS,
+    Drv::SOCKET_SEND_TIMEOUT_MICROSECONDS,
+    HUB_WIRE_BUFFER_SIZE
+    );
 
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
