@@ -184,24 +184,9 @@ void setupTopology(const TopologyState& state) {
     // Hub communication path
     // ----------------------------------------------------------------------
 
-    // Use UDP for the GenericHub transport so each hub buffer is received as
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, HUB_UDP_RECEIVE_SIZE);
-    imx_hubComDriver.configureSend(JETSON_HUB_IP_ADDRESS, JETSON_HUB_PORT);
+    imx_hubComDriver.configureSend("0.0.0.0", IMX_HUB_PORT);
 
-    // CRITICAL FIX:
-    //
-    // Old value:
-    //   0x10000
-    //
-    // That incorrectly classified framework/CDH commands such as NO_OP
-    // as remote Jetson commands because NO_OP is around 0x01000000.
-    //
-    // New value:
-    //   0x10000000
-    //
-    // This keeps IMX/CDH commands local and only routes Jetson commands
-    // in the high 0x10000000+ range over the hub.
     imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
     imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
 

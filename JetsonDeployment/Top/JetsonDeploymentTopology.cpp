@@ -135,9 +135,7 @@ void setupTopology(const TopologyState& state) {
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    // Use UDP for the GenericHub transport so each hub buffer is received as
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    jetson_hubComDriver.configureRecv("0.0.0.0", JETSON_HUB_PORT, HUB_UDP_RECEIVE_SIZE);
     jetson_hubComDriver.configureSend(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
 
     Os::TaskString hubName("hub");
