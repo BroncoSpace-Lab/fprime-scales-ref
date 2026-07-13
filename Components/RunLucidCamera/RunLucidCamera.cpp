@@ -222,22 +222,22 @@ Arena::IDevice* pDevice;
 
       this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(imageDispchar));
 
-      // const char* filepathchar = filename.c_str();
-      // this->m_filename=filepathchar;
-      // Fw::FileNameString destination("./image.png");
+      const char* filepathchar = filename.c_str();
+      this->m_filename=filepathchar;
+      Fw::FileNameString destination("./image.png");
       
-      // Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
-      //       if (resp.get_status() != Svc::SendFileStatus::STATUS_OK) {
-      //           // warn, but keep going since it may be an issue with this file but others could
-      //           // make it
-      //           this->log_WARNING_HI_FileSendError(this->m_filename,resp.get_status());
-      //       }
+      Svc::SendFileResponse resp = this->sendFile_out(0, this->m_filename, destination, 0, 0);
+            if (resp.get_status() != Svc::SendFileStatus::STATUS_OK) {
+                // warn, but keep going since it may be an issue with this file but others could
+                // make it
+                this->log_WARNING_HI_FileSendError(this->m_filename,resp.get_status());
+            }
 
-      if (copyImageToImx(filename) == 0) {
-        std::cout << "Image copied to IMX successfully.\n";
-      } else {
-        std::cout << "Failed to copy image to IMX.\n";
-      }
+      // if (copyImageToImx(filename) == 0) {
+      //   std::cout << "Image copied to IMX successfully.\n";
+      // } else {
+      //   std::cout << "Failed to copy image to IMX.\n";
+      // }
 
       std::cout << "\nExample complete\n";
 
