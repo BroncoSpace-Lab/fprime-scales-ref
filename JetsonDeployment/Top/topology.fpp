@@ -39,6 +39,7 @@ module JetsonDeployment {
     instance jetson_hubFrameAccumulator
     instance jetson_hubDeframer
     instance jetson_hubComStub
+    instance jetson_hubIoBufferManager
 
     instance jetson_rateGroup1
     instance jetson_rateGroup2
@@ -133,6 +134,7 @@ module JetsonDeployment {
       jetson_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       jetson_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
       jetson_rateGroup3.RateGroupMemberOut[5] -> jetson_hubBufferManager.schedIn
+      jetson_rateGroup3.RateGroupMemberOut[6] -> jetson_hubIoBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
@@ -198,8 +200,10 @@ module JetsonDeployment {
       jetson_hub.allocate -> jetson_hubBufferManager.bufferGetCallee
       jetson_hub.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      jetson_hubComDriver.allocate -> jetson_hubBufferManager.bufferGetCallee
-      jetson_hubComDriver.deallocate -> jetson_hubBufferManager.bufferSendIn
+      # Keep transport receive buffers separate from retained packet buffers so
+      # a file burst cannot starve the UDP receive task.
+      jetson_hubComDriver.allocate -> jetson_hubIoBufferManager.bufferGetCallee
+      jetson_hubComDriver.deallocate -> jetson_hubIoBufferManager.bufferSendIn
 
       jetson_hubFramer.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
       jetson_hubFramer.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn

@@ -41,6 +41,7 @@ module ImxDeployment {
     instance imx_hubDeframer
     instance imx_hubComStub
     instance imx_fileDownlinkMux
+    instance imx_hubIoBufferManager
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
 
@@ -154,6 +155,7 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
       imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[6] -> imx_hubIoBufferManager.schedIn
     }
 
     connections CdhCore_cmdSeq {
@@ -234,8 +236,10 @@ module ImxDeployment {
       imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
 
       # UDP driver buffer allocation/deallocation
-      imx_hubComDriver.allocate -> imx_hubBufferManager.bufferGetCallee
-      imx_hubComDriver.deallocate -> imx_hubBufferManager.bufferSendIn
+      # Keep transport receive buffers separate from retained packet buffers so
+      # a file burst cannot starve the UDP receive task.
+      imx_hubComDriver.allocate -> imx_hubIoBufferManager.bufferGetCallee
+      imx_hubComDriver.deallocate -> imx_hubIoBufferManager.bufferSendIn
 
       imx_hubFramer.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
       imx_hubFramer.bufferDeallocate -> imx_hubBufferManager.bufferSendIn

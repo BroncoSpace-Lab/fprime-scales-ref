@@ -33,11 +33,11 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
-    // The file service splits files into bounded packets. This larger pool also
-    // leaves room for the GenericHub envelope and F Prime frame overhead.
+    HUB_PACKET_BUFFER_SIZE = 2048,
+    HUB_PACKET_BUFFER_COUNT = 256,
     HUB_BUFFER_SIZE = 64 * 1024,
     HUB_UDP_RECEIVE_SIZE = 65507,
-    COM_DRIVER_BUFFER_COUNT = 30,
+    HUB_IO_BUFFER_COUNT = 8,
 
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
     //
@@ -76,11 +76,19 @@ void configureTopology() {
     imx_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
     // Hub buffer manager
-    Svc::BufferManager::BufferBins hubBuffMgrBins;
-    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
-    hubBuffMgrBins.bins[0].bufferSize = HUB_BUFFER_SIZE;
-    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
+    Svc::BufferManager::BufferBins hubPacketBins;
+    memset(&hubPacketBins, 0, sizeof(hubPacketBins));
+    // Deframed hub records can be retained by asynchronous consumers. Size
+    // this pool above the ComQueue active and file queue depths.
+    hubPacketBins.bins[0].bufferSize = HUB_PACKET_BUFFER_SIZE;
+    hubPacketBins.bins[0].numBuffers = HUB_PACKET_BUFFER_COUNT;
+    imx_hubBufferManager.setup(201, 0, mallocator, hubPacketBins);
+
+    Svc::BufferManager::BufferBins hubIoBins;
+    memset(&hubIoBins, 0, sizeof(hubIoBins));
+    hubIoBins.bins[0].bufferSize = HUB_BUFFER_SIZE;
+    hubIoBins.bins[0].numBuffers = HUB_IO_BUFFER_COUNT;
+    imx_hubIoBufferManager.setup(202, 0, mallocator, hubIoBins);
     imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_BUFFER_SIZE);
 
     // Hardware Manager Definitions
@@ -223,6 +231,7 @@ void teardownTopology(const TopologyState& state) {
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
     imx_hubFrameAccumulator.cleanup();
+    imx_hubIoBufferManager.cleanup();
     imx_hubBufferManager.cleanup();
 
     tearDownComponents(state);

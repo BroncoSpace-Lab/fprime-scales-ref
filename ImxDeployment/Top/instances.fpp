@@ -101,6 +101,8 @@ module ImxDeployment {
 
   instance imx_fileDownlinkMux: Components.BufferQueueMux base id 0x3900
 
+  instance imx_hubIoBufferManager: Svc.BufferManager base id 0x3A00
+
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x3400
 
   instance imx_seqCmdSplitter: Svc.CmdSplitter base id 0x3410

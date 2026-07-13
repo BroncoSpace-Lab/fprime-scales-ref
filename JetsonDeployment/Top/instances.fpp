@@ -98,6 +98,8 @@ module JetsonDeployment {
 
   instance jetson_hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x3800
 
+  instance jetson_hubIoBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x3A00
+
   instance jetson_rateGroupDriver: Svc.RateGroupDriver base id CMD_SPLITTER_OFFSET + 0x4300
 
   instance jetson_chronoTime: Svc.ChronoTime base id CMD_SPLITTER_OFFSET + 0x4500
