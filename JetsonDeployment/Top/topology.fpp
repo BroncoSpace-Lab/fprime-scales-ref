@@ -200,19 +200,17 @@ module JetsonDeployment {
       jetson_hub.allocate -> jetson_hubBufferManager.bufferGetCallee
       jetson_hub.deallocate -> jetson_hubBufferManager.bufferSendIn
 
-      # Keep transport receive buffers separate from retained packet buffers so
-      # a file burst cannot starve the UDP receive task.
+      # Wire/framed buffers must come from the large IO pool.
       jetson_hubComDriver.allocate -> jetson_hubIoBufferManager.bufferGetCallee
       jetson_hubComDriver.deallocate -> jetson_hubIoBufferManager.bufferSendIn
 
-      jetson_hubFramer.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
-      jetson_hubFramer.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn
+      jetson_hubFramer.bufferAllocate -> jetson_hubIoBufferManager.bufferGetCallee
+      jetson_hubFramer.bufferDeallocate -> jetson_hubIoBufferManager.bufferSendIn
 
-      jetson_hubFrameAccumulator.bufferAllocate -> jetson_hubBufferManager.bufferGetCallee
-      jetson_hubFrameAccumulator.bufferDeallocate -> jetson_hubBufferManager.bufferSendIn
+      jetson_hubFrameAccumulator.bufferAllocate -> jetson_hubIoBufferManager.bufferGetCallee
+      jetson_hubFrameAccumulator.bufferDeallocate -> jetson_hubIoBufferManager.bufferSendIn
 
       jetson_hubComDriver.ready -> jetson_hubComStub.drvConnected
-
       # Channel 0 carries Jetson file-downlink packets to the i.MX downlink stack.
       FileHandling.fileDownlink.bufferSendOut -> jetson_hub.bufferIn[0]
       jetson_hub.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn

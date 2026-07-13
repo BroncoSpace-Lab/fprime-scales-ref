@@ -33,11 +33,16 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
-    HUB_PACKET_BUFFER_SIZE = 2048,
-    HUB_PACKET_BUFFER_COUNT = 256,
-    HUB_BUFFER_SIZE = 64 * 1024,
-    HUB_UDP_RECEIVE_SIZE = 65507,
-    HUB_IO_BUFFER_COUNT = 8,
+    // Buffers retained by GenericHub after deserializing hub records.
+    // These must be large enough for file-packet hub payloads.
+    HUB_PACKET_BUFFER_SIZE = 4 * 1024,
+    HUB_PACKET_BUFFER_COUNT = 512,
+
+    // Buffers used on the wire/framed side of the hub.
+    // Do not use 64 KiB UDP datagrams for file transfer.
+    HUB_WIRE_BUFFER_SIZE = 8 * 1024,
+    HUB_UDP_RECEIVE_SIZE = HUB_WIRE_BUFFER_SIZE,
+    HUB_IO_BUFFER_COUNT = 32,
 
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
     //
@@ -86,10 +91,10 @@ void configureTopology() {
 
     Svc::BufferManager::BufferBins hubIoBins;
     memset(&hubIoBins, 0, sizeof(hubIoBins));
-    hubIoBins.bins[0].bufferSize = HUB_BUFFER_SIZE;
+    hubIoBins.bins[0].bufferSize = HUB_WIRE_BUFFER_SIZE;
     hubIoBins.bins[0].numBuffers = HUB_IO_BUFFER_COUNT;
     imx_hubIoBufferManager.setup(202, 0, mallocator, hubIoBins);
-    imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_BUFFER_SIZE);
+    imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
 
     // Hardware Manager Definitions
 

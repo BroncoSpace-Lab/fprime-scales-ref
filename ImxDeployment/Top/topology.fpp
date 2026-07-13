@@ -231,21 +231,18 @@ module ImxDeployment {
     }
 
     connections hub {
-      # Hub buffer allocation/deallocation
       imx_hub.allocate -> imx_hubBufferManager.bufferGetCallee
       imx_hub.deallocate -> imx_hubBufferManager.bufferSendIn
 
-      # UDP driver buffer allocation/deallocation
-      # Keep transport receive buffers separate from retained packet buffers so
-      # a file burst cannot starve the UDP receive task.
+      # Wire/framed buffers must come from the large IO pool.
       imx_hubComDriver.allocate -> imx_hubIoBufferManager.bufferGetCallee
       imx_hubComDriver.deallocate -> imx_hubIoBufferManager.bufferSendIn
 
-      imx_hubFramer.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
-      imx_hubFramer.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
+      imx_hubFramer.bufferAllocate -> imx_hubIoBufferManager.bufferGetCallee
+      imx_hubFramer.bufferDeallocate -> imx_hubIoBufferManager.bufferSendIn
 
-      imx_hubFrameAccumulator.bufferAllocate -> imx_hubBufferManager.bufferGetCallee
-      imx_hubFrameAccumulator.bufferDeallocate -> imx_hubBufferManager.bufferSendIn
+      imx_hubFrameAccumulator.bufferAllocate -> imx_hubIoBufferManager.bufferGetCallee
+      imx_hubFrameAccumulator.bufferDeallocate -> imx_hubIoBufferManager.bufferSendIn
 
       imx_hubComDriver.ready -> imx_hubComStub.drvConnected
 
