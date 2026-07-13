@@ -139,8 +139,8 @@ void setupTopology(const TopologyState& state) {
     jetson_hubComDriver.configure(
     IMX_HUB_IP_ADDRESS,
     IMX_HUB_PORT,
-    Drv::SOCKET_SEND_TIMEOUT_SECONDS,
-    Drv::SOCKET_SEND_TIMEOUT_MICROSECONDS,
+    1,
+    0,
     HUB_WIRE_BUFFER_SIZE
     );
 
@@ -148,7 +148,7 @@ void setupTopology(const TopologyState& state) {
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
     if (!waitForHubReady()) {
         Fw::Logger::log(
-            "[WARNING] Jetson hub UDP driver did not open before startup traffic began. Remote=%s:%u local=%u\n",
+            "[WARNING] Jetson hub TCP driver did not open before startup traffic began. Remote=%s:%u local=%u\n",
             IMX_HUB_IP_ADDRESS,
             static_cast<unsigned>(IMX_HUB_PORT),
             static_cast<unsigned>(JETSON_HUB_PORT)

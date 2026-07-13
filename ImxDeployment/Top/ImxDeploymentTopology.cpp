@@ -188,8 +188,8 @@ void setupTopology(const TopologyState& state) {
     imx_hubComDriver.configure(
     "0.0.0.0",
     IMX_HUB_PORT,
-    Drv::SOCKET_SEND_TIMEOUT_SECONDS,
-    Drv::SOCKET_SEND_TIMEOUT_MICROSECONDS,
+    1,
+    0,
     HUB_WIRE_BUFFER_SIZE
     );
 
