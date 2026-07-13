@@ -33,15 +33,16 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
+
     // Buffers retained by GenericHub after deserializing hub records.
     // These must be large enough for file-packet hub payloads.
     HUB_PACKET_BUFFER_SIZE = 4 * 1024,
     HUB_PACKET_BUFFER_COUNT = 512,
 
     // Buffers used on the wire/framed side of the hub.
-    // Do not use 64 KiB UDP datagrams for file transfer.
+    // TCP gives reliable byte delivery, but it is still a byte stream.
+    // The framer/accumulator path is still required to recover complete F Prime frames.
     HUB_WIRE_BUFFER_SIZE = 8 * 1024,
-    HUB_UDP_RECEIVE_SIZE = HUB_WIRE_BUFFER_SIZE,
     HUB_IO_BUFFER_COUNT = 32,
 
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
@@ -80,20 +81,24 @@ void configureTopology() {
     // Command sequencer needs memory for command sequences.
     imx_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
-    // Hub buffer manager
+    // Hub packet buffer manager.
+    // These buffers are retained by GenericHub and downstream async consumers.
     Svc::BufferManager::BufferBins hubPacketBins;
     memset(&hubPacketBins, 0, sizeof(hubPacketBins));
-    // Deframed hub records can be retained by asynchronous consumers. Size
-    // this pool above the ComQueue active and file queue depths.
     hubPacketBins.bins[0].bufferSize = HUB_PACKET_BUFFER_SIZE;
     hubPacketBins.bins[0].numBuffers = HUB_PACKET_BUFFER_COUNT;
     imx_hubBufferManager.setup(201, 0, mallocator, hubPacketBins);
 
+    // Hub wire/transport buffer manager.
+    // These buffers are used by the framed TCP transport path.
     Svc::BufferManager::BufferBins hubIoBins;
     memset(&hubIoBins, 0, sizeof(hubIoBins));
     hubIoBins.bins[0].bufferSize = HUB_WIRE_BUFFER_SIZE;
     hubIoBins.bins[0].numBuffers = HUB_IO_BUFFER_COUNT;
     imx_hubIoBufferManager.setup(202, 0, mallocator, hubIoBins);
+
+    // TCP is a byte stream, so the frame accumulator is still needed to rebuild
+    // complete F Prime frames before deframing.
     imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
 
     // Hardware Manager Definitions
@@ -168,6 +173,33 @@ void setupTopology(const TopologyState& state) {
     // Project-specific component configuration
     configureTopology();
 
+    // Configure command splitters before active tasks can route commands.
+    imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+    imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+
+    // ----------------------------------------------------------------------
+    // Hub communication path
+    // ----------------------------------------------------------------------
+    //
+    // The i.MX is the hub TCP server. It must be listening before active tasks
+    // begin producing hub traffic. The Jetson connects to this listener as the
+    // TCP client.
+    //
+    // TCP gives reliable ordered byte delivery, avoiding the UDP loss/reordering
+    // problems that corrupted larger image/file traffic. However, TCP does not
+    // preserve message boundaries, so the FprimeFramer/FrameAccumulator/
+    // FprimeDeframer stack is still required.
+    imx_hubComDriver.configure(
+        "0.0.0.0",
+        IMX_HUB_PORT,
+        1,
+        0,
+        HUB_WIRE_BUFFER_SIZE
+    );
+
+    Os::TaskString hubName("hub");
+    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+
     // Autocoded parameter loading
     loadParameters();
 
@@ -179,25 +211,6 @@ void setupTopology(const TopologyState& state) {
         Os::TaskString name("ReceiveTask");
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
-
-    // ----------------------------------------------------------------------
-    // Hub communication path
-    // ----------------------------------------------------------------------
-
-    // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    imx_hubComDriver.configure(
-    "0.0.0.0",
-    IMX_HUB_PORT,
-    1,
-    0,
-    HUB_WIRE_BUFFER_SIZE
-    );
-
-    imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
-    imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
-
-    Os::TaskString hubName("hub");
-    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
