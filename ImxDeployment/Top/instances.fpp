@@ -113,6 +113,10 @@ module ImxDeployment {
 
   instance imx_comDriver: Drv.TcpServer base id 0x4700
 
+  instance imx_gdsUartMirror: scalesSvc.GdsUartMirror base id 0x4800
+
+  instance imx_gdsUartDriver: Drv.LinuxUartDriver base id 0x4900
+
   # SCALES SVC Driver Instances
 
   instance imx_mcpI2CbusDriver: Drv.LinuxI2cDriver base id 0x5000

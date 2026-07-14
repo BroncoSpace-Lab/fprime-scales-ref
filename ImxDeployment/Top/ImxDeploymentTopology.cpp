@@ -14,6 +14,7 @@
 // Necessary project-specified types
 #include <Fw/Types/MallocAllocator.hpp>
 #include <Fw/Logger/Logger.hpp>
+#include <cstdlib>
 
 // Public functions for use in main program are namespaced with deployment module ImxDeployment.
 // This is also the namespace where the topology components are instantiated by FPP.
@@ -61,8 +62,11 @@ enum TopologyConstants {
 const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
+const char* DEFAULT_GDS_UART_DEVICE = "/dev/ttyUSB0";
+const FwSizeType GDS_UART_BUFFER_SIZE = 2048;
 
 Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
+bool gdsUartEnabled = false;
 
 /**
  * \brief configure/setup components in project-specific way
@@ -170,6 +174,25 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    // Configure the mirrored UART GDS link. Override the device at runtime with
+    // IMX_GDS_UART_DEVICE. Set it to an empty string to disable the UART mirror.
+    const char* gdsUartDevice = std::getenv("IMX_GDS_UART_DEVICE");
+    if (gdsUartDevice == nullptr) {
+        gdsUartDevice = DEFAULT_GDS_UART_DEVICE;
+    }
+    if (gdsUartDevice[0] != '\0') {
+        gdsUartEnabled = imx_gdsUartDriver.open(
+            gdsUartDevice,
+            Drv::LinuxUartDriver::BAUD_115K,
+            Drv::LinuxUartDriver::NO_FLOW,
+            Drv::LinuxUartDriver::PARITY_NONE,
+            GDS_UART_BUFFER_SIZE
+        );
+        if (!gdsUartEnabled) {
+            Fw::Logger::log("[WARNING] Failed to open mirrored GDS UART device: %s\n", gdsUartDevice);
+        }
+    }
+
     // Project-specific component configuration
     configureTopology();
 
@@ -211,6 +234,11 @@ void setupTopology(const TopologyState& state) {
         Os::TaskString name("ReceiveTask");
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    // Start mirrored UART receive task after the topology tasks are running.
+    if (gdsUartEnabled) {
+        imx_gdsUartDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+    }
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
@@ -232,6 +260,12 @@ void teardownTopology(const TopologyState& state) {
     imx_comDriver.terminate();
     imx_comDriver.stop();
     (void)imx_comDriver.join();
+
+    // Mirrored GDS UART cleanup
+    if (gdsUartEnabled) {
+        imx_gdsUartDriver.quitReadThread();
+        (void)imx_gdsUartDriver.join();
+    }
 
     // Hub comm cleanup
     imx_hubComDriver.stop();
