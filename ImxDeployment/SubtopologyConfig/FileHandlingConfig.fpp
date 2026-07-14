@@ -26,6 +26,6 @@ module FileHandlingConfig {
     module DownlinkConfig {
         constant cooldown = 1000
         constant cycleTime = 1000
-        constant fileQueueDepth = 10
+        constant fileQueueDepth = 200
     }
 }
