@@ -55,8 +55,6 @@ module ImxDeployment {
     instance imx_chronoTime
     instance imx_timer
     instance imx_comDriver
-    instance imx_gdsUartMirror
-    instance imx_gdsUartDriver
 
     instance imx_mcpI2CbusDriver
     instance imx_inaI2CbusDriver
@@ -112,34 +110,17 @@ module ImxDeployment {
 
     connections Communications {
 
-      # Primary TCP ComDriver buffer allocations
+      # ComDriver buffer allocations
       imx_comDriver.allocate -> ComFprime.commsBufferManager.bufferGetCallee
       imx_comDriver.deallocate -> ComFprime.commsBufferManager.bufferSendIn
 
-      # UART mirror driver buffer allocations
-      imx_gdsUartDriver.allocate -> ComFprime.commsBufferManager.bufferGetCallee
-      imx_gdsUartDriver.deallocate -> ComFprime.commsBufferManager.bufferSendIn
+      # ComDriver <-> ComStub (Uplink)
+      imx_comDriver.$recv -> ComFprime.comStub.drvReceiveIn
+      ComFprime.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
 
-      # TCP and UART driver receive paths fan into the same ComFprime ComStub.
-      imx_comDriver.$recv -> imx_gdsUartMirror.primaryReceiveIn
-      imx_gdsUartMirror.primaryReceiveReturnOut -> imx_comDriver.recvReturnIn
-
-      imx_gdsUartDriver.$recv -> imx_gdsUartMirror.mirrorReceiveIn
-      imx_gdsUartMirror.mirrorReceiveReturnOut -> imx_gdsUartDriver.recvReturnIn
-
-      imx_gdsUartMirror.receiveOut -> ComFprime.comStub.drvReceiveIn
-      ComFprime.comStub.drvReceiveReturnOut -> imx_gdsUartMirror.receiveReturnIn
-
-      # ComStub downlink goes to TCP first and is mirrored to UART.
-      ComFprime.comStub.drvSendOut -> imx_gdsUartMirror.sendIn
-      imx_gdsUartMirror.primarySendOut -> imx_comDriver.$send
-      imx_gdsUartMirror.mirrorSendOut -> imx_gdsUartDriver.$send
-
-      # TCP readiness remains the controlling GDS link. UART readiness enables
-      # mirroring but does not gate the primary TCP GDS path.
-      imx_comDriver.ready -> imx_gdsUartMirror.primaryConnectedIn
-      imx_gdsUartDriver.ready -> imx_gdsUartMirror.mirrorConnectedIn
-      imx_gdsUartMirror.connectedOut -> ComFprime.comStub.drvConnected
+      # ComStub <-> ComDriver (Downlink)
+      ComFprime.comStub.drvSendOut -> imx_comDriver.$send
+      imx_comDriver.ready -> ComFprime.comStub.drvConnected
 
     }
 
@@ -182,7 +163,6 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
       imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[6] -> imx_hubIoBufferManager.schedIn
-      imx_rateGroup3.RateGroupMemberOut[7] -> imx_gdsUartDriver.run
 
     }
 

@@ -21,7 +21,6 @@ register_fprime_module(
         Drv_Udp
         Drv_TcpServer
         Drv_TcpClient
-        Drv_LinuxUartDriver
         Svc_GenericHub
         Svc_BufferManager
         Svc_ComStub
@@ -29,5 +28,4 @@ register_fprime_module(
         Svc_FprimeDeframer
         Svc_FrameAccumulator
         scales_scalesSvc_HubComAdapter
-        scales_scalesSvc_GdsUartMirror
 )
