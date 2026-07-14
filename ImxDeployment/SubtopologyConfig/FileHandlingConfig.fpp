@@ -3,8 +3,11 @@ module FileHandlingConfig {
     constant BASE_ID = 0x05000000
 
     module QueueSizes {
-        constant fileUplink = 4096
-        constant fileDownlink = 4096
+        # The i.MX receives Jetson files through the hub and writes them
+        # locally before downlinking to GDS. Size the active queues for the
+        # packet count of a 20 MiB transfer with margin.
+        constant fileUplink = 50000
+        constant fileDownlink = 8192
         constant fileManager = 10
         constant prmDb = 10
     }
@@ -26,6 +29,7 @@ module FileHandlingConfig {
     module DownlinkConfig {
         constant cooldown = 1000
         constant cycleTime = 1000
-        constant fileQueueDepth = 200
+        # Request queue depth; this is number of pending files, not packets.
+        constant fileQueueDepth = 256
     }
 }
