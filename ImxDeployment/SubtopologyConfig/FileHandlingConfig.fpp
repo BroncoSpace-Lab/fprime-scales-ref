@@ -4,7 +4,7 @@ module FileHandlingConfig {
 
     module QueueSizes {
         constant fileUplink = 4096
-        constant fileDownlink = 10
+        constant fileDownlink = 4096
         constant fileManager = 10
         constant prmDb = 10
     }
