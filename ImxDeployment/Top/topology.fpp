@@ -17,7 +17,7 @@ module ImxDeployment {
     # ----------------------------------------------------------------------
 
     import CdhCore.Subtopology
-    import ComCcsds.Subtopology
+    import ComFprime.Subtopology
     import DataProducts.Subtopology
     import FileHandling.Subtopology
 
@@ -84,25 +84,25 @@ module ImxDeployment {
     # Direct graph specifiers
     # ----------------------------------------------------------------------
 
-    connections ComCcsds_CdhCore {
+    connections ComFprime_CdhCore {
 
       # Core events and telemetry to communication queue
-      CdhCore.events.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      CdhCore.tlmSend.PktSend -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      CdhCore.events.PktSend -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
+      CdhCore.tlmSend.PktSend -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
 
       # Router to command splitter.
       # Local commands are dispatched on the i.MX.
       # Jetson commands are forwarded over the hub.
-      ComCcsds.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
-      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComCcsds.fprimeRouter.cmdResponseIn
+      ComFprime.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComFprime.fprimeRouter.cmdResponseIn
 
     }
 
-    connections ComCcsds_FileHandling {
+    connections ComFprime_FileHandling {
 
       # Local i.MX file downlinks go directly to the GDS-facing file queue.
-      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
+      FileHandling.fileDownlink.bufferSendOut -> ComFprime.comQueue.bufferQueueIn[ComFprime.Ports_ComBufferQueue.FILE]
+      ComFprime.comQueue.bufferReturnOut[ComFprime.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
 
       # File uplinks are forwarded to the Jetson over hub buffer channel 1.
 
@@ -111,16 +111,16 @@ module ImxDeployment {
     connections Communications {
 
       # ComDriver buffer allocations
-      imx_comDriver.allocate -> ComCcsds.commsBufferManager.bufferGetCallee
-      imx_comDriver.deallocate -> ComCcsds.commsBufferManager.bufferSendIn
+      imx_comDriver.allocate -> ComFprime.commsBufferManager.bufferGetCallee
+      imx_comDriver.deallocate -> ComFprime.commsBufferManager.bufferSendIn
 
       # ComDriver <-> ComStub (Uplink)
-      imx_comDriver.$recv -> ComCcsds.comStub.drvReceiveIn
-      ComCcsds.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
+      imx_comDriver.$recv -> ComFprime.comStub.drvReceiveIn
+      ComFprime.comStub.drvReceiveReturnOut -> imx_comDriver.recvReturnIn
 
       # ComStub <-> ComDriver (Downlink)
-      ComCcsds.comStub.drvSendOut -> imx_comDriver.$send
-      imx_comDriver.ready -> ComCcsds.comStub.drvConnected
+      ComFprime.comStub.drvSendOut -> imx_comDriver.$send
+      imx_comDriver.ready -> ComFprime.comStub.drvConnected
 
     }
 
@@ -142,8 +142,7 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[0] -> CdhCore.tlmSend.Run
       imx_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
-      imx_rateGroup1.RateGroupMemberOut[3] -> ComCcsds.comQueue.run
-      imx_rateGroup1.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
+      imx_rateGroup1.RateGroupMemberOut[3] -> ComFprime.comQueue.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -158,7 +157,7 @@ module ImxDeployment {
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
       imx_rateGroup3.RateGroupMemberOut[0] -> CdhCore.$health.Run
-      imx_rateGroup3.RateGroupMemberOut[1] -> ComCcsds.commsBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[1] -> ComFprime.commsBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[2] -> DataProducts.dpBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[3] -> DataProducts.dpWriter.schedIn
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
@@ -178,9 +177,9 @@ module ImxDeployment {
     connections ImxDeployment {
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
-      # Route directly into IMX ComCcsds packet queues for host GDS downlink.
-      imx_hub.serialOut[2] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.EVENTS]
-      imx_hub.serialOut[3] -> ComCcsds.comQueue.comPacketQueueIn[ComCcsds.Ports_ComPacketQueue.TELEMETRY]
+      # Route directly into IMX ComFprime packet queues for host GDS downlink.
+      imx_hub.serialOut[2] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
+      imx_hub.serialOut[3] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
 
       # powerModeSend: Jetson JetsonPowerModeManager -> hub -> JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
@@ -271,8 +270,8 @@ module ImxDeployment {
       FileHandling.fileUplink.bufferSendOut -> imx_hub.bufferOutReturn[0]
 
       # Channel 1 forwards i.MX/GDS file-uplink packets to the Jetson.
-      ComCcsds.fprimeRouter.fileOut -> imx_hub.bufferIn[1]
-      imx_hub.bufferInReturn[1] -> ComCcsds.fprimeRouter.fileBufferReturnIn
+      ComFprime.fprimeRouter.fileOut -> imx_hub.bufferIn[1]
+      imx_hub.bufferInReturn[1] -> ComFprime.fprimeRouter.fileBufferReturnIn
 
       # Local command dispatch after splitting
       imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]

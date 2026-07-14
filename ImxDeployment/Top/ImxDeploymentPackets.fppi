@@ -15,11 +15,11 @@ telemetry packets ImxDeploymentPackets {
     ImxDeployment.cmdSeq.CS_CancelCommands
     ImxDeployment.cmdSeq.CS_CommandsExecuted
     ImxDeployment.cmdSeq.CS_SequencesCompleted
-    ComCcsds.comQueue.comQueueDepth
-    ComCcsds.comQueue.buffQueueDepth
-    ComCcsds.commsBufferManager.TotalBuffs
-    ComCcsds.commsBufferManager.CurrBuffs
-    ComCcsds.commsBufferManager.HiBuffs
+    ComFprime.comQueue.comQueueDepth
+    ComFprime.comQueue.buffQueueDepth
+    ComFprime.commsBufferManager.TotalBuffs
+    ComFprime.commsBufferManager.CurrBuffs
+    ComFprime.commsBufferManager.HiBuffs
 
     ImxDeployment.rateGroup1.RgMaxTime
     ImxDeployment.rateGroup2.RgMaxTime
@@ -34,8 +34,8 @@ telemetry packets ImxDeploymentPackets {
     FileHandling.fileManager.Errors
 
     ImxDeployment.cmdSeq.CS_Errors
-    ComCcsds.commsBufferManager.NoBuffs
-    ComCcsds.commsBufferManager.EmptyBuffs
+    ComFprime.commsBufferManager.NoBuffs
+    ComFprime.commsBufferManager.EmptyBuffs
 
     ImxDeployment.rateGroup1.RgCycleSlips
     ImxDeployment.rateGroup2.RgCycleSlips

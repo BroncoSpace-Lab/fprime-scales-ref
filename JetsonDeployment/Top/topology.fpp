@@ -82,7 +82,7 @@ module JetsonDeployment {
     connections ComCcsds_CdhCore {
 
       # Core events and telemetry are forwarded over hub to i.MX.
-      # i.MX injects these packets into its local ComCcsds queue for host GDS downlink.
+      # i.MX injects these packets into its local ComFprime queue for host GDS downlink.
       CdhCore.events.PktSend -> jetson_hub.serialIn[2]
       CdhCore.tlmSend.PktSend -> jetson_hub.serialIn[3]
 

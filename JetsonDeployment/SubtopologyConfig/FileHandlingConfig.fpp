@@ -3,11 +3,8 @@ module FileHandlingConfig {
     constant BASE_ID = 0x15000000
 
     module QueueSizes {
-        # Jetson primarily produces large file downlinks into the hub. Keep
-        # enough queue headroom for bursty scheduling and future reverse-path
-        # tests without mirroring the full i.MX sink sizing.
-        constant fileUplink = 8192
-        constant fileDownlink = 8192
+        constant fileUplink = 10
+        constant fileDownlink = 10
         constant fileManager = 10
         constant prmDb = 10
     }
@@ -29,7 +26,6 @@ module FileHandlingConfig {
     module DownlinkConfig {
         constant cooldown = 1000
         constant cycleTime = 1000
-        # Request queue depth; this is number of pending files, not packets.
-        constant fileQueueDepth = 64
+        constant fileQueueDepth = 10
     }
 }
