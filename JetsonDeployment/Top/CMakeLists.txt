@@ -27,7 +27,7 @@ set(MOD_DEPS
     Svc/FprimeFramer
     Svc/FprimeDeframer
     Svc/FrameAccumulator
-    Components_HubComAdapter
+    scales_scalesSvc_HubComAdapter
     Components_MLComponent
     scales_scalesSvc_JetsonPowerModeManager
 )

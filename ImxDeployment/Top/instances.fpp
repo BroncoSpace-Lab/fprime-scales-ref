@@ -87,7 +87,7 @@ module ImxDeployment {
 
   instance imx_hubComDriver: Drv.TcpServer base id 0x3100
 
-  instance imx_hubComAdapter: Components.HubComAdapter base id 0x3200
+  instance imx_hubComAdapter: scalesSvc.HubComAdapter base id 0x3200
 
   instance imx_hubBufferManager: Svc.BufferManager base id 0x3300
 
@@ -98,8 +98,6 @@ module ImxDeployment {
   instance imx_hubDeframer: Svc.FprimeDeframer base id 0x3700
 
   instance imx_hubComStub: Svc.ComStub base id 0x3800
-
-  instance imx_fileDownlinkMux: Components.BufferQueueMux base id 0x3900
 
   instance imx_hubIoBufferManager: Svc.BufferManager base id 0x3A00
 

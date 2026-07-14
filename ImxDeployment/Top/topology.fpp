@@ -42,7 +42,6 @@ module ImxDeployment {
     instance imx_hubFrameAccumulator
     instance imx_hubDeframer
     instance imx_hubComStub
-    instance imx_fileDownlinkMux
     instance imx_hubIoBufferManager
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
@@ -101,13 +100,9 @@ module ImxDeployment {
 
     connections ComCcsds_FileHandling {
 
-      # Local and remote file packets share the communication queue through an
-      # ownership-preserving mux. The remote producer is connected below.
-      FileHandling.fileDownlink.bufferSendOut -> imx_fileDownlinkMux.bufferIn[0]
-      imx_fileDownlinkMux.bufferInReturn[0] -> FileHandling.fileDownlink.bufferReturn
-
-      imx_fileDownlinkMux.bufferOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
-      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> imx_fileDownlinkMux.bufferReturn
+      # Local i.MX file downlinks go directly to the GDS-facing file queue.
+      FileHandling.fileDownlink.bufferSendOut -> ComCcsds.comQueue.bufferQueueIn[ComCcsds.Ports_ComBufferQueue.FILE]
+      ComCcsds.comQueue.bufferReturnOut[ComCcsds.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
 
       # File uplinks are forwarded to the Jetson over hub buffer channel 1.
 
@@ -269,9 +264,11 @@ module ImxDeployment {
 
       imx_hubComDriver.ready -> imx_hubComStub.drvConnected
 
-      # Channel 0 feeds Jetson file-downlink packets into the i.MX/GDS queue.
-      imx_hub.bufferOut[0] -> imx_fileDownlinkMux.bufferIn[1]
-      imx_fileDownlinkMux.bufferInReturn[1] -> imx_hub.bufferOutReturn[0]
+      # Channel 0 stages Jetson file-downlink packets through the local
+      # FileUplink service first, saving the file on the i.MX filesystem.
+      # The saved file can then be downlinked locally from the i.MX to GDS.
+      imx_hub.bufferOut[0] -> FileHandling.fileUplink.bufferSendIn
+      FileHandling.fileUplink.bufferSendOut -> imx_hub.bufferOutReturn[0]
 
       # Channel 1 forwards i.MX/GDS file-uplink packets to the Jetson.
       ComCcsds.fprimeRouter.fileOut -> imx_hub.bufferIn[1]

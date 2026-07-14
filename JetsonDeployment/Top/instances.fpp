@@ -86,7 +86,7 @@ module JetsonDeployment {
 
   instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x3100
 
-  instance jetson_hubComAdapter: Components.HubComAdapter base id CMD_SPLITTER_OFFSET + 0x3200
+  instance jetson_hubComAdapter: scalesSvc.HubComAdapter base id CMD_SPLITTER_OFFSET + 0x3200
 
   instance jetson_hubBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x3300
 

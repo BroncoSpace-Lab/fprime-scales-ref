@@ -27,6 +27,5 @@ register_fprime_module(
         Svc_FprimeFramer
         Svc_FprimeDeframer
         Svc_FrameAccumulator
-        Components_HubComAdapter
-        Components_BufferQueueMux
+        scales_scalesSvc_HubComAdapter
 )
