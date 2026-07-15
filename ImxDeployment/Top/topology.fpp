@@ -240,6 +240,11 @@ module ImxDeployment {
       
     }
 
+    # Connect producers to DpManager
+    connections DataProducers {
+        imx_mcpManager.productGetOut  -> DataProducts.Subtopology.productGetIn
+        imx_mcpManager.productSendOut -> DataProducts.Subtopology.productSendIn
+    }
   }
 
 }
