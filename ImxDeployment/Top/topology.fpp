@@ -135,7 +135,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[0] -> imx_cmdSeq.schedIn
       imx_rateGroup2.RateGroupMemberOut[1] -> imx_watchdogManager.run
       imx_rateGroup2.RateGroupMemberOut[2] -> imx_perifBoardManager.run
-      imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.imxCpuTemp
+      imx_rateGroup2.RateGroupMemberOut[3] -> imx_thermalManager.run
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
