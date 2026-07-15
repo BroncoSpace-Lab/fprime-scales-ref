@@ -62,6 +62,10 @@ const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
 
+const char* UART_GDS_DEVICE = "/dev/ttyUSB0";
+const U32 UART_GDS_BUFFER_SIZE = 8 * 1024;
+const U32 UART_GDS_BUFFER_COUNT = 32;
+
 Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
 
 /**
@@ -101,8 +105,29 @@ void configureTopology() {
     // complete F Prime frames before deframing.
     imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
 
-    // Hardware Manager Definitions
+    // UART GDS wire/transport buffer manager.
+    // These buffers are used by the framed UART downlink path.
+    Svc::BufferManager::BufferBins uartGdsBins;
+    memset(&uartGdsBins, 0, sizeof(uartGdsBins));
+    uartGdsBins.bins[0].bufferSize = UART_GDS_BUFFER_SIZE;
+    uartGdsBins.bins[0].numBuffers = UART_GDS_BUFFER_COUNT;
+    imx_uartGdsBufferManager.setup(203, 0, mallocator, uartGdsBins);
 
+    // UART GDS downlink driver.
+    // For now this is transmit-only from flight software to the serial GDS.
+    bool uartOpened = imx_uartGdsDriver.open(
+        UART_GDS_DEVICE,
+        Drv::LinuxUartDriver::BAUD_115K,
+        Drv::LinuxUartDriver::NO_FLOW,
+        Drv::LinuxUartDriver::PARITY_NONE,
+        UART_GDS_BUFFER_SIZE
+    );
+
+    if (!uartOpened) {
+        Fw::Logger::log("[ERROR] Failed to open UART GDS device: %s\n", UART_GDS_DEVICE);
+    }
+
+    // Hardware Manager Definitions
     Os::File::Status watchdog_gpio_status =
         imx_gpioWatchDogDriver.open(
             "/dev/gpiochip2",
@@ -242,6 +267,7 @@ void teardownTopology(const TopologyState& state) {
     imx_hubFrameAccumulator.cleanup();
     imx_hubIoBufferManager.cleanup();
     imx_hubBufferManager.cleanup();
+    imx_uartGdsBufferManager.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);

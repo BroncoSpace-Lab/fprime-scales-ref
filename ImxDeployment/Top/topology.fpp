@@ -46,6 +46,14 @@ module ImxDeployment {
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
 
+    instance imx_uartGdsEventSplitter
+    instance imx_uartGdsTlmSplitter
+    instance imx_uartGdsComQueue
+    instance imx_uartGdsFramer
+    instance imx_uartGdsComStub
+    instance imx_uartGdsDriver
+    instance imx_uartGdsBufferManager
+
     instance imx_rateGroup1
     instance imx_rateGroup2
     instance imx_rateGroup3
@@ -86,9 +94,17 @@ module ImxDeployment {
 
     connections ComFprime_CdhCore {
 
-      # Core events and telemetry to communication queue
-      CdhCore.events.PktSend -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
-      CdhCore.tlmSend.PktSend -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
+      # Core events and telemetry to TCP/UART GDS splitters
+      CdhCore.events.PktSend -> imx_uartGdsEventSplitter.comIn
+      CdhCore.tlmSend.PktSend -> imx_uartGdsTlmSplitter.comIn
+
+      # Splitter output 0 -> Route events and telemetry to normal TCP/IP GDS Path
+      imx_uartGdsEventSplitter.comOut[0] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
+      imx_uartGdsTlmSplitter.comOut[0] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
+
+      # Splitter output 1 feeds the UART/serial GDS path
+      imx_uartGdsEventSplitter.comOut[1] -> imx_uartGdsComQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
+      imx_uartGdsTlmSplitter.comOut[1] -> imx_uartGdsComQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
 
       # Router to command splitter.
       # Local commands are dispatched on the i.MX.
@@ -124,6 +140,37 @@ module ImxDeployment {
 
     }
 
+    connections UartGdsDownlink {
+
+      # UART ComQueue to F Prime framer
+      imx_uartGdsComQueue.dataOut -> imx_uartGdsFramer.dataIn
+      imx_uartGdsFramer.dataReturnOut -> imx_uartGdsComQueue.dataReturnIn
+
+      # UART framer to ComStub
+      imx_uartGdsFramer.dataOut -> imx_uartGdsComStub.dataIn
+      imx_uartGdsComStub.dataReturnOut -> imx_uartGdsFramer.dataReturnIn
+      imx_uartGdsComStub.comStatusOut -> imx_uartGdsComQueue.comStatusIn
+
+      # ComStub to Linux UART driver
+      imx_uartGdsComStub.drvSendOut -> imx_uartGdsDriver.$send
+
+      # UART driver ready signal starts/restarts the queue
+      imx_uartGdsDriver.ready -> imx_uartGdsComStub.drvConnected
+
+    }
+
+    connections UartGdsBuffers {
+
+      # UART driver buffer allocations
+      imx_uartGdsDriver.allocate -> imx_uartGdsBufferManager.bufferGetCallee
+      imx_uartGdsDriver.deallocate -> imx_uartGdsBufferManager.bufferSendIn
+
+      # UART framer output buffers
+      imx_uartGdsFramer.bufferAllocate -> imx_uartGdsBufferManager.bufferGetCallee
+      imx_uartGdsFramer.bufferDeallocate -> imx_uartGdsBufferManager.bufferSendIn
+
+    }
+
     connections FileHandling_DataProducts {
 
       # Data Products to File Downlink
@@ -143,6 +190,7 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[1] -> FileHandling.fileDownlink.Run
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
       imx_rateGroup1.RateGroupMemberOut[3] -> ComFprime.comQueue.run
+      imx_rateGroup1.RateGroupMemberOut[4] -> imx_uartGdsComQueue.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -163,6 +211,8 @@ module ImxDeployment {
       imx_rateGroup3.RateGroupMemberOut[4] -> DataProducts.dpMgr.schedIn
       imx_rateGroup3.RateGroupMemberOut[5] -> imx_hubBufferManager.schedIn
       imx_rateGroup3.RateGroupMemberOut[6] -> imx_hubIoBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[7] -> imx_uartGdsBufferManager.schedIn
+      imx_rateGroup3.RateGroupMemberOut[8] -> imx_uartGdsDriver.run
 
     }
 
@@ -177,9 +227,9 @@ module ImxDeployment {
     connections ImxDeployment {
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
-      # Route directly into IMX ComFprime packet queues for host GDS downlink.
-      imx_hub.serialOut[2] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
-      imx_hub.serialOut[3] -> ComFprime.comQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
+      # Route into GDS Splitter so both GDS Paths can recieve them
+      imx_hub.serialOut[2] -> imx_uartGdsEventSplitter.comIn
+      imx_hub.serialOut[3] -> imx_uartGdsTlmSplitter.comIn
 
       # powerModeSend: Jetson JetsonPowerModeManager -> hub -> JetsonManager
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
