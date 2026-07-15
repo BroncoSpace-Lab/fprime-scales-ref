@@ -73,11 +73,6 @@ module ImxDeployment {
     priority 100
 
   # Active UART GDS downlink transport instances
-  
-  instance imx_uartGdsBufferManager: Svc.BufferManager base id 0x5800 \
-    queue size Default.QUEUE_SIZE \
-    stack size Default.STACK_SIZE \
-    priority 99
 
   instance imx_uartGdsComQueue: Svc.ComQueue base id 0x5400 \
     queue size Default.QUEUE_SIZE \
@@ -150,6 +145,8 @@ module ImxDeployment {
   instance imx_uartGdsComStub: Svc.ComStub base id 0x5600
 
   instance imx_uartGdsDriver: Drv.LinuxUartDriver base id 0x5700
+
+  instance imx_uartGdsBufferManager: Svc.BufferManager base id 0x5800 \
 
 }
 

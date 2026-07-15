@@ -62,7 +62,7 @@ const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
 
-const char* UART_GDS_DEVICE = "/dev/ttyUSB0";
+const char* UART_GDS_DEVICE = "/dev/ttyLP0";
 const U32 UART_GDS_BUFFER_SIZE = 8 * 1024;
 const U32 UART_GDS_BUFFER_COUNT = 32;
 
@@ -113,11 +113,32 @@ void configureTopology() {
     uartGdsBins.bins[0].numBuffers = UART_GDS_BUFFER_COUNT;
     imx_uartGdsBufferManager.setup(203, 0, mallocator, uartGdsBins);
 
+    // UART GDS ComQueue configuration.
+    // Configure every internal queue, even if we only actively use EVENTS and TELEMETRY.
+    Svc::ComQueue::QueueConfigurationTable uartGdsQueueConfig;
+
+    for (FwIndexType i = 0; i < Svc::ComQueue::TOTAL_PORT_COUNT; i++) {
+        uartGdsQueueConfig.entries[i].depth = 1;
+        uartGdsQueueConfig.entries[i].priority = i;
+        uartGdsQueueConfig.entries[i].mode = Types::QUEUE_FIFO;
+        uartGdsQueueConfig.entries[i].overflowMode = Types::QUEUE_DROP_NEWEST;
+    }
+
+    // Give the queues we actually use more room.
+    uartGdsQueueConfig.entries[ComFprime::Ports_ComPacketQueue::EVENTS].depth = 100;
+    uartGdsQueueConfig.entries[ComFprime::Ports_ComPacketQueue::TELEMETRY].depth = 100;
+
+    imx_uartGdsComQueue.configure(
+        uartGdsQueueConfig,
+        204,
+        mallocator
+    );
+
     // UART GDS downlink driver.
     // For now this is transmit-only from flight software to the serial GDS.
     bool uartOpened = imx_uartGdsDriver.open(
         UART_GDS_DEVICE,
-        Drv::LinuxUartDriver::BAUD_115K,
+        Drv::LinuxUartDriver::BAUD_921K,
         Drv::LinuxUartDriver::NO_FLOW,
         Drv::LinuxUartDriver::PARITY_NONE,
         UART_GDS_BUFFER_SIZE
@@ -268,6 +289,7 @@ void teardownTopology(const TopologyState& state) {
     imx_hubIoBufferManager.cleanup();
     imx_hubBufferManager.cleanup();
     imx_uartGdsBufferManager.cleanup();
+    imx_uartGdsComQueue.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);
