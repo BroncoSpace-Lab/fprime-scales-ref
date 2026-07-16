@@ -62,7 +62,7 @@ const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
 
-const char* UART_GDS_DEVICE = "/dev/ttyLP2";
+const char* UART_GDS_DEVICE = "/dev/ttyLP0";
 const U32 UART_GDS_BUFFER_SIZE = 8 * 1024;
 const U32 UART_GDS_BUFFER_COUNT = 32;
 
