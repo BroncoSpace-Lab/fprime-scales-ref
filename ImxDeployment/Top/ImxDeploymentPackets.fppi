@@ -15,6 +15,10 @@ telemetry packets ImxDeploymentPackets {
     ImxDeployment.cmdSeq.CS_CancelCommands
     ImxDeployment.cmdSeq.CS_CommandsExecuted
     ImxDeployment.cmdSeq.CS_SequencesCompleted
+    ImxDeployment.imx_gdsCmdAuthMux.CommandAuthority
+    ImxDeployment.imx_gdsCmdAuthMux.TcpReadyForAuthority
+    ImxDeployment.imx_gdsCmdAuthMux.TcpCommandsRejected
+    ImxDeployment.imx_gdsCmdAuthMux.UartCommandsRejected
     ComFprime.comQueue.comQueueDepth
     ComFprime.comQueue.buffQueueDepth
     ComFprime.commsBufferManager.TotalBuffs

@@ -65,8 +65,14 @@ const U32 JETSON_HUB_PORT = 50501;
 const char* UART_GDS_DEVICE = "/dev/ttyLP0";
 const U32 UART_GDS_BUFFER_SIZE = 8 * 1024;
 const U32 UART_GDS_BUFFER_COUNT = 32;
+bool uartGdsOpened = false;
 
 Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
+Svc::FrameDetectors::FprimeFrameDetector uartGdsFrameDetector;
+
+bool pollDirectGdsTcpOpen() {
+    return imx_comDriver.isOpened();
+}
 
 /**
  * \brief configure/setup components in project-specific way
@@ -134,9 +140,11 @@ void configureTopology() {
         mallocator
     );
 
-    // UART GDS downlink driver.
-    // For now this is transmit-only from flight software to the serial GDS.
-    bool uartOpened = imx_uartGdsDriver.open(
+    // UART GDS frame accumulator for command uplink.
+    imx_uartGdsFrameAccumulator.configure(uartGdsFrameDetector, 3, mallocator, UART_GDS_BUFFER_SIZE);
+
+    // UART GDS driver.
+    uartGdsOpened = imx_uartGdsDriver.open(
         UART_GDS_DEVICE,
         Drv::LinuxUartDriver::BAUD_921K,
         Drv::LinuxUartDriver::NO_FLOW,
@@ -144,7 +152,7 @@ void configureTopology() {
         UART_GDS_BUFFER_SIZE
     );
 
-    if (!uartOpened) {
+    if (!uartGdsOpened) {
         Fw::Logger::log("[ERROR] Failed to open UART GDS device: %s\n", UART_GDS_DEVICE);
     }
 
@@ -216,6 +224,8 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    imx_gdsCmdAuthMux.configureTcpStatusPoller(pollDirectGdsTcpOpen);
+
     // Project-specific component configuration
     configureTopology();
 
@@ -257,6 +267,11 @@ void setupTopology(const TopologyState& state) {
         Os::TaskString name("ReceiveTask");
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
+
+    // Start UART GDS receive thread for command uplink.
+    if (uartGdsOpened) {
+        imx_uartGdsDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+    }
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
@@ -283,9 +298,16 @@ void teardownTopology(const TopologyState& state) {
     imx_hubComDriver.stop();
     (void)imx_hubComDriver.join();
 
+    // UART GDS cleanup
+    if (uartGdsOpened) {
+        imx_uartGdsDriver.quitReadThread();
+        (void)imx_uartGdsDriver.join();
+    }
+
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
     imx_hubFrameAccumulator.cleanup();
+    imx_uartGdsFrameAccumulator.cleanup();
     imx_hubIoBufferManager.cleanup();
     imx_hubBufferManager.cleanup();
     imx_uartGdsBufferManager.cleanup();

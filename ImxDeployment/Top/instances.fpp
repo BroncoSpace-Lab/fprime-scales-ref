@@ -72,6 +72,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+  instance imx_gdsCmdAuthMux: scalesSvc.GdsCmdAuthMux base id 0x5900 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 100
+
   # Active UART GDS downlink transport instances
 
   instance imx_uartGdsComQueue: Svc.ComQueue base id 0x5400 \
@@ -148,5 +153,10 @@ module ImxDeployment {
 
   instance imx_uartGdsBufferManager: Svc.BufferManager base id 0x5800 \
 
-}
+  instance imx_uartGdsFrameAccumulator: Svc.FrameAccumulator base id 0x5A00
 
+  instance imx_uartGdsDeframer: Svc.FprimeDeframer base id 0x5B00
+
+  instance imx_uartGdsRouter: Svc.FprimeRouter base id 0x5C00
+
+}

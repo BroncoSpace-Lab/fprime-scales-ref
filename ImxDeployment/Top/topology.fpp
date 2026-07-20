@@ -45,6 +45,7 @@ module ImxDeployment {
     instance imx_hubIoBufferManager
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
+    instance imx_gdsCmdAuthMux
 
     instance imx_uartGdsEventSplitter
     instance imx_uartGdsTlmSplitter
@@ -53,6 +54,9 @@ module ImxDeployment {
     instance imx_uartGdsComStub
     instance imx_uartGdsDriver
     instance imx_uartGdsBufferManager
+    instance imx_uartGdsFrameAccumulator
+    instance imx_uartGdsDeframer
+    instance imx_uartGdsRouter
 
     instance imx_rateGroup1
     instance imx_rateGroup2
@@ -106,11 +110,11 @@ module ImxDeployment {
       imx_uartGdsEventSplitter.comOut[1] -> imx_uartGdsComQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.EVENTS]
       imx_uartGdsTlmSplitter.comOut[1] -> imx_uartGdsComQueue.comPacketQueueIn[ComFprime.Ports_ComPacketQueue.TELEMETRY]
 
-      # Router to command splitter.
+      # Router to command authority mux.
       # Local commands are dispatched on the i.MX.
       # Jetson commands are forwarded over the hub.
-      ComFprime.fprimeRouter.commandOut -> imx_cmdSplitter.CmdBuff[0]
-      imx_cmdSplitter.forwardSeqCmdStatus[0] -> ComFprime.fprimeRouter.cmdResponseIn
+      ComFprime.fprimeRouter.commandOut -> imx_gdsCmdAuthMux.tcpCmdIn
+      imx_gdsCmdAuthMux.tcpCmdResponseOut -> ComFprime.fprimeRouter.cmdResponseIn
 
     }
 
@@ -154,6 +158,10 @@ module ImxDeployment {
       # ComStub to Linux UART driver
       imx_uartGdsComStub.drvSendOut -> imx_uartGdsDriver.$send
 
+      # Linux UART driver to ComStub for UART GDS command uplink
+      imx_uartGdsDriver.$recv -> imx_uartGdsComStub.drvReceiveIn
+      imx_uartGdsComStub.drvReceiveReturnOut -> imx_uartGdsDriver.recvReturnIn
+
       # UART driver ready signal starts/restarts the queue
       imx_uartGdsDriver.ready -> imx_uartGdsComStub.drvConnected
 
@@ -168,6 +176,34 @@ module ImxDeployment {
       # UART framer output buffers
       imx_uartGdsFramer.bufferAllocate -> imx_uartGdsBufferManager.bufferGetCallee
       imx_uartGdsFramer.bufferDeallocate -> imx_uartGdsBufferManager.bufferSendIn
+
+      # UART command-uplink frame accumulator buffers
+      imx_uartGdsFrameAccumulator.bufferAllocate -> imx_uartGdsBufferManager.bufferGetCallee
+      imx_uartGdsFrameAccumulator.bufferDeallocate -> imx_uartGdsBufferManager.bufferSendIn
+
+      # UART command router buffers
+      imx_uartGdsRouter.bufferAllocate -> imx_uartGdsBufferManager.bufferGetCallee
+      imx_uartGdsRouter.bufferDeallocate -> imx_uartGdsBufferManager.bufferSendIn
+
+    }
+
+    connections UartGdsUplink {
+
+      # UART ComStub to frame accumulator
+      imx_uartGdsComStub.dataOut -> imx_uartGdsFrameAccumulator.dataIn
+      imx_uartGdsFrameAccumulator.dataReturnOut -> imx_uartGdsComStub.dataReturnIn
+
+      # Frame accumulator to F Prime deframer
+      imx_uartGdsFrameAccumulator.dataOut -> imx_uartGdsDeframer.dataIn
+      imx_uartGdsDeframer.dataReturnOut -> imx_uartGdsFrameAccumulator.dataReturnIn
+
+      # Deframer to router
+      imx_uartGdsDeframer.dataOut -> imx_uartGdsRouter.dataIn
+      imx_uartGdsRouter.dataReturnOut -> imx_uartGdsDeframer.dataReturnIn
+
+      # Router command path through authority mux
+      imx_uartGdsRouter.commandOut -> imx_gdsCmdAuthMux.uartCmdIn
+      imx_gdsCmdAuthMux.uartCmdResponseOut -> imx_uartGdsRouter.cmdResponseIn
 
     }
 
@@ -201,6 +237,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
+      imx_rateGroup2.RateGroupMemberOut[7] -> imx_gdsCmdAuthMux.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -324,6 +361,9 @@ module ImxDeployment {
       imx_hub.bufferInReturn[1] -> ComFprime.fprimeRouter.fileBufferReturnIn
 
       # Local command dispatch after splitting
+      imx_gdsCmdAuthMux.cmdOut -> imx_cmdSplitter.CmdBuff[0]
+      imx_cmdSplitter.forwardSeqCmdStatus[0] -> imx_gdsCmdAuthMux.cmdResponseIn
+
       imx_cmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[0]
       CdhCore.cmdDisp.seqCmdStatus[0] -> imx_cmdSplitter.seqCmdStatus[0]
 
