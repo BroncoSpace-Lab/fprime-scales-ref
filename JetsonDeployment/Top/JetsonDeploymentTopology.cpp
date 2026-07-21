@@ -6,8 +6,7 @@
 
 // Provides access to autocoded functions
 #include <JetsonDeployment/Top/JetsonDeploymentTopologyAc.hpp>
-#include <Svc/FprimeProtocol/FrameHeaderSerializableAc.hpp>
-#include <Svc/FprimeProtocol/FrameTrailerSerializableAc.hpp>
+#include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
 
 // fprime-python includes
 #include <pybind11/pybind11.h>
@@ -38,12 +37,23 @@ const char* IMX_HUB_IP_ADDRESS = "10.3.2.10";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
 
+Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
+
 enum TopologyConstants {
     COMM_PRIORITY = 34,
-    COM_DRIVER_BUFFER_SIZE = 3000,
-    COM_DRIVER_BUFFER_COUNT = 30,
+    // Buffers retained by GenericHub after deserializing hub records.
+    // These must be large enough for file-packet hub payloads.
+    HUB_PACKET_BUFFER_SIZE = 4 * 1024,
+    HUB_PACKET_BUFFER_COUNT = 8192,
+
+    // Buffers used on the wire/framed side of the hub.
+    // Do not use 64 KiB UDP datagrams for file transfer.
+    HUB_WIRE_BUFFER_SIZE = 8 * 1024,
+    HUB_UDP_RECEIVE_SIZE = HUB_WIRE_BUFFER_SIZE,
+    HUB_IO_BUFFER_COUNT = 32,
+
     HUB_CONNECT_WAIT_ATTEMPTS = 100,
-    HUB_CONNECT_WAIT_USEC = 50000
+    HUB_CONNECT_WAIT_USEC = 50000    
 };
 
 bool isComDriverConnected(const TopologyState& state) {
@@ -83,15 +93,23 @@ void configureTopology() {
     // Command sequencer needs to allocate memory to hold contents of command sequences
     jetson_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
-    Svc::BufferManager::BufferBins hubBuffMgrBins;
-    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
+    Svc::BufferManager::BufferBins hubPacketBins;
+    memset(&hubPacketBins, 0, sizeof(hubPacketBins));
 
-    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
-    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
+    // Deframed hub records can be retained by asynchronous consumers. Size
+    // this pool above the ComQueue active and file queue depths.
+    hubPacketBins.bins[0].bufferSize = HUB_PACKET_BUFFER_SIZE;
+    hubPacketBins.bins[0].numBuffers = HUB_PACKET_BUFFER_COUNT;
+    jetson_hubBufferManager.setup(201, 0, mallocator, hubPacketBins);
 
-    jetson_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
+    Svc::BufferManager::BufferBins hubIoBins;
+    memset(&hubIoBins, 0, sizeof(hubIoBins));
+    hubIoBins.bins[0].bufferSize = HUB_WIRE_BUFFER_SIZE;
+    hubIoBins.bins[0].numBuffers = HUB_IO_BUFFER_COUNT;
+    jetson_hubIoBufferManager.setup(202, 0, mallocator, hubIoBins);
+    jetson_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
 
-    Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 85, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
+    Os::File::Status jetson_gpio_status = jetson_gpioWatchdogDriver.open("/dev/gpiochip0", 108, Drv::LinuxGpioDriver::GpioConfiguration::GPIO_OUTPUT);
     if (jetson_gpio_status != Os::File::Status::OP_OK) {
         Fw::Logger::log("[ERROR] Failed to open GPIO pin: %d\n", jetson_gpio_status);
     }
@@ -117,16 +135,20 @@ void setupTopology(const TopologyState& state) {
         jetson_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    // Use UDP for the GenericHub transport so each hub buffer is received as
     // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    jetson_hubComDriver.configureRecv("0.0.0.0", JETSON_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
-    jetson_hubComDriver.configureSend(IMX_HUB_IP_ADDRESS, IMX_HUB_PORT);
+    jetson_hubComDriver.configure(
+    IMX_HUB_IP_ADDRESS,
+    IMX_HUB_PORT,
+    1,
+    0,
+    HUB_WIRE_BUFFER_SIZE
+    );
 
     Os::TaskString hubName("hub");
     jetson_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
     if (!waitForHubReady()) {
         Fw::Logger::log(
-            "[WARNING] Jetson hub UDP driver did not open before startup traffic began. Remote=%s:%u local=%u\n",
+            "[WARNING] Jetson hub TCP driver did not open before startup traffic began. Remote=%s:%u local=%u\n",
             IMX_HUB_IP_ADDRESS,
             static_cast<unsigned>(IMX_HUB_PORT),
             static_cast<unsigned>(JETSON_HUB_PORT)
@@ -157,6 +179,8 @@ void teardownTopology(const TopologyState& state) {
     (void)jetson_hubComDriver.join();
 
     jetson_cmdSeq.deallocateBuffer(mallocator);
+    jetson_hubFrameAccumulator.cleanup();
+    jetson_hubIoBufferManager.cleanup();
     jetson_hubBufferManager.cleanup();
 
     tearDownComponents(state);

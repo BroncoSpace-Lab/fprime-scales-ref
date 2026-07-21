@@ -18,6 +18,7 @@ REQUIRED_SECTIONS = [
 SHARED_SUBTOPOLOGY_PREFIXES = (
     "CdhCore.",
     "ComCcsds.",
+    "ComFprime.",
     "DataProducts.",
     "FileHandling.",
 )

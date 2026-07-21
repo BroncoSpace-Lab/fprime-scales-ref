@@ -89,11 +89,21 @@ module JetsonDeployment {
 
   instance jetson_hub: Svc.GenericHub base id CMD_SPLITTER_OFFSET + 0x3000
 
-  instance jetson_hubComDriver: Drv.Udp base id CMD_SPLITTER_OFFSET + 0x3100
+  instance jetson_hubComDriver: Drv.TcpClient base id CMD_SPLITTER_OFFSET + 0x3100
 
-  instance jetson_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id CMD_SPLITTER_OFFSET + 0x3200
+  instance jetson_hubComAdapter: scalesSvc.HubComAdapter base id CMD_SPLITTER_OFFSET + 0x3200
 
   instance jetson_hubBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x3300
+
+  instance jetson_hubFramer: Svc.FprimeFramer base id CMD_SPLITTER_OFFSET + 0x3500
+
+  instance jetson_hubFrameAccumulator: Svc.FrameAccumulator base id CMD_SPLITTER_OFFSET + 0x3600
+
+  instance jetson_hubDeframer: Svc.FprimeDeframer base id CMD_SPLITTER_OFFSET + 0x3700
+
+  instance jetson_hubComStub: Svc.ComStub base id CMD_SPLITTER_OFFSET + 0x3800
+
+  instance jetson_hubIoBufferManager: Svc.BufferManager base id CMD_SPLITTER_OFFSET + 0x3A00
 
   instance jetson_rateGroupDriver: Svc.RateGroupDriver base id CMD_SPLITTER_OFFSET + 0x4300
 

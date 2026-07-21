@@ -24,7 +24,7 @@ register_fprime_deployment(
     DEPENDS
         ${FPRIME_CURRENT_MODULE}_Top
         Svc_Subtopologies_CdhCore
-        Svc_Subtopologies_ComCcsds
+        Svc_Subtopologies_ComFprime
         Svc_Subtopologies_DataProducts
         Svc_Subtopologies_FileHandling
 )

@@ -21,9 +21,13 @@ set(MOD_DEPS
     Drv/Udp
     Drv/TcpServer
     Drv/TcpClient
-    Drv/ByteStreamBufferAdapter
     Svc/GenericHub
     Svc/BufferManager
+    Svc/ComStub
+    Svc/FprimeFramer
+    Svc/FprimeDeframer
+    Svc/FrameAccumulator
+    scales_scalesSvc_HubComAdapter
     Components_MLComponent
     scales_scalesSvc_JetsonPowerModeManager
 )

@@ -21,4 +21,14 @@ register_fprime_module(
         Drv_Udp
         Drv_TcpServer
         Drv_TcpClient
+<<<<<<< HEAD
+=======
+        Svc_GenericHub
+        Svc_BufferManager
+        Svc_ComStub
+        Svc_FprimeFramer
+        Svc_FprimeDeframer
+        Svc_FrameAccumulator
+        scales_scalesSvc_HubComAdapter
+>>>>>>> lucadev
 )

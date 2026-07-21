@@ -6,6 +6,7 @@
 
 // Provides access to autocoded functions
 #include <ImxDeployment/Top/ImxDeploymentTopologyAc.hpp>
+#include <Svc/FrameAccumulator/FrameDetector/FprimeFrameDetector.hpp>
 
 // Note: Uncomment when using Svc:TlmPacketizer
 //#include <ImxDeployment/Top/ImxDeploymentPacketsAc.hpp>
@@ -32,8 +33,17 @@ U32 rateGroup3Context[Svc::ActiveRateGroup::CONNECTION_COUNT_MAX] = {};
 
 enum TopologyConstants {
     COMM_PRIORITY = 34,
-    COM_DRIVER_BUFFER_SIZE = 3000,
-    COM_DRIVER_BUFFER_COUNT = 30,
+
+    // Buffers retained by GenericHub after deserializing hub records.
+    // These must be large enough for file-packet hub payloads.
+    HUB_PACKET_BUFFER_SIZE = 4 * 1024,
+    HUB_PACKET_BUFFER_COUNT = 8192,
+
+    // Buffers used on the wire/framed side of the hub.
+    // TCP gives reliable byte delivery, but it is still a byte stream.
+    // The framer/accumulator path is still required to recover complete F Prime frames.
+    HUB_WIRE_BUFFER_SIZE = 8 * 1024,
+    HUB_IO_BUFFER_COUNT = 32,
 
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
     //
@@ -52,6 +62,18 @@ const char* JETSON_HUB_IP_ADDRESS = "10.3.2.12";
 const U32 IMX_HUB_PORT = 50500;
 const U32 JETSON_HUB_PORT = 50501;
 
+const char* UART_GDS_DEVICE = "/dev/ttyLP0";
+const U32 UART_GDS_BUFFER_SIZE = 8 * 1024;
+const U32 UART_GDS_BUFFER_COUNT = 32;
+bool uartGdsOpened = false;
+
+Svc::FrameDetectors::FprimeFrameDetector hubFrameDetector;
+Svc::FrameDetectors::FprimeFrameDetector uartGdsFrameDetector;
+
+bool pollDirectGdsTcpOpen() {
+    return imx_comDriver.isOpened();
+}
+
 /**
  * \brief configure/setup components in project-specific way
  *
@@ -69,15 +91,72 @@ void configureTopology() {
     // Command sequencer needs memory for command sequences.
     imx_cmdSeq.allocateBuffer(0, mallocator, 5 * 1024);
 
-    // Hub buffer manager
-    Svc::BufferManager::BufferBins hubBuffMgrBins;
-    memset(&hubBuffMgrBins, 0, sizeof(hubBuffMgrBins));
-    hubBuffMgrBins.bins[0].bufferSize = COM_DRIVER_BUFFER_SIZE;
-    hubBuffMgrBins.bins[0].numBuffers = COM_DRIVER_BUFFER_COUNT;
-    imx_hubBufferManager.setup(201, 0, mallocator, hubBuffMgrBins);
+    // Hub packet buffer manager.
+    // These buffers are retained by GenericHub and downstream async consumers.
+    Svc::BufferManager::BufferBins hubPacketBins;
+    memset(&hubPacketBins, 0, sizeof(hubPacketBins));
+    hubPacketBins.bins[0].bufferSize = HUB_PACKET_BUFFER_SIZE;
+    hubPacketBins.bins[0].numBuffers = HUB_PACKET_BUFFER_COUNT;
+    imx_hubBufferManager.setup(201, 0, mallocator, hubPacketBins);
+
+    // Hub wire/transport buffer manager.
+    // These buffers are used by the framed TCP transport path.
+    Svc::BufferManager::BufferBins hubIoBins;
+    memset(&hubIoBins, 0, sizeof(hubIoBins));
+    hubIoBins.bins[0].bufferSize = HUB_WIRE_BUFFER_SIZE;
+    hubIoBins.bins[0].numBuffers = HUB_IO_BUFFER_COUNT;
+    imx_hubIoBufferManager.setup(202, 0, mallocator, hubIoBins);
+
+    // TCP is a byte stream, so the frame accumulator is still needed to rebuild
+    // complete F Prime frames before deframing.
+    imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
+
+    // UART GDS wire/transport buffer manager.
+    // These buffers are used by the framed UART downlink path.
+    Svc::BufferManager::BufferBins uartGdsBins;
+    memset(&uartGdsBins, 0, sizeof(uartGdsBins));
+    uartGdsBins.bins[0].bufferSize = UART_GDS_BUFFER_SIZE;
+    uartGdsBins.bins[0].numBuffers = UART_GDS_BUFFER_COUNT;
+    imx_uartGdsBufferManager.setup(203, 0, mallocator, uartGdsBins);
+
+    // UART GDS ComQueue configuration.
+    // Configure every internal queue, even if we only actively use EVENTS and TELEMETRY.
+    Svc::ComQueue::QueueConfigurationTable uartGdsQueueConfig;
+
+    for (FwIndexType i = 0; i < Svc::ComQueue::TOTAL_PORT_COUNT; i++) {
+        uartGdsQueueConfig.entries[i].depth = 1;
+        uartGdsQueueConfig.entries[i].priority = i;
+        uartGdsQueueConfig.entries[i].mode = Types::QUEUE_FIFO;
+        uartGdsQueueConfig.entries[i].overflowMode = Types::QUEUE_DROP_NEWEST;
+    }
+
+    // Give the queues we actually use more room.
+    uartGdsQueueConfig.entries[ComFprime::Ports_ComPacketQueue::EVENTS].depth = 100;
+    uartGdsQueueConfig.entries[ComFprime::Ports_ComPacketQueue::TELEMETRY].depth = 100;
+
+    imx_uartGdsComQueue.configure(
+        uartGdsQueueConfig,
+        204,
+        mallocator
+    );
+
+    // UART GDS frame accumulator for command uplink.
+    imx_uartGdsFrameAccumulator.configure(uartGdsFrameDetector, 3, mallocator, UART_GDS_BUFFER_SIZE);
+
+    // UART GDS driver.
+    uartGdsOpened = imx_uartGdsDriver.open(
+        UART_GDS_DEVICE,
+        Drv::LinuxUartDriver::BAUD_921K,
+        Drv::LinuxUartDriver::NO_FLOW,
+        Drv::LinuxUartDriver::PARITY_NONE,
+        UART_GDS_BUFFER_SIZE
+    );
+
+    if (!uartGdsOpened) {
+        Fw::Logger::log("[ERROR] Failed to open UART GDS device: %s\n", UART_GDS_DEVICE);
+    }
 
     // Hardware Manager Definitions
-
     Os::File::Status watchdog_gpio_status =
         imx_gpioWatchDogDriver.open(
             "/dev/gpiochip2",
@@ -145,8 +224,37 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.configure(state.hostname, state.port);
     }
 
+    imx_gdsCmdAuthMux.configureTcpStatusPoller(pollDirectGdsTcpOpen);
+
     // Project-specific component configuration
     configureTopology();
+
+    // Configure command splitters before active tasks can route commands.
+    imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+    imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
+
+    // ----------------------------------------------------------------------
+    // Hub communication path
+    // ----------------------------------------------------------------------
+    //
+    // The i.MX is the hub TCP server. It must be listening before active tasks
+    // begin producing hub traffic. The Jetson connects to this listener as the
+    // TCP client.
+    //
+    // TCP gives reliable ordered byte delivery, avoiding the UDP loss/reordering
+    // problems that corrupted larger image/file traffic. However, TCP does not
+    // preserve message boundaries, so the FprimeFramer/FrameAccumulator/
+    // FprimeDeframer stack is still required.
+    imx_hubComDriver.configure(
+        "0.0.0.0",
+        IMX_HUB_PORT,
+        1,
+        0,
+        HUB_WIRE_BUFFER_SIZE
+    );
+
+    Os::TaskString hubName("hub");
+    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
 
     // Autocoded parameter loading
     loadParameters();
@@ -160,33 +268,10 @@ void setupTopology(const TopologyState& state) {
         imx_comDriver.start(name, COMM_PRIORITY, Default::STACK_SIZE);
     }
 
-    // ----------------------------------------------------------------------
-    // Hub communication path
-    // ----------------------------------------------------------------------
-
-    // Use UDP for the GenericHub transport so each hub buffer is received as
-    // one datagram. Raw TCP is a byte stream and can split/coalesce hub records.
-    imx_hubComDriver.configureRecv("0.0.0.0", IMX_HUB_PORT, COM_DRIVER_BUFFER_SIZE);
-    imx_hubComDriver.configureSend(JETSON_HUB_IP_ADDRESS, JETSON_HUB_PORT);
-
-    // CRITICAL FIX:
-    //
-    // Old value:
-    //   0x10000
-    //
-    // That incorrectly classified framework/CDH commands such as NO_OP
-    // as remote Jetson commands because NO_OP is around 0x01000000.
-    //
-    // New value:
-    //   0x10000000
-    //
-    // This keeps IMX/CDH commands local and only routes Jetson commands
-    // in the high 0x10000000+ range over the hub.
-    imx_cmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
-    imx_seqCmdSplitter.configure(REMOTE_JETSON_COMMAND_BASE);
-
-    Os::TaskString hubName("hub");
-    imx_hubComDriver.start(hubName, COMM_PRIORITY, Default::STACK_SIZE);
+    // Start UART GDS receive thread for command uplink.
+    if (uartGdsOpened) {
+        imx_uartGdsDriver.start(COMM_PRIORITY, Default::STACK_SIZE);
+    }
 }
 
 void startRateGroups(const Fw::TimeInterval& interval) {
@@ -213,9 +298,20 @@ void teardownTopology(const TopologyState& state) {
     imx_hubComDriver.stop();
     (void)imx_hubComDriver.join();
 
+    // UART GDS cleanup
+    if (uartGdsOpened) {
+        imx_uartGdsDriver.quitReadThread();
+        (void)imx_uartGdsDriver.join();
+    }
+
     // Resource deallocation
     imx_cmdSeq.deallocateBuffer(mallocator);
+    imx_hubFrameAccumulator.cleanup();
+    imx_uartGdsFrameAccumulator.cleanup();
+    imx_hubIoBufferManager.cleanup();
     imx_hubBufferManager.cleanup();
+    imx_uartGdsBufferManager.cleanup();
+    imx_uartGdsComQueue.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);

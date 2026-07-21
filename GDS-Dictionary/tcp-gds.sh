@@ -12,12 +12,8 @@ cd "${SCRIPT_DIR}"
 exec fprime-gds -n \
   --dictionary "${DICTIONARY}" \
   --communication-selection ip \
-  --framing-selection space-packet-space-data-link \
-  --scid 0x44 \
-  --vcid 1 \
-  --frame-size 1024 \
+  --framing-selection fprime \
   --ip-client \
   --ip-address "${IP_ADDRESS}" \
   --ip-port "${IP_PORT}" \
   --keepalive-interval 0
-

@@ -12,7 +12,11 @@ help: ## Display this help.
 setup: ## Set up the repo
 	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
+<<<<<<< HEAD
 	git checkout datdev
+=======
+	git checkout lucadev
+>>>>>>> lucadev
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Sourcing fprime virtual environment..."
@@ -79,7 +83,7 @@ build-jetson: ## Build fprime for the Jetson and restart the systemd service
 	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
 	@echo "Making the Images folder..."
-	mkdir -p Images
+	mkdir -p build-artifacts/python/Images
 	@echo "Restarting the JetsonDeployment systemd service..."
 	sudo systemctl restart jetson-deployment.service
 	@echo "Checking service status..."

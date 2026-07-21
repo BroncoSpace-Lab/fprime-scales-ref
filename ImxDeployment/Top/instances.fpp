@@ -72,6 +72,18 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 100
 
+  instance imx_gdsCmdAuthMux: scalesSvc.GdsCmdAuthMux base id 0x5900 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 100
+
+  # Active UART GDS downlink transport instances
+
+  instance imx_uartGdsComQueue: Svc.ComQueue base id 0x5400 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------
@@ -85,11 +97,21 @@ module ImxDeployment {
 
   instance imx_hub: Svc.GenericHub base id 0x3000
 
-  instance imx_hubComDriver: Drv.Udp base id 0x3100
+  instance imx_hubComDriver: Drv.TcpServer base id 0x3100
 
-  instance imx_hubByteStreamAdapter: Drv.ByteStreamBufferAdapter base id 0x3200
+  instance imx_hubComAdapter: scalesSvc.HubComAdapter base id 0x3200
 
   instance imx_hubBufferManager: Svc.BufferManager base id 0x3300
+
+  instance imx_hubFramer: Svc.FprimeFramer base id 0x3500
+
+  instance imx_hubFrameAccumulator: Svc.FrameAccumulator base id 0x3600
+
+  instance imx_hubDeframer: Svc.FprimeDeframer base id 0x3700
+
+  instance imx_hubComStub: Svc.ComStub base id 0x3800
+
+  instance imx_hubIoBufferManager: Svc.BufferManager base id 0x3A00
 
   instance imx_cmdSplitter: Svc.CmdSplitter base id 0x3400
 
@@ -114,5 +136,27 @@ module ImxDeployment {
   instance imx_jetsonGpioDriver: Drv.LinuxGpioDriver base id 0x5030
 
   instance imx_gpioWatchDogDriver: Drv.LinuxGpioDriver base id 0x5040
+
+  # SCALES UART Splitter GDS Instances
+
+  instance imx_uartGdsEventSplitter: Svc.ComSplitter base id 0x5050
+
+  instance imx_uartGdsTlmSplitter: Svc.ComSplitter base id 0x5060
+
+  # UART GDS downlink transport instances
+
+  instance imx_uartGdsFramer: Svc.FprimeFramer base id 0x5500
+
+  instance imx_uartGdsComStub: Svc.ComStub base id 0x5600
+
+  instance imx_uartGdsDriver: Drv.LinuxUartDriver base id 0x5700
+
+  instance imx_uartGdsBufferManager: Svc.BufferManager base id 0x5800 \
+
+  instance imx_uartGdsFrameAccumulator: Svc.FrameAccumulator base id 0x5A00
+
+  instance imx_uartGdsDeframer: Svc.FprimeDeframer base id 0x5B00
+
+  instance imx_uartGdsRouter: Svc.FprimeRouter base id 0x5C00
 
 }

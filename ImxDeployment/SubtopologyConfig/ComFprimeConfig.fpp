@@ -1,24 +1,23 @@
-module ComCcsdsConfig {
-    # IMX ComCcsds subtopology range: 0x02000000 - 0x02FFFFFF
+module ComFprimeConfig {
+    # IMX ComFprime subtopology range: 0x02000000 - 0x02FFFFFF
+    # This is the direct GDS-facing path. It intentionally uses F Prime
+    # framing, not CCSDS TM framing.
     constant BASE_ID = 0x02000000
 
     module QueueSizes {
         constant comQueue = 50
-        constant aggregator = 10
     }
 
     module StackSizes {
         constant comQueue = 64 * 1024
-        constant aggregator = 64 * 1024
     }
 
     module Priorities {
-        constant aggregator = 30
         constant comQueue = 29
     }
 
     module QueueDepths {
-        constant events = 200
+        constant events = 100
         constant tlm = 500
         constant file = 100
     }
