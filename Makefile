@@ -3,6 +3,9 @@ PROJECT_ROOT = $(CURDIR)
 # Make sure you have python3.12 installed prio to running make setup
 # JRE is also required, it is included in make setup (line 28)
 
+VENV := fprime-venv
+PYTHON := $(VENV)/bin/python
+
 .PHONY: help
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -76,6 +79,12 @@ arena-init: ## Set up the Arena SDK
 .ONESHELL:
 build-jetson: ## Build fprime for the Jetson and restart the systemd service
 	@set -e
+	@if [ "$(generate)" = "1" ]; then
+		echo "Generating JetsonDeployment for aarch64-linux..."
+		fprime-util generate aarch64-linux -f
+	else
+		echo "Skipping JetsonDeployment generation..."
+	fi
 	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
 	@echo "Making the Images folder..."
@@ -85,6 +94,68 @@ build-jetson: ## Build fprime for the Jetson and restart the systemd service
 	@echo "Checking service status..."
 	systemctl status jetson-deployment.service --no-pager
 	@echo "make build-jetson Done"
+
+.PHONY: build-imx8x
+.ONESHELL:
+
+generate ?= 1
+
+build-imx8x: ## Build F' for the IMX, deploy it, and reboot use 'make build-imx generate=0' to skip generation
+	@set -e
+
+	@if [ "$(generate)" = "1" ]; then
+		echo "Generating ImxDeployment..."
+		fprime-util generate imx8x -f
+	else
+		echo "Skipping ImxDeployment generation..."
+	fi
+
+	@echo "Building ImxDeployment..."
+	fprime-util build imx8x
+
+	@echo "Transferring ImxDeployment binary to the IMX..."
+	scp \
+		build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment \
+		root@10.3.2.10:/tmp/
+
+	@echo "Overwriting the ImxDeployment binary on the IMX..."
+	ssh root@10.3.2.10 \
+		'mv /tmp/ImxDeployment /root/ImxDeployment'
+
+	@echo "Restarting the IMX flight software..."
+	ssh root@10.3.2.10 'reboot'
+
+	@echo "make build-imx done"
+
+.PHONY: gds-setup
+.ONESHELL:
+gds-setup: ## Generate the merged dictionary, deploy the IMX binary, and reboot it
+	@set -e
+
+	@if [ ! -x "$(PYTHON)" ]; then
+		echo "ERROR: Python virtual environment not found."
+		echo "Expected: $(PYTHON)"
+		echo "Run 'make setup' first."
+		exit 1
+	fi
+
+	@echo "Copying ImxDeploymentTopologyDictionary.json to GDS-Dictionary..."
+	cp \
+		build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyDictionary.json \
+		GDS-Dictionary/
+
+	@echo "Generating merged dictionary using $(PYTHON)..."
+	(
+		cd GDS-Dictionary
+		../$(PYTHON) merger.py \
+			--base-prefix jetson_ \
+			--secondary-prefix imx_ \
+			JetsonDeploymentTopologyDictionary.json \
+			ImxDeploymentTopologyDictionary.json \
+			GDSDictionary.json
+	)
+
+	@echo "make gds done"
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

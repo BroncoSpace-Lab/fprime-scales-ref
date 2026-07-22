@@ -287,6 +287,7 @@ module ImxDeployment {
 
       # JetsonManager retains command ownership; FPManager authorizes first.
       imx_jetsonManager.fpJetsonPowerAuthorize -> imx_fpManager.jetsonPowerAuthorizeIn
+      imx_jetsonManager.fpJetsonPowerStateOut -> imx_fpManager.jetsonPowerStateIn
 
       # Internal FP recovery and emergency power-off actions.
       imx_fpManager.jetsonPowerRequestOut -> imx_jetsonManager.fpJetsonPowerRequestIn
