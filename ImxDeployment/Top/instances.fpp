@@ -47,6 +47,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance imx_fpManager: scalesSvc.FPManager base id 0x1600 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
   instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x1500 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \

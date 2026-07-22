@@ -30,6 +30,7 @@ module ImxDeployment {
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
+    instance imx_fpManager
     instance imx_watchdogManager
 
     instance imx_systemResources
@@ -237,7 +238,8 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
-      imx_rateGroup2.RateGroupMemberOut[7] -> imx_gdsCmdAuthMux.run
+      imx_rateGroup2.RateGroupMemberOut[7] -> imx_fpManager.run
+      imx_rateGroup2.RateGroupMemberOut[8] -> imx_gdsCmdAuthMux.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -280,12 +282,30 @@ module ImxDeployment {
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
+      # Jetson thermal readings: hub -> FPManager
+      imx_hub.serialOut[4] -> imx_fpManager.jetsonThermalReadingIn
+
+      # JetsonManager retains command ownership; FPManager authorizes first.
+      imx_jetsonManager.fpJetsonPowerAuthorize -> imx_fpManager.jetsonPowerAuthorizeIn
+
+      # Internal FP recovery and emergency power-off actions.
+      imx_fpManager.jetsonPowerRequestOut -> imx_jetsonManager.fpJetsonPowerRequestIn
+      imx_fpManager.peripheralPowerOff -> imx_perifBoardManager.emergencyPowerOff
+
+      # Route fatal through FPManager before the standard process-level handler.
+      CdhCore.events.FatalAnnounce -> imx_fpManager.fatalIn
+      imx_fpManager.fatalOut -> CdhCore.fatalHandler.FatalReceive
+
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
       imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
 
       # i.MX GPIO connection to the GpioDriver for Peripheral Board control
       imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
+
+      # Local thermal readings into FPManager.
+      imx_thermalManager.imxThermalReadingOut -> imx_fpManager.imxThermalReadingIn
+      imx_mcpManager.thermalReadingOut -> imx_fpManager.mcpThermalReadingIn
 
       # i.MX GPIO connection to the GpioDriver for Jetson power control
       imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
