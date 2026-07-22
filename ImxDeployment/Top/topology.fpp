@@ -31,6 +31,7 @@ module ImxDeployment {
     instance imx_mcpManager
     instance imx_perifBoardManager
     instance imx_watchdogManager
+    instance imx_dataProducer
 
     instance imx_systemResources
 
@@ -238,6 +239,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[7] -> imx_gdsCmdAuthMux.run
+      imx_rateGroup2.RateGroupMemberOut[8] -> imx_dataProducer.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -261,6 +263,11 @@ module ImxDeployment {
 
     }
 
+    connections DataProducers {
+        imx_dataProducer.mcpProductGetOut  -> DataProducts.Subtopology.productGetIn
+        imx_dataProducer.productSendOut -> DataProducts.Subtopology.productSendIn
+    }
+
     connections ImxDeployment {
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
@@ -279,6 +286,9 @@ module ImxDeployment {
 
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
+
+      # McpManager send thermal readings to DataProducer
+      imx_mcpManager.mcpThermalReadOut -> imx_dataProducer.McpThermalReadingIn
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
