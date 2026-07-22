@@ -180,10 +180,6 @@ module JetsonDeployment {
 
     }
 
-    connections CdhCore_FaultProtection {
-      CdhCore.events.FatalAnnounce -> CdhCore.fatalHandler.FatalReceive
-    }
-
     connections send_hub {
 
       # Frame each complete GenericHub record before passing it to TCP.
