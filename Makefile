@@ -75,31 +75,50 @@ arena-init: ## Set up the Arena SDK
 	rm -rf "$$ARENA_EXTRACTED_DIR"; \
 	echo "Finished setting up ArenaSDK"
 
+generate ?= 1
+
 .PHONY: build-jetson
 .ONESHELL:
-build-jetson: ## Build fprime for the Jetson and restart the systemd service
+build-jetson: ## Build F' for the Jetson and restart the systemd service
 	@set -e
+
 	@if [ "$(generate)" = "1" ]; then
 		echo "Generating JetsonDeployment for aarch64-linux..."
 		fprime-util generate aarch64-linux -f
 	else
 		echo "Skipping JetsonDeployment generation..."
 	fi
+
 	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
+
 	@echo "Making the Images folder..."
 	mkdir -p build-artifacts/python/Images
+
+	@printf "Enter the username for the GDS computer at 10.3.2.13: "
+	read -r NAME_OF_USERNAME
+
+	if [ -z "$$NAME_OF_USERNAME" ]; then
+		echo "ERROR: Username cannot be empty."
+		exit 1
+	fi
+
+	echo "Copying JetsonDeploymentTopologyDictionary.json to the GDS computer..."
+	scp \
+		build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyDictionary.json \
+		"$${NAME_OF_USERNAME}@10.3.2.13:~/fprime-scales-ref/GDS-Dictionary/"
+
 	@echo "Restarting the JetsonDeployment systemd service..."
 	sudo systemctl restart jetson-deployment.service
+
 	@echo "Checking service status..."
 	systemctl status jetson-deployment.service --no-pager
+
 	@echo "make build-jetson Done"
+
 
 .PHONY: build-imx8x
 .ONESHELL:
-
-generate ?= 1
-
 build-imx8x: ## Build F' for the IMX, deploy it, and reboot use 'make build-imx generate=0' to skip generation
 	@set -e
 
