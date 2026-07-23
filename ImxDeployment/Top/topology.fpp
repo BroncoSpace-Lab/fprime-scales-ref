@@ -391,9 +391,13 @@ module ImxDeployment {
       imx_seqCmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[1]
       CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
 
-      # Commands going from this deployment to the remote deployment
-      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
-      imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      # Commands going from this deployment to the remote deployment.
+      # FPManager gates this path so commands are not transmitted when the
+      # Jetson power state is OFF and the hub transport is unavailable.
+      imx_cmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn
+      imx_fpManager.remoteJetsonCmdResponseOut -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_fpManager.remoteJetsonCmdOut -> imx_hub.cmdDispIn[0]
+      imx_hub.cmdRespOut[0] -> imx_fpManager.remoteJetsonCmdResponseIn
 
       imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
       imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
