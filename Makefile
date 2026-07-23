@@ -86,6 +86,13 @@ build-jetson: ## Build fprime for the Jetson and restart the systemd service
 	systemctl status jetson-deployment.service --no-pager
 	@echo "make build-jetson Done"
 
+.PHONY: data-products
+.ONESHELL:
+data-products:
+	@echo "Moving fdp files over"
+	cp ~/Downloads/*.fdp $(PROJECT_ROOT)/DataProducts
+	./data-products.sh
+
 .PHONY: clean
 clean: ## Remove venv and reset submodules
 	@echo "Removing fprime virtual environment..."
