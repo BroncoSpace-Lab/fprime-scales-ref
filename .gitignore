@@ -8,6 +8,8 @@ build-python-fprime/
 *-template
 *.template.cpp
 *.template.hpp
+fpp-ast.json
+fpp-loc-map.json
 
 # Misc
 /venv/
