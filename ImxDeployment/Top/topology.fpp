@@ -290,6 +290,12 @@ module ImxDeployment {
       # McpManager send thermal readings to DataProducer
       imx_mcpManager.mcpThermalReadOut -> imx_dataProducer.McpThermalReadingIn
 
+      # ImxThermalManager send thermal readings to DataProducer
+      imx_thermalManager.cpuThermalReadOut -> imx_dataProducer.cpuThermalReadIn
+
+      # InaManager send power readings to DataProducer
+      imx_inaManager.inaPowerReadOut -> imx_dataProducer.inaPowerReadIn
+
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
       imx_inaManager.busWriteRead -> imx_inaI2CbusDriver.writeRead
