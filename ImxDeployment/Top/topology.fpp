@@ -264,7 +264,7 @@ module ImxDeployment {
     }
 
     connections DataProducers {
-        imx_dataProducer.mcpProductGetOut  -> DataProducts.Subtopology.productGetIn
+        imx_dataProducer.productGetOut  -> DataProducts.Subtopology.productGetIn
         imx_dataProducer.productSendOut -> DataProducts.Subtopology.productSendIn
     }
 
