@@ -1,7 +1,7 @@
 PYTHON_VERSION = 3.12
 PROJECT_ROOT = $(CURDIR)
 # Make sure you have python3.12 installed prio to running make setup
-# JRE is also required, it is included in make setup (line 28)
+# JRE is also required, it is included in make setup (line 33)
 
 VENV := fprime-venv
 PYTHON := $(VENV)/bin/python
