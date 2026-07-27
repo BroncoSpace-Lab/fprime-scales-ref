@@ -77,6 +77,16 @@ arena-init: ## Set up the Arena SDK
 
 generate ?= 1
 
+# Allow 'make build-imx8x nogen' / 'make build-jetson nogen' as a shorthand
+# for 'generate=0' (skip regenerating the build before building).
+ifneq (,$(filter nogen,$(MAKECMDGOALS)))
+generate := 0
+endif
+
+.PHONY: nogen
+nogen: ## No-op flag target; combine with build-imx8x/build-jetson to skip regeneration (same as generate=0)
+	@:
+
 .PHONY: build-jetson
 .ONESHELL:
 build-jetson: ## Build F' for the Jetson and restart the systemd service
@@ -146,6 +156,14 @@ build-imx8x: ## Build F' for the IMX, deploy it, and reboot use 'make build-imx 
 
 	@echo "make build-imx done"
 
+.PHONY: cpseq
+.ONESHELL:
+cpseq: ## Copy all .bin files in Sequences/ to the IMX (root@10.3.2.10:/root)
+	@set -e
+	@echo "Copying sequence files to the IMX..."
+	scp Sequences/*.bin root@10.3.2.10:/root
+	@echo "make cpseq done"
+
 .PHONY: gds-setup
 .ONESHELL:
 gds-setup: ## Generate the merged dictionary, deploy the IMX binary, and reboot it
@@ -175,6 +193,16 @@ gds-setup: ## Generate the merged dictionary, deploy the IMX binary, and reboot 
 	)
 
 	@echo "make gds done"
+
+.PHONY: gds-uart
+.ONESHELL:
+gds-uart: ## Launch the GDS over the UART connection (GDS-Dictionary/uart-gds.sh)
+	@cd GDS-Dictionary && ./uart-gds.sh
+
+.PHONY: gds-tcp
+.ONESHELL:
+gds-tcp: ## Launch the GDS over TCP, use 'make gds-tcp ip=<ip> port=<port>' to override the target (defaults 10.3.2.10:50000)
+	@cd GDS-Dictionary && ./tcp-gds.sh $(ip) $(port)
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

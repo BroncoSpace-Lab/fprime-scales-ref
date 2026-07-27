@@ -34,6 +34,7 @@ module ImxDeployment {
     instance imx_watchdogManager
 
     instance imx_systemResources
+    instance imx_realFatalHandler
 
     instance imx_hub
     instance imx_hubComDriver
@@ -294,8 +295,13 @@ module ImxDeployment {
       imx_fpManager.peripheralPowerOff -> imx_perifBoardManager.emergencyPowerOff
 
       # Route fatal through FPManager before the standard process-level handler.
-      CdhCore.events.FatalAnnounce -> imx_fpManager.fatalIn
-      imx_fpManager.fatalOut -> CdhCore.fatalHandler.FatalReceive
+      # CdhCore.fpp always wires events.FatalAnnounce -> fatalHandler.FatalReceive
+      # internally and both of those ports allow only a single connection, so
+      # CdhCoreFatalHandlerConfig.fpp swaps FatalRelay in as the fatalHandler
+      # instance; it re-announces the FATAL on a fresh port that is free to be
+      # routed through FPManager before reaching the real terminating handler.
+      CdhCore.fatalHandler.fatalOut -> imx_fpManager.fatalIn
+      imx_fpManager.fatalOut -> imx_realFatalHandler.FatalReceive
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
@@ -392,15 +398,21 @@ module ImxDeployment {
       CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
 
       # Commands going from this deployment to the remote deployment.
-      # FPManager gates this path so commands are not transmitted when the
-      # Jetson power state is OFF and the hub transport is unavailable.
-      imx_cmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn
-      imx_fpManager.remoteJetsonCmdResponseOut -> imx_cmdSplitter.seqCmdStatus[0]
-      imx_fpManager.remoteJetsonCmdOut -> imx_hub.cmdDispIn[0]
-      imx_hub.cmdRespOut[0] -> imx_fpManager.remoteJetsonCmdResponseIn
+      # FPManager gates both remote paths (GDS-direct on index 0, and
+      # CmdSequencer-originated on index 1) so commands are not transmitted
+      # when the Jetson power state is OFF and the hub transport is
+      # unavailable. A sequence targeting the Jetson while it is powered off
+      # would otherwise reach imx_hubComStub directly and trip its
+      # never-connected assert instead of being rejected gracefully.
+      imx_cmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn[0]
+      imx_fpManager.remoteJetsonCmdResponseOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_fpManager.remoteJetsonCmdOut[0] -> imx_hub.cmdDispIn[0]
+      imx_hub.cmdRespOut[0] -> imx_fpManager.remoteJetsonCmdResponseIn[0]
 
-      imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
-      imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+      imx_seqCmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn[1]
+      imx_fpManager.remoteJetsonCmdResponseOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+      imx_fpManager.remoteJetsonCmdOut[1] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[1] -> imx_fpManager.remoteJetsonCmdResponseIn[1]
 
     }
 

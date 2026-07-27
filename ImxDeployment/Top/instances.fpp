@@ -100,6 +100,10 @@ module ImxDeployment {
 
   instance imx_systemResources: Svc.SystemResources base id 0x2000
 
+  # Real, process-terminating FATAL handler. FPManager forwards to this after
+  # it has finished shutting down the Jetson, peripherals, and i.MX board.
+  instance imx_realFatalHandler: Svc.FatalHandler base id 0x1700
+
   instance imx_hub: Svc.GenericHub base id 0x3000
 
   instance imx_hubComDriver: Drv.TcpServer base id 0x3100
