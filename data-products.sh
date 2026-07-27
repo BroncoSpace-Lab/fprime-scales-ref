@@ -1,31 +1,75 @@
 #!/usr/bin/env bash
 
-PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # Get current project root
-DICTIONARY="${PROJECT_DIR}/GDS-Dictionary/GDSDictionary.json" # Path to Gds dictionary
+set -euo pipefail
 
-# Directory containing the .fdp files
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+DICTIONARY="${PROJECT_DIR}/GDS-Dictionary/GDSDictionary.json"
 DATA_DIR="${PROJECT_DIR}/DataProducts"
-
-# Output directory
 OUTPUT_DIR="${DATA_DIR}/decoded"
 
-# Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
 
-# Loop through every .fdp file
+found_files=false
+
 for file in "$DATA_DIR"/*.fdp; do
-    # Skip if no .fdp files exist
     [ -e "$file" ] || continue
+    found_files=true
 
-    # Get filename without extension
-    base=$(basename "$file" .fdp)
+    filename="$(basename "$file")"
+    base="${filename%.fdp}"
 
-    echo "Decoding $base.fdp..."
+    # Decode into a temporary file first because the container ID is
+    # determined from the decoded JSON, not from the filename.
+    temp_output="$(mktemp "${OUTPUT_DIR}/.decode.XXXXXX")"
 
-    fprime-dp decode \
+    echo "Decoding $filename..."
+
+    if ! fprime-dp decode \
         --bin-file "$file" \
         --dictionary "$DICTIONARY" \
-        --output "$OUTPUT_DIR/$base.json"
+        --output "$temp_output"; then
+
+        echo "ERROR: Failed to decode $filename"
+        rm -f "$temp_output"
+        continue
+    fi
+
+    # Dynamically read Header.Id.value from the decoded JSON.
+    container_id="$(
+        python3 - "$temp_output" <<'PY'
+import json
+import sys
+
+json_path = sys.argv[1]
+
+with open(json_path, "r", encoding="utf-8") as file:
+    data = json.load(file)
+
+print(data["Header"]["Id"]["value"])
+PY
+    )"
+
+    # Make sure the extracted ID is valid.
+    if [[ ! "$container_id" =~ ^[0-9]+$ ]]; then
+        echo "ERROR: Invalid container ID '$container_id' in $filename"
+        rm -f "$temp_output"
+        continue
+    fi
+
+    container_output_dir="${OUTPUT_DIR}/${container_id}"
+    output_file="${container_output_dir}/${base}.json"
+
+    mkdir -p "$container_output_dir"
+    mv "$temp_output" "$output_file"
+
+    echo "  Container ID: $container_id"
+    echo "  Output: $output_file"
 done
 
-echo "Finised Decoding!"
+if [ "$found_files" = false ]; then
+    echo "No .fdp files found in $DATA_DIR"
+    exit 0
+fi
+
+echo "Finished decoding data products."
