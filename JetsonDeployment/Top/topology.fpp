@@ -173,6 +173,9 @@ module JetsonDeployment {
       # Jetson power state request from i.MX -> Jetson
       jetson_hub.serialOut[1] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
+      # Jetson thermal readings: all nine sensor readings -> i.MX FPManager
+      jetson_thermalManager.jetsonThermalReadingOut -> jetson_hub.serialIn[4]
+
       jetson_watchdogManager.gpioWatchDog -> jetson_gpioWatchdogDriver.gpioWrite
 
     }

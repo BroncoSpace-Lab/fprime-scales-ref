@@ -30,10 +30,12 @@ module ImxDeployment {
     instance imx_thermalManager
     instance imx_mcpManager
     instance imx_perifBoardManager
+    instance imx_fpManager
     instance imx_watchdogManager
     instance imx_dataProducer
 
     instance imx_systemResources
+    instance imx_realFatalHandler
 
     instance imx_hub
     instance imx_hubComDriver
@@ -240,6 +242,7 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
       imx_rateGroup2.RateGroupMemberOut[7] -> imx_gdsCmdAuthMux.run
       imx_rateGroup2.RateGroupMemberOut[8] -> imx_dataProducer.run
+      imx_rateGroup2.RateGroupMemberOut[9] -> imx_fpManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -295,6 +298,25 @@ module ImxDeployment {
 
       # InaManager send power readings to DataProducer
       imx_inaManager.inaPowerReadOut -> imx_dataProducer.inaPowerReadIn
+      # Jetson thermal readings: hub -> FPManager
+      imx_hub.serialOut[4] -> imx_fpManager.jetsonThermalReadingIn
+
+      # JetsonManager retains command ownership; FPManager authorizes first.
+      imx_jetsonManager.fpJetsonPowerAuthorize -> imx_fpManager.jetsonPowerAuthorizeIn
+      imx_jetsonManager.fpJetsonPowerStateOut -> imx_fpManager.jetsonPowerStateIn
+
+      # Internal FP recovery and emergency power-off actions.
+      imx_fpManager.jetsonPowerRequestOut -> imx_jetsonManager.fpJetsonPowerRequestIn
+      imx_fpManager.peripheralPowerOff -> imx_perifBoardManager.emergencyPowerOff
+
+      # Route fatal through FPManager before the standard process-level handler.
+      # CdhCore.fpp always wires events.FatalAnnounce -> fatalHandler.FatalReceive
+      # internally and both of those ports allow only a single connection, so
+      # CdhCoreFatalHandlerConfig.fpp swaps FatalRelay in as the fatalHandler
+      # instance; it re-announces the FATAL on a fresh port that is free to be
+      # routed through FPManager before reaching the real terminating handler.
+      CdhCore.fatalHandler.fatalOut -> imx_fpManager.fatalIn
+      imx_fpManager.fatalOut -> imx_realFatalHandler.FatalReceive
 
       # I2C bus connections for MCP9808 and INA
       imx_mcpManager.mcpWriteRead -> imx_mcpI2CbusDriver.writeRead
@@ -302,6 +324,10 @@ module ImxDeployment {
 
       # i.MX GPIO connection to the GpioDriver for Peripheral Board control
       imx_perifBoardManager.gpioSet -> imx_perifGpioDriver.gpioWrite
+
+      # Local thermal readings into FPManager.
+      imx_thermalManager.imxThermalReadingOut -> imx_fpManager.imxThermalReadingIn
+      imx_mcpManager.thermalReadingOut -> imx_fpManager.mcpThermalReadingIn
 
       # i.MX GPIO connection to the GpioDriver for Jetson power control
       imx_jetsonManager.gpioSet -> imx_jetsonGpioDriver.gpioWrite
@@ -386,12 +412,22 @@ module ImxDeployment {
       imx_seqCmdSplitter.LocalCmd[0] -> CdhCore.cmdDisp.seqCmdBuff[1]
       CdhCore.cmdDisp.seqCmdStatus[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
 
-      # Commands going from this deployment to the remote deployment
-      imx_cmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[0]
-      imx_hub.cmdRespOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      # Commands going from this deployment to the remote deployment.
+      # FPManager gates both remote paths (GDS-direct on index 0, and
+      # CmdSequencer-originated on index 1) so commands are not transmitted
+      # when the Jetson power state is OFF and the hub transport is
+      # unavailable. A sequence targeting the Jetson while it is powered off
+      # would otherwise reach imx_hubComStub directly and trip its
+      # never-connected assert instead of being rejected gracefully.
+      imx_cmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn[0]
+      imx_fpManager.remoteJetsonCmdResponseOut[0] -> imx_cmdSplitter.seqCmdStatus[0]
+      imx_fpManager.remoteJetsonCmdOut[0] -> imx_hub.cmdDispIn[0]
+      imx_hub.cmdRespOut[0] -> imx_fpManager.remoteJetsonCmdResponseIn[0]
 
-      imx_seqCmdSplitter.RemoteCmd[0] -> imx_hub.cmdDispIn[1]
-      imx_hub.cmdRespOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+      imx_seqCmdSplitter.RemoteCmd[0] -> imx_fpManager.remoteJetsonCmdIn[1]
+      imx_fpManager.remoteJetsonCmdResponseOut[1] -> imx_seqCmdSplitter.seqCmdStatus[0]
+      imx_fpManager.remoteJetsonCmdOut[1] -> imx_hub.cmdDispIn[1]
+      imx_hub.cmdRespOut[1] -> imx_fpManager.remoteJetsonCmdResponseIn[1]
 
     }
 

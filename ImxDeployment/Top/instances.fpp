@@ -47,12 +47,17 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance imx_fpManager: scalesSvc.FPManager base id 0x1600 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
   instance imx_watchdogManager: scalesSvc.WatchdogManager base id 0x1500 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 
-  instance imx_dataProducer: scalesSvc.DataProducer base id 0x1600 \
+  instance imx_dataProducer: scalesSvc.DataProducer base id 0x1800 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
@@ -99,6 +104,10 @@ module ImxDeployment {
   # ----------------------------------------------------------------------
 
   instance imx_systemResources: Svc.SystemResources base id 0x2000
+
+  # Real, process-terminating FATAL handler. FPManager forwards to this after
+  # it has finished shutting down the Jetson, peripherals, and i.MX board.
+  instance imx_realFatalHandler: Svc.FatalHandler base id 0x1700
 
   instance imx_hub: Svc.GenericHub base id 0x3000
 

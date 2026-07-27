@@ -1,7 +1,10 @@
 PYTHON_VERSION = 3.12
 PROJECT_ROOT = $(CURDIR)
 # Make sure you have python3.12 installed prio to running make setup
-# JRE is also required, it is included in make setup (line 28)
+# JRE is also required, it is included in make setup (line 33)
+
+VENV := fprime-venv
+PYTHON := $(VENV)/bin/python
 
 .PHONY: help
 help: ## Display this help.
@@ -72,18 +75,55 @@ arena-init: ## Set up the Arena SDK
 	rm -rf "$$ARENA_EXTRACTED_DIR"; \
 	echo "Finished setting up ArenaSDK"
 
+generate ?= 1
+
+# Allow 'make build-imx8x nogen' / 'make build-jetson nogen' as a shorthand
+# for 'generate=0' (skip regenerating the build before building).
+ifneq (,$(filter nogen,$(MAKECMDGOALS)))
+generate := 0
+endif
+
+.PHONY: nogen
+nogen: ## No-op flag target; combine with build-imx8x/build-jetson to skip regeneration (same as generate=0)
+	@:
+
 .PHONY: build-jetson
 .ONESHELL:
-build-jetson: ## Build fprime for the Jetson and restart the systemd service
+build-jetson: ## Build F' for the Jetson and restart the systemd service
 	@set -e
+
+	@if [ "$(generate)" = "1" ]; then
+		echo "Generating JetsonDeployment for aarch64-linux..."
+		fprime-util generate aarch64-linux -f
+	else
+		echo "Skipping JetsonDeployment generation..."
+	fi
+
 	@echo "Building JetsonDeployment for aarch64-linux..."
 	fprime-util build aarch64-linux
+
 	@echo "Making the Images folder..."
 	mkdir -p build-artifacts/python/Images
+
+	@printf "Enter the username for the GDS computer at 10.3.2.13: "
+	read -r NAME_OF_USERNAME
+
+	if [ -z "$$NAME_OF_USERNAME" ]; then
+		echo "ERROR: Username cannot be empty."
+		exit 1
+	fi
+
+	echo "Copying JetsonDeploymentTopologyDictionary.json to the GDS computer..."
+	scp \
+		build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyDictionary.json \
+		"$${NAME_OF_USERNAME}@10.3.2.13:~/fprime-scales-ref/GDS-Dictionary/"
+
 	@echo "Restarting the JetsonDeployment systemd service..."
 	sudo systemctl restart jetson-deployment.service
+
 	@echo "Checking service status..."
 	systemctl status jetson-deployment.service --no-pager
+
 	@echo "make build-jetson Done"
 
 .PHONY: data-products
@@ -92,6 +132,83 @@ data-products:
 	@echo "Moving fdp files over"
 	cp ~/Downloads/*.fdp $(PROJECT_ROOT)/DataProducts
 	./data-products.sh
+
+.PHONY: build-imx8x
+.ONESHELL:
+build-imx8x: ## Build F' for the IMX, deploy it, and reboot use 'make build-imx generate=0' to skip generation
+	@set -e
+
+	@if [ "$(generate)" = "1" ]; then
+		echo "Generating ImxDeployment..."
+		fprime-util generate imx8x -f
+	else
+		echo "Skipping ImxDeployment generation..."
+	fi
+
+	@echo "Building ImxDeployment..."
+	fprime-util build imx8x
+
+	@echo "Transferring ImxDeployment binary to the IMX..."
+	scp \
+		build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment \
+		root@10.3.2.10:/tmp/
+
+	@echo "Overwriting the ImxDeployment binary on the IMX..."
+	ssh root@10.3.2.10 \
+		'mv /tmp/ImxDeployment /root/ImxDeployment'
+
+	@echo "Restarting the IMX flight software..."
+	ssh root@10.3.2.10 'reboot'
+
+	@echo "make build-imx done"
+
+.PHONY: cpseq
+.ONESHELL:
+cpseq: ## Copy all .bin files in Sequences/ to the IMX (root@10.3.2.10:/root)
+	@set -e
+	@echo "Copying sequence files to the IMX..."
+	scp Sequences/*.bin root@10.3.2.10:/root
+	@echo "make cpseq done"
+
+.PHONY: gds-setup
+.ONESHELL:
+gds-setup: ## Generate the merged dictionary, deploy the IMX binary, and reboot it
+	@set -e
+
+	@if [ ! -x "$(PYTHON)" ]; then
+		echo "ERROR: Python virtual environment not found."
+		echo "Expected: $(PYTHON)"
+		echo "Run 'make setup' first."
+		exit 1
+	fi
+
+	@echo "Copying ImxDeploymentTopologyDictionary.json to GDS-Dictionary..."
+	cp \
+		build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyDictionary.json \
+		GDS-Dictionary/
+
+	@echo "Generating merged dictionary using $(PYTHON)..."
+	(
+		cd GDS-Dictionary
+		../$(PYTHON) merger.py \
+			--base-prefix jetson_ \
+			--secondary-prefix imx_ \
+			JetsonDeploymentTopologyDictionary.json \
+			ImxDeploymentTopologyDictionary.json \
+			GDSDictionary.json
+	)
+
+	@echo "make gds done"
+
+.PHONY: gds-uart
+.ONESHELL:
+gds-uart: ## Launch the GDS over the UART connection (GDS-Dictionary/uart-gds.sh)
+	@cd GDS-Dictionary && ./uart-gds.sh
+
+.PHONY: gds-tcp
+.ONESHELL:
+gds-tcp: ## Launch the GDS over TCP, use 'make gds-tcp ip=<ip> port=<port>' to override the target (defaults 10.3.2.10:50000)
+	@cd GDS-Dictionary && ./tcp-gds.sh $(ip) $(port)
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules
