@@ -15,7 +15,7 @@ help: ## Display this help.
 setup: ## Set up the repo
 	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout lucadev
+	git checkout datdev
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Sourcing fprime virtual environment..."
@@ -126,6 +126,12 @@ build-jetson: ## Build F' for the Jetson and restart the systemd service
 
 	@echo "make build-jetson Done"
 
+.PHONY: data-products
+.ONESHELL:
+data-products:
+	@echo "Moving fdp files over"
+	cp ~/Downloads/*.fdp $(PROJECT_ROOT)/DataProducts
+	./data-products.sh
 
 .PHONY: build-imx8x
 .ONESHELL:

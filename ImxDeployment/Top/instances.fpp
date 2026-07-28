@@ -57,6 +57,11 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+  instance imx_dataProducer: scalesSvc.DataProducer base id 0x1800 \
+    queue size Default.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+  
   instance imx_rateGroup1: Svc.ActiveRateGroup base id 0x4000 \
     queue size Default.QUEUE_SIZE \
     stack size Default.STACK_SIZE \

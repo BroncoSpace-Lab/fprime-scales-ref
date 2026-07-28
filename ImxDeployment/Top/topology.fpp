@@ -32,6 +32,7 @@ module ImxDeployment {
     instance imx_perifBoardManager
     instance imx_fpManager
     instance imx_watchdogManager
+    instance imx_dataProducer
 
     instance imx_systemResources
     instance imx_realFatalHandler
@@ -239,8 +240,9 @@ module ImxDeployment {
       imx_rateGroup2.RateGroupMemberOut[4] -> imx_inaManager.run
       imx_rateGroup2.RateGroupMemberOut[5] -> imx_mcpManager.run
       imx_rateGroup2.RateGroupMemberOut[6] -> imx_jetsonManager.schedIn
-      imx_rateGroup2.RateGroupMemberOut[7] -> imx_fpManager.run
-      imx_rateGroup2.RateGroupMemberOut[8] -> imx_gdsCmdAuthMux.run
+      imx_rateGroup2.RateGroupMemberOut[7] -> imx_gdsCmdAuthMux.run
+      imx_rateGroup2.RateGroupMemberOut[8] -> imx_dataProducer.run
+      imx_rateGroup2.RateGroupMemberOut[9] -> imx_fpManager.run
 
       # Rate group 3
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup3] -> imx_rateGroup3.CycleIn
@@ -264,6 +266,11 @@ module ImxDeployment {
 
     }
 
+    connections DataProducers {
+        imx_dataProducer.productGetOut  -> DataProducts.Subtopology.productGetIn
+        imx_dataProducer.productSendOut -> DataProducts.Subtopology.productSendIn
+    }
+
     connections ImxDeployment {
 
       # Jetson packetized events/tlm forwarded over hub serial channels.
@@ -283,6 +290,14 @@ module ImxDeployment {
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
+      # McpManager send thermal readings to DataProducer
+      imx_mcpManager.mcpThermalReadOut -> imx_dataProducer.McpThermalReadingIn
+
+      # ImxThermalManager send thermal readings to DataProducer
+      imx_thermalManager.cpuThermalReadOut -> imx_dataProducer.cpuThermalReadIn
+
+      # InaManager send power readings to DataProducer
+      imx_inaManager.inaPowerReadOut -> imx_dataProducer.inaPowerReadIn
       # Jetson thermal readings: hub -> FPManager
       imx_hub.serialOut[4] -> imx_fpManager.jetsonThermalReadingIn
 
