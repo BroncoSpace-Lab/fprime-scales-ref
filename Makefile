@@ -74,8 +74,6 @@ setup: ## Set up the repo. Use 'make setup lucadev|datdev|main' to pick a branch
 	fprime-venv/bin/pip install -r requirements-fprime.txt
 	@echo "Installing fprime-python dependencies..."
 	fprime-venv/bin/pip install -e ./lib/fprime-python
-	@echo "Downloading python ML dependencies..."
-	fprime-venv/bin/pip install -r requirements-ml.txt
 	@echo "Installing fpp dependencies..."
 	sudo apt install default-jre -y
 
@@ -185,6 +183,88 @@ build-jetson: ## Build F' for the Jetson and restart the systemd service
 	systemctl status jetson-deployment.service --no-pager
 
 	@echo "make build-jetson Done"
+
+.PHONY: jetson-setup
+.ONESHELL:
+jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel sudoers rule
+	@set -e
+
+	@if [ ! -x "$(PYTHON)" ]; then
+		echo "ERROR: Python virtual environment not found."
+		echo "Expected: $(PYTHON)"
+		echo "Run 'make setup' first."
+		exit 1
+	fi
+
+	@echo "Installing Jetson-specific (ML) Python dependencies..."
+	fprime-venv/bin/pip install -r requirements-ml.txt
+
+	@printf "Enter the username the jetson-deployment service should run as: "
+	read -r JETSON_USERNAME
+
+	if [ -z "$$JETSON_USERNAME" ]; then
+		echo "ERROR: Username cannot be empty."
+		exit 1
+	fi
+
+	@echo "Writing /etc/systemd/system/jetson-deployment.service..."
+	sudo tee /etc/systemd/system/jetson-deployment.service > /dev/null <<SERVICE_EOF
+	[Unit]
+	Description=fprime-scales JetsonDeployment Flight Software
+	# Wait for network (needed to connect to the IMX hub)
+	After=network-online.target
+	Wants=network-online.target
+	
+	[Service]
+	Type=simple
+	User=$$JETSON_USERNAME
+	WorkingDirectory=$(PROJECT_ROOT)
+	
+	ExecStart=$(PROJECT_ROOT)/jetson-startup.sh
+	
+	# Restart on crash, but not on clean exit (exit 0)
+	Restart=on-failure
+	RestartSec=5
+	
+	# Give the network and fprime-gds time to be ready before retrying hard failures
+	StartLimitIntervalSec=120
+	StartLimitBurst=5
+	
+	# Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment)
+	StandardOutput=journal
+	StandardError=journal
+	
+	[Install]
+	WantedBy=multi-user.target
+	SERVICE_EOF
+
+	@echo "Enabling and starting jetson-deployment.service..."
+	sudo systemctl daemon-reload
+	sudo systemctl enable jetson-deployment.service
+	sudo systemctl restart jetson-deployment.service
+	systemctl status jetson-deployment.service --no-pager
+
+	@echo "Setting up passwordless sudo for nvpmodel (used for Jetson power mode changes)..."
+	NVPMODEL_TMP=$$(mktemp)
+	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel" > "$$NVPMODEL_TMP"
+	if sudo visudo -c -f "$$NVPMODEL_TMP"; then
+		sudo install -o root -g root -m 0440 "$$NVPMODEL_TMP" /etc/sudoers.d/fprime-nvpmodel
+		echo "Installed /etc/sudoers.d/fprime-nvpmodel"
+	else
+		echo "ERROR: Generated nvpmodel sudoers rule failed validation (visudo -c). Not installing."
+		rm -f "$$NVPMODEL_TMP"
+		exit 1
+	fi
+	rm -f "$$NVPMODEL_TMP"
+
+	@echo "Ensuring /etc/sudoers includes /etc/sudoers.d..."
+	if sudo grep -q "^#includedir /etc/sudoers.d" /etc/sudoers; then
+		echo "/etc/sudoers already includes /etc/sudoers.d, nothing to do."
+	else
+		echo "#includedir /etc/sudoers.d" | sudo EDITOR='tee -a' visudo
+	fi
+
+	@echo "make jetson-setup done"
 
 .PHONY: data-products
 .ONESHELL:
