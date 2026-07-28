@@ -24,7 +24,7 @@ module DataProductsConfig {
     }
 
     module BuffMgr {
-        constant dpBufferStoreSize = 10000
+        constant dpBufferStoreSize = 32 * 1024
         constant dpBufferStoreCount = 10
         constant dpBufferManagerId = 300
     }
