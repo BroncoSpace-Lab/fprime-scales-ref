@@ -10,9 +10,24 @@ PYTHON := $(VENV)/bin/python
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+patch_gds ?= 1
+gds_channel_window ?= 200
+
+# Allow 'make setup nopatch' as a shorthand for 'patch_gds=0' (skip patching
+# the vendored fprime-gds Channels table to widen its virtualized row window
+# past the default 40, which otherwise causes rows to intermittently vanish
+# from view until manually scrolled).
+ifneq (,$(filter nopatch,$(MAKECMDGOALS)))
+patch_gds := 0
+endif
+
+.PHONY: nopatch
+nopatch: ## No-op flag target; combine with setup to skip the fprime-gds channel-table patch (same as patch_gds=0)
+	@:
+
 .PHONY: setup
 .ONESHELL:
-setup: ## Set up the repo
+setup: ## Set up the repo. Use 'make setup nopatch' to skip the fprime-gds channel-table patch
 	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
 	git checkout datdev
@@ -31,6 +46,19 @@ setup: ## Set up the repo
 	fprime-venv/bin/pip install -r requirements-ml.txt
 	@echo "Installing fpp dependencies..."
 	sudo apt install default-jre -y
+
+	@if [ "$(patch_gds)" = "1" ]; then
+		echo "Patching fprime-gds Channels table row window to $(gds_channel_window)..."
+		FPTABLE_JS="$(VENV)/lib/python$(PYTHON_VERSION)/site-packages/fprime_gds/flask/static/js/vue-support/fptable.js"
+		if [ -f "$$FPTABLE_JS" ]; then
+			sed -i -E "s/(ScrollHandler\(displayed,)[0-9]+(, 5\))/\1$(gds_channel_window)\2/" "$$FPTABLE_JS"
+		else
+			echo "WARNING: $$FPTABLE_JS not found, skipping fprime-gds patch."
+		fi
+	else
+		echo "Skipping fprime-gds channel-table patch (nopatch)."
+	fi
+
 	@echo "Finished setup."
 	@echo ""
 	@echo "███████╗ ██████╗ █████╗ ██╗     ███████╗███████╗"
