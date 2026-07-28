@@ -25,12 +25,44 @@ endif
 nopatch: ## No-op flag target; combine with setup to skip the fprime-gds channel-table patch (same as patch_gds=0)
 	@:
 
+# Allow 'make setup lucadev' / 'make setup datdev' / 'make setup main' to pick
+# which branch setup checks out first. Defaults to staying on whatever branch
+# is currently checked out (no checkout at all) when none of these are given,
+# since silently switching branches is exactly what caused prior confusion.
+setup_branch ?=
+ifneq (,$(filter lucadev,$(MAKECMDGOALS)))
+setup_branch := lucadev
+endif
+ifneq (,$(filter datdev,$(MAKECMDGOALS)))
+setup_branch := datdev
+endif
+ifneq (,$(filter main,$(MAKECMDGOALS)))
+setup_branch := main
+endif
+
+.PHONY: lucadev
+lucadev: ## No-op flag target; combine with setup to checkout lucadev first (e.g. 'make setup lucadev')
+	@:
+
+.PHONY: datdev
+datdev: ## No-op flag target; combine with setup to checkout datdev first (e.g. 'make setup datdev')
+	@:
+
+.PHONY: main
+main: ## No-op flag target; combine with setup to checkout main first (e.g. 'make setup main')
+	@:
+
 .PHONY: setup
 .ONESHELL:
-setup: ## Set up the repo. Use 'make setup nopatch' to skip the fprime-gds channel-table patch
+setup: ## Set up the repo. Use 'make setup lucadev|datdev|main' to pick a branch first, and 'nopatch' to skip the fprime-gds channel-table patch
 	@set -e
 	@echo "Setting up development environment for fprime-scales-ref..."
-	git checkout datdev
+	@if [ -n "$(setup_branch)" ]; then
+		echo "Checking out branch: $(setup_branch)..."
+		git checkout $(setup_branch)
+	else
+		echo "No branch specified (use 'make setup lucadev|datdev|main'); staying on current branch ($$(git branch --show-current))."
+	fi
 	@echo "Making the fprime virtual environment..."
 	python$(PYTHON_VERSION) -m venv fprime-venv
 	@echo "Sourcing fprime virtual environment..."
