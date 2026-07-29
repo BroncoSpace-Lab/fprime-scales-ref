@@ -207,31 +207,35 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 		exit 1
 	fi
 
-	@echo "Setting up passwordless sudo for nvpmodel (used for Jetson power mode changes)..."
-	NVPMODEL_TMP=$$(mktemp)
-	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel" > "$$NVPMODEL_TMP"
-	if sudo visudo -c -f "$$NVPMODEL_TMP"; then
-		sudo install -o root -g root -m 0440 "$$NVPMODEL_TMP" /etc/sudoers.d/fprime-nvpmodel
-		echo "Installed /etc/sudoers.d/fprime-nvpmodel"
-	else
-		echo "ERROR: Generated nvpmodel sudoers rule failed validation (visudo -c). Not installing."
-		rm -f "$$NVPMODEL_TMP"
-		exit 1
-	fi
-	rm -f "$$NVPMODEL_TMP"
+	@echo "Installing passwordless-sudo rules for nvpmodel and shutdown..."
+	install_sudoers_rule() {
+		RULE_NAME="$$1"
+		RULE_LINE="$$2"
+		RULE_TMP=$$(mktemp)
+		printf '%s\n' "$$RULE_LINE" > "$$RULE_TMP"
+		if ! sudo visudo -c -f "$$RULE_TMP"; then
+			echo "ERROR: Generated $$RULE_NAME sudoers rule failed validation (visudo -c). Not installing."
+			rm -f "$$RULE_TMP"
+			exit 1
+		fi
+		# Write directly as root (no local install/chown of a pre-created file --
+		# that path previously left an empty, still-correctly-permissioned file
+		# on at least one Jetson image for reasons that could not be
+		# reproduced), then verify the installed file actually has content
+		# before trusting it.
+		sudo tee "/etc/sudoers.d/$$RULE_NAME" < "$$RULE_TMP" > /dev/null
+		sudo chown root:root "/etc/sudoers.d/$$RULE_NAME"
+		sudo chmod 0440 "/etc/sudoers.d/$$RULE_NAME"
+		rm -f "$$RULE_TMP"
+		if [ "$$(sudo wc -c < "/etc/sudoers.d/$$RULE_NAME")" -eq 0 ]; then
+			echo "ERROR: /etc/sudoers.d/$$RULE_NAME was installed but is empty. Not trusting it -- aborting."
+			exit 1
+		fi
+		echo "Installed /etc/sudoers.d/$$RULE_NAME"
+	}
 
-	@echo "Setting up passwordless sudo for shutdown (used for graceful Jetson OFF)..."
-	SHUTDOWN_TMP=$$(mktemp)
-	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /sbin/shutdown" > "$$SHUTDOWN_TMP"
-	if sudo visudo -c -f "$$SHUTDOWN_TMP"; then
-		sudo install -o root -g root -m 0440 "$$SHUTDOWN_TMP" /etc/sudoers.d/fprime-shutdown
-		echo "Installed /etc/sudoers.d/fprime-shutdown"
-	else
-		echo "ERROR: Generated shutdown sudoers rule failed validation (visudo -c). Not installing."
-		rm -f "$$SHUTDOWN_TMP"
-		exit 1
-	fi
-	rm -f "$$SHUTDOWN_TMP"
+	install_sudoers_rule fprime-nvpmodel "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel"
+	install_sudoers_rule fprime-shutdown "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /sbin/shutdown -h now"
 
 	@echo "Ensuring /etc/sudoers includes /etc/sudoers.d..."
 	if sudo grep -q "^#includedir /etc/sudoers.d" /etc/sudoers; then
