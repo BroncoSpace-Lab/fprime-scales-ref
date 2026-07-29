@@ -296,6 +296,9 @@ module ImxDeployment {
       # ImxThermalManager send thermal readings to DataProducer
       imx_thermalManager.cpuThermalReadOut -> imx_dataProducer.cpuThermalReadIn
 
+      # JetsonThermalManger send thermal readings to DataProducer
+      imx_hub.serialOut[5] -> imx_dataProducer.jetsonThermalReadIn
+
       # InaManager send power readings to DataProducer
       imx_inaManager.inaPowerReadOut -> imx_dataProducer.inaPowerReadIn
       # Jetson thermal readings: hub -> FPManager
