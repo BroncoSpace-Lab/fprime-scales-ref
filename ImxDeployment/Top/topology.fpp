@@ -288,6 +288,15 @@ module ImxDeployment {
       imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
+      # JetsonManager only calls reqJetsonPwrState_out() when the Jetson's
+      # power state is CONFIRMED on (a real report received over this same
+      # hub link). This port is wired straight through GenericHub into
+      # imx_hubComStub.dataIn with no queue or connectivity gate in between
+      # -- calling it while the Jetson (and therefore this hub link) has
+      # never been confirmed alive trips imx_hubComStub's never-connected
+      # FW_ASSERT and crashes the whole i.MX flight software, the same
+      # crash class the remoteJetsonCmdIn gate below exists to prevent. See
+      # JM-006 in JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
       # McpManager send thermal readings to DataProducer
