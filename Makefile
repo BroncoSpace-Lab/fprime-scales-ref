@@ -158,7 +158,7 @@ build-imx8x: ## Build F' for the IMX, deploy it, and reboot use 'make build-imx 
 		'mv /tmp/ImxDeployment /root/ImxDeployment'
 
 	@echo "Restarting the IMX flight software..."
-	ssh root@10.3.2.10 'reboot'
+	ssh root@10.3.2.10 'reboot now'
 
 	@echo "make build-imx done"
 
