@@ -186,7 +186,7 @@ build-jetson: ## Build F' for the Jetson and restart the systemd service
 
 .PHONY: jetson-setup
 .ONESHELL:
-jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel sudoers rule
+jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel/shutdown sudoers rules
 	@set -e
 
 	@if [ ! -x "$(PYTHON)" ]; then
@@ -256,6 +256,19 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 		exit 1
 	fi
 	rm -f "$$NVPMODEL_TMP"
+
+	@echo "Setting up passwordless sudo for shutdown (used for graceful Jetson OFF)..."
+	SHUTDOWN_TMP=$$(mktemp)
+	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /sbin/shutdown" > "$$SHUTDOWN_TMP"
+	if sudo visudo -c -f "$$SHUTDOWN_TMP"; then
+		sudo install -o root -g root -m 0440 "$$SHUTDOWN_TMP" /etc/sudoers.d/fprime-shutdown
+		echo "Installed /etc/sudoers.d/fprime-shutdown"
+	else
+		echo "ERROR: Generated shutdown sudoers rule failed validation (visudo -c). Not installing."
+		rm -f "$$SHUTDOWN_TMP"
+		exit 1
+	fi
+	rm -f "$$SHUTDOWN_TMP"
 
 	@echo "Ensuring /etc/sudoers includes /etc/sudoers.d..."
 	if sudo grep -q "^#includedir /etc/sudoers.d" /etc/sudoers; then
