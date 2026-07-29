@@ -207,43 +207,6 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 		exit 1
 	fi
 
-	@echo "Writing /etc/systemd/system/jetson-deployment.service..."
-	sudo tee /etc/systemd/system/jetson-deployment.service > /dev/null <<SERVICE_EOF
-	[Unit]
-	Description=fprime-scales JetsonDeployment Flight Software
-	# Wait for network (needed to connect to the IMX hub)
-	After=network-online.target
-	Wants=network-online.target
-	
-	[Service]
-	Type=simple
-	User=$$JETSON_USERNAME
-	WorkingDirectory=$(PROJECT_ROOT)
-	
-	ExecStart=$(PROJECT_ROOT)/jetson-startup.sh
-	
-	# Restart on crash, but not on clean exit (exit 0)
-	Restart=on-failure
-	RestartSec=5
-	
-	# Give the network and fprime-gds time to be ready before retrying hard failures
-	StartLimitIntervalSec=120
-	StartLimitBurst=5
-	
-	# Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment)
-	StandardOutput=journal
-	StandardError=journal
-	
-	[Install]
-	WantedBy=multi-user.target
-	SERVICE_EOF
-
-	@echo "Enabling and starting jetson-deployment.service..."
-	sudo systemctl daemon-reload
-	sudo systemctl enable jetson-deployment.service
-	sudo systemctl restart jetson-deployment.service
-	systemctl status jetson-deployment.service --no-pager
-
 	@echo "Setting up passwordless sudo for nvpmodel (used for Jetson power mode changes)..."
 	NVPMODEL_TMP=$$(mktemp)
 	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel" > "$$NVPMODEL_TMP"
@@ -276,6 +239,43 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 	else
 		echo "#includedir /etc/sudoers.d" | sudo EDITOR='tee -a' visudo
 	fi
+
+	@echo "Writing /etc/systemd/system/jetson-deployment.service..."
+	sudo tee /etc/systemd/system/jetson-deployment.service > /dev/null <<SERVICE_EOF
+	[Unit]
+	Description=fprime-scales JetsonDeployment Flight Software
+	# Wait for network (needed to connect to the IMX hub)
+	After=network-online.target
+	Wants=network-online.target
+
+	[Service]
+	Type=simple
+	User=$$JETSON_USERNAME
+	WorkingDirectory=$(PROJECT_ROOT)
+
+	ExecStart=$(PROJECT_ROOT)/jetson-startup.sh
+
+	# Restart on crash, but not on clean exit (exit 0)
+	Restart=on-failure
+	RestartSec=5
+
+	# Give the network and fprime-gds time to be ready before retrying hard failures
+	StartLimitIntervalSec=120
+	StartLimitBurst=5
+
+	# Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment)
+	StandardOutput=journal
+	StandardError=journal
+
+	[Install]
+	WantedBy=multi-user.target
+	SERVICE_EOF
+
+	@echo "Enabling and starting jetson-deployment.service..."
+	sudo systemctl daemon-reload
+	sudo systemctl enable jetson-deployment.service
+	sudo systemctl restart jetson-deployment.service
+	systemctl status jetson-deployment.service --no-pager
 
 	@echo "make jetson-setup done"
 
