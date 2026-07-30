@@ -282,21 +282,36 @@ module ImxDeployment {
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
 
       # powerModeReceive: JetsonManager -> hub -> Jetson JetsonPowerModeManager
+      # JetsonManager only calls reqPwrMode_out() when the hub link is
+      # trusted (isJetsonHubLinkTrusted(): Jetson confirmed on, not awaiting
+      # first boot confirmation, no other mode-change reboot already in
+      # flight). This port is wired straight through GenericHub into
+      # imx_hubComStub.dataIn with no queue or connectivity gate in between
+      # -- calling it while that link can't be trusted trips
+      # imx_hubComStub's never-connected FW_ASSERT and crashes the whole
+      # i.MX flight software, the same crash class the reqJetsonPwrState
+      # gate below and the remoteJetsonCmdIn gate further down exist to
+      # prevent. See JM-011/JM-013 in JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
 
       # jetsonPowerStateSend: Jetson JetsonPowerModeManager -> hub -> PowerManager
       imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
-      # JetsonManager only calls reqJetsonPwrState_out() when the Jetson's
-      # power state is CONFIRMED on (a real report received over this same
-      # hub link). This port is wired straight through GenericHub into
-      # imx_hubComStub.dataIn with no queue or connectivity gate in between
-      # -- calling it while the Jetson (and therefore this hub link) has
-      # never been confirmed alive trips imx_hubComStub's never-connected
-      # FW_ASSERT and crashes the whole i.MX flight software, the same
-      # crash class the remoteJetsonCmdIn gate below exists to prevent. See
-      # JM-006 in JetsonManager/docs/sdd.md.
+      # JetsonManager only calls reqJetsonPwrState_out() when the hub link is
+      # trusted (isJetsonHubLinkTrusted()): the Jetson's power state is
+      # CONFIRMED on (a real report received over this same hub link), it's
+      # not still awaiting its first boot confirmation, and no
+      # REQUEST_POWER_MODE-triggered reboot is currently in flight (a mode
+      # change leaves the cached power state ON throughout, even though the
+      # hub link itself may be down while the Jetson reboots to apply the
+      # new mode -- JM-011). This port is wired straight through GenericHub
+      # into imx_hubComStub.dataIn with no queue or connectivity gate in
+      # between -- calling it while that link can't be trusted trips
+      # imx_hubComStub's never-connected FW_ASSERT and crashes the whole
+      # i.MX flight software, the same crash class the remoteJetsonCmdIn
+      # gate below exists to prevent. See JM-006/JM-009/JM-011 in
+      # JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
       # McpManager send thermal readings to DataProducer
