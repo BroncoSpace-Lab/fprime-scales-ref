@@ -387,7 +387,20 @@ module ImxDeployment {
 
       imx_hubFramer.dataOut -> imx_hubComStub.dataIn
       imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
-      imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
+
+      # Real transport-level connectivity for the imx<->Jetson hub link:
+      # SUCCESS on a genuine reconnect (drvConnected), FAILURE the first
+      # time a send actually fails. Previously wired to
+      # imx_hubFramer.comStatusIn, which only re-emits it on its own
+      # comStatusOut -- a port nothing else consumed (Svc::FprimeFramer
+      # just relays comStatus upstream; there was no further consumer, so
+      # that wire was a dead end). Redirected to imx_jetsonManager instead,
+      # where it closes a real race: an nvpmodel-triggered reboot can leave
+      # JetsonPowerModeManager's own process reporting a matching mode
+      # *before* the actual reboot severs the TCP link, which could
+      # otherwise prematurely re-trust the hub link and risk
+      # imx_hubComStub's never-connected FW_ASSERT. See JM-016.
+      imx_hubComStub.comStatusOut -> imx_jetsonManager.hubComStatusIn
 
       imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
 
