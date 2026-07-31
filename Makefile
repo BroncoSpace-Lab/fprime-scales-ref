@@ -367,6 +367,20 @@ gds-uart: ## Launch the GDS over the UART connection (GDS-Dictionary/uart-gds.sh
 gds-tcp: ## Launch the GDS over TCP, use 'make gds-tcp ip=<ip> port=<port>' to override the target (defaults 10.3.2.10:50000)
 	@cd GDS-Dictionary && ./tcp-gds.sh $(ip) $(port)
 
+.PHONY: requirements-check
+.ONESHELL:
+requirements-check: ## Regenerate RequirementTraceability/requirements-traceability.md from every already-built native *_ut_exe binary (run 'fprime-util build --ut' in a module's directory first to include it)
+	@set -e
+
+	@if [ ! -x "$(PYTHON)" ]; then
+		echo "ERROR: Python virtual environment not found."
+		echo "Expected: $(PYTHON)"
+		echo "Run 'make setup' first."
+		exit 1
+	fi
+
+	@$(PYTHON) RequirementTraceability/generate_requirements_report.py
+
 .PHONY: clean
 clean: ## Remove venv and reset submodules
 	@echo "Removing fprime virtual environment..."

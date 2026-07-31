@@ -20,7 +20,6 @@ fpp-loc-map.json
 *.gcov
 /Images/
 /__pycache__/
-/coverage/
 
 # Ignore all XML/JSON files in the GDS-Dictionary folder
 GDS-Dictionary/*.xml
