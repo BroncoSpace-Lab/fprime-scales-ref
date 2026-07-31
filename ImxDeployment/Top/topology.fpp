@@ -45,6 +45,7 @@ module ImxDeployment {
     instance imx_hubFrameAccumulator
     instance imx_hubDeframer
     instance imx_hubComStub
+    instance imx_hubComQueue
     instance imx_hubIoBufferManager
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
@@ -230,6 +231,7 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
       imx_rateGroup1.RateGroupMemberOut[3] -> ComFprime.comQueue.run
       imx_rateGroup1.RateGroupMemberOut[4] -> imx_uartGdsComQueue.run
+      imx_rateGroup1.RateGroupMemberOut[5] -> imx_hubComQueue.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -378,29 +380,38 @@ module ImxDeployment {
 
     connections send_hub {
 
-      # Frame each complete GenericHub record before passing it to TCP.
-      imx_hub.toBufferDriver -> imx_hubComAdapter.bufferIn
-      imx_hubComAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+      # imx_hubComQueue gates every hub-bound send on imx_hubComStub's real
+      # comStatus (see the comStatus fan-out below) -- it only releases a
+      # buffer once the last known status is SUCCESS, so Svc::ComStub's
+      # never-connected FW_ASSERT is structurally unreachable from this link
+      # regardless of what any application-level logic believes about the
+      # connection. This is the same buffer hand-off imx_hubComAdapter used
+      # to do on the send side (identical default ComCfg::FrameContext
+      # construction) -- imx_hubComAdapter's bufferIn/comOut/comReturnIn
+      # ports are retired; it keeps its receive-side role below unchanged.
+      # Backstops JM-016/FP-022; see JetsonManager's SDD.
+      imx_hub.toBufferDriver -> imx_hubComQueue.bufferQueueIn[0]
+      imx_hubComQueue.bufferReturnOut[0] -> imx_hub.toBufferDriverReturn
 
-      imx_hubComAdapter.comOut -> imx_hubFramer.dataIn
-      imx_hubFramer.dataReturnOut -> imx_hubComAdapter.comReturnIn
+      imx_hubComQueue.dataOut -> imx_hubFramer.dataIn
+      imx_hubFramer.dataReturnOut -> imx_hubComQueue.dataReturnIn
 
       imx_hubFramer.dataOut -> imx_hubComStub.dataIn
       imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
 
       # Real transport-level connectivity for the imx<->Jetson hub link:
       # SUCCESS on a genuine reconnect (drvConnected), FAILURE the first
-      # time a send actually fails. Previously wired to
-      # imx_hubFramer.comStatusIn, which only re-emits it on its own
-      # comStatusOut -- a port nothing else consumed (Svc::FprimeFramer
-      # just relays comStatus upstream; there was no further consumer, so
-      # that wire was a dead end). Redirected to imx_jetsonManager instead,
-      # where it closes a real race: an nvpmodel-triggered reboot can leave
-      # JetsonPowerModeManager's own process reporting a matching mode
-      # *before* the actual reboot severs the TCP link, which could
-      # otherwise prematurely re-trust the hub link and risk
-      # imx_hubComStub's never-connected FW_ASSERT. See JM-016.
-      imx_hubComStub.comStatusOut -> imx_jetsonManager.hubComStatusIn
+      # time a send actually fails. Two independent consumers need this
+      # single-connection signal -- imx_hubComQueue (the safety-critical
+      # gate above) and imx_jetsonManager (JM-016's fast, informative
+      # rejection) -- so it's routed through imx_hubComAdapter's
+      # comStatusIn/comStatusOut[2] fan-out (added for exactly this;
+      # previously comStatusOut was wired to imx_hubFramer.comStatusIn,
+      # confirmed a dead end -- FprimeFramer only re-emits it on its own
+      # comStatusOut, which nothing consumed).
+      imx_hubComStub.comStatusOut -> imx_hubComAdapter.comStatusIn
+      imx_hubComAdapter.comStatusOut[0] -> imx_hubComQueue.comStatusIn
+      imx_hubComAdapter.comStatusOut[1] -> imx_jetsonManager.hubComStatusIn
 
       imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
 

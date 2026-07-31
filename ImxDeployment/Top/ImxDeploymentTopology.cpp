@@ -45,6 +45,17 @@ enum TopologyConstants {
     HUB_WIRE_BUFFER_SIZE = 8 * 1024,
     HUB_IO_BUFFER_COUNT = 32,
 
+    // imx_hubComQueue's depth for the one queue slot it actually uses
+    // (bufferQueueIn[0] -- every hub-bound send, of every kind, merges into
+    // this single port; see ImxDeployment/Top/topology.fpp send_hub
+    // connections). Moderate, not minimal: shallow enough that a real
+    // outage doesn't grow an unbounded backlog of stale sends, generous
+    // enough that a normal-operation burst (e.g. several back-to-back file
+    // transfer packets) isn't dropped just for arriving close together.
+    // Tune later based on real high-water-mark telemetry (comQueueDepth/
+    // buffQueueDepth, published every imx_hubComQueue.run tick).
+    HUB_QUEUE_DEPTH = 10,
+
     // Commands with opcodes >= REMOTE_JETSON_COMMAND_BASE are routed to the Jetson over the hub.
     //
     // Important:
@@ -110,6 +121,21 @@ void configureTopology() {
     // TCP is a byte stream, so the frame accumulator is still needed to rebuild
     // complete F Prime frames before deframing.
     imx_hubFrameAccumulator.configure(hubFrameDetector, 2, mallocator, HUB_WIRE_BUFFER_SIZE);
+
+    // imx_hubComQueue configuration. Every hub-bound send merges into the
+    // single bufferQueueIn[0] slot (see topology.fpp) -- the two
+    // comPacketQueueIn slots are configured (as ComQueue requires every
+    // entry to be) but never connected/used on this link.
+    Svc::ComQueue::QueueConfigurationTable hubQueueConfig;
+    for (FwIndexType i = 0; i < Svc::ComQueue::TOTAL_PORT_COUNT; i++) {
+        hubQueueConfig.entries[i].depth = 1;
+        hubQueueConfig.entries[i].priority = i;
+        hubQueueConfig.entries[i].mode = Types::QUEUE_FIFO;
+        hubQueueConfig.entries[i].overflowMode = Types::QUEUE_DROP_NEWEST;
+    }
+    // bufferQueueIn[0] is combined-array index ComQueueComPorts (2) + 0.
+    hubQueueConfig.entries[2].depth = HUB_QUEUE_DEPTH;
+    imx_hubComQueue.configure(hubQueueConfig, 205, mallocator);
 
     // UART GDS wire/transport buffer manager.
     // These buffers are used by the framed UART downlink path.
@@ -312,6 +338,7 @@ void teardownTopology(const TopologyState& state) {
     imx_hubBufferManager.cleanup();
     imx_uartGdsBufferManager.cleanup();
     imx_uartGdsComQueue.cleanup();
+    imx_hubComQueue.cleanup();
 
     tearDownComponents(state);
     deinitComponents(state);
