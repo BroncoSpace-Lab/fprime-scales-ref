@@ -314,6 +314,19 @@ module ImxDeployment {
       # JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
 
+      # localModeChangeStarted: Jetson JetsonPowerModeManager -> hub -> JetsonManager
+      # Fired when SET_POWER_MODE is issued directly against
+      # jetson_pwrModeManager (bypassing JetsonManager/FPManager entirely --
+      # see JM-014/JPSM-013/FP-022) and is about to reboot the Jetson to
+      # apply a new mode. Lets JetsonManager arm the same hub-link-distrust
+      # guard it arms for a hub-driven REQUEST_POWER_MODE, so
+      # isJetsonHubLinkTrusted() correctly reports false until the reboot
+      # completes -- closing the gap where a subsequent remote command sent
+      # mid-reboot would otherwise reach imx_hubComStub.dataIn directly and
+      # trip its never-connected FW_ASSERT (the same crash class JM-006/
+      # JM-011 exist to prevent).
+      imx_hub.serialOut[6] -> imx_jetsonManager.localModeChangeStarted
+
       # McpManager send thermal readings to DataProducer
       imx_mcpManager.mcpThermalReadOut -> imx_dataProducer.McpThermalReadingIn
 
@@ -331,6 +344,7 @@ module ImxDeployment {
       # JetsonManager retains command ownership; FPManager authorizes first.
       imx_jetsonManager.fpJetsonPowerAuthorize -> imx_fpManager.jetsonPowerAuthorizeIn
       imx_jetsonManager.fpJetsonPowerStateOut -> imx_fpManager.jetsonPowerStateIn
+      imx_jetsonManager.fpJetsonHubTrustedOut -> imx_fpManager.jetsonHubTrustedIn
 
       # Internal FP recovery and emergency power-off actions.
       imx_fpManager.jetsonPowerRequestOut -> imx_jetsonManager.fpJetsonPowerRequestIn
