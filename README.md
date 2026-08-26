@@ -280,7 +280,7 @@ You are now ready to run the demo.
     This will restart the system service and run the deployment. Alternatively, if you have stopped the service for any reason, you can run the deployment from within `fprime-scales-ref` by first sourcing `fprime-venv`, then running:
 
     ```bash
-    ./jetson-python.sh
+    ./jetson-startup.sh
     ```
 
     This command runs JetsonDeployment through its Python implementation and connects to the IMX's fprime-gds using the hub pattern. To exit the Python environment, press `Ctrl + C`.
@@ -444,7 +444,7 @@ If you make changes to ImxDeployment or JetsonDeployment, rebuild the respective
     If you have disabled or stopped the system service, you will have to either re-enable it or run JetsonDeployment from `fprime-scales-ref` using:
 
     ```bash
-    ./jetson-python.sh
+    ./jetson-startup.sh
     ```
 
 # Troubleshooting
