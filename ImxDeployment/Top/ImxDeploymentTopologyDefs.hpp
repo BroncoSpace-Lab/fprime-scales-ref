@@ -49,6 +49,7 @@ namespace PingEntries {
     namespace ImxDeployment_imx_rateGroup2 {enum { WARN = 3, FATAL = 5 };}
     namespace ImxDeployment_imx_rateGroup3 {enum { WARN = 3, FATAL = 5 };}
     namespace ImxDeployment_imx_cmdSeq {enum { WARN = 3, FATAL = 5 };}
+    namespace ImxDeployment_imx_hubFileUplink {enum { WARN = 3, FATAL = 5 };}
 }  // namespace PingEntries
 
 // Definitions are placed within the same namespace as the FPP module that contains the topology.
