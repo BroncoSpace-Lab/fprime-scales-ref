@@ -94,6 +94,13 @@ module ImxDeployment {
     stack size Default.STACK_SIZE \
     priority 99
 
+
+  # Hub file up link for IMX to receive files from the Jetson.
+  instance imx_hubFileUplink: Svc.FileUplink base id 0x6000 \
+    queue size 30 \
+    stack size Default.STACK_SIZE \
+    priority 99
+  
   # ----------------------------------------------------------------------
   # Queued component instances
   # ----------------------------------------------------------------------

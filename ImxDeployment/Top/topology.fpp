@@ -46,6 +46,7 @@ module ImxDeployment {
     instance imx_hubDeframer
     instance imx_hubComStub
     instance imx_hubIoBufferManager
+    instance imx_hubFileUplink
     instance imx_cmdSplitter
     instance imx_seqCmdSplitter
     instance imx_gdsCmdAuthMux
@@ -127,7 +128,9 @@ module ImxDeployment {
       FileHandling.fileDownlink.bufferSendOut -> ComFprime.comQueue.bufferQueueIn[ComFprime.Ports_ComBufferQueue.FILE]
       ComFprime.comQueue.bufferReturnOut[ComFprime.Ports_ComBufferQueue.FILE] -> FileHandling.fileDownlink.bufferReturn
 
-      # File uplinks are forwarded to the Jetson over hub buffer channel 1.
+      # File uplinks path
+      ComFprime.fprimeRouter.fileOut -> FileHandling.fileUplink.bufferSendIn
+      FileHandling.fileUplink.bufferSendOut -> ComFprime.fprimeRouter.fileBufferReturnIn
 
     }
 
@@ -398,12 +401,12 @@ module ImxDeployment {
       # Channel 0 stages Jetson file-downlink packets through the local
       # FileUplink service first, saving the file on the i.MX filesystem.
       # The saved file can then be downlinked locally from the i.MX to GDS.
-      imx_hub.bufferOut[0] -> FileHandling.fileUplink.bufferSendIn
-      FileHandling.fileUplink.bufferSendOut -> imx_hub.bufferOutReturn[0]
+      imx_hub.bufferOut[0] -> imx_hubFileUplink.bufferSendIn
+      imx_hubFileUplink.bufferSendOut -> imx_hub.bufferOutReturn[0]
 
       # Channel 1 forwards i.MX/GDS file-uplink packets to the Jetson.
-      ComFprime.fprimeRouter.fileOut -> imx_hub.bufferIn[1]
-      imx_hub.bufferInReturn[1] -> ComFprime.fprimeRouter.fileBufferReturnIn
+      # ComFprime.fprimeRouter.fileOut -> imx_hub.bufferIn[1]
+      # imx_hub.bufferInReturn[1] -> ComFprime.fprimeRouter.fileBufferReturnIn
 
       # Local command dispatch after splitting
       imx_gdsCmdAuthMux.cmdOut -> imx_cmdSplitter.CmdBuff[0]
