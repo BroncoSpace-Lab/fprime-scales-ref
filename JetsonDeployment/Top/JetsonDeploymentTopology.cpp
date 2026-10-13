@@ -199,12 +199,12 @@ void setup_user_deployment(pybind11::module_& module) {
         module.attr("JetsonDeployment").cast<pybind11::module_>();
 
     jetsonDeploymentModule.def("setup_custom", [](JetsonDeployment::TopologyState& state) {
-        std::printf(
-            "DEBUG setup_custom: hostname=%s port=%u\n",
-            (state.hostname == nullptr || state.hostname[0] == '\0') ? "<empty>" : state.hostname,
-            static_cast<unsigned>(state.port)
-        );
-        std::fflush(stdout);
+        // std::printf(
+        //     "DEBUG setup_custom: hostname=%s port=%u\n",
+        //     (state.hostname == nullptr || state.hostname[0] == '\0') ? "<empty>" : state.hostname,
+        //     static_cast<unsigned>(state.port)
+        // );
+        // std::fflush(stdout);
 
         JetsonDeployment::setupTopology(state);
     });
@@ -226,8 +226,8 @@ void setup_user_deployment(pybind11::module_& module) {
     });
 
     jetsonDeploymentModule.def("teardown_custom", [](JetsonDeployment::TopologyState& state) {
-        std::printf("DEBUG teardown_custom: requested\n");
-        std::fflush(stdout);
+        // std::printf("DEBUG teardown_custom: requested\n");
+        // std::fflush(stdout);
 
         JetsonDeployment::teardownTopology(state);
     });
