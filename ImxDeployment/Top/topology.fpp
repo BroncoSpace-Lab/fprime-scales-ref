@@ -45,6 +45,7 @@ module ImxDeployment {
     instance imx_hubFrameAccumulator
     instance imx_hubDeframer
     instance imx_hubComStub
+    instance imx_hubComQueue
     instance imx_hubIoBufferManager
     instance imx_hubFileUplink
     instance imx_cmdSplitter
@@ -233,6 +234,7 @@ module ImxDeployment {
       imx_rateGroup1.RateGroupMemberOut[2] -> imx_systemResources.run
       imx_rateGroup1.RateGroupMemberOut[3] -> ComFprime.comQueue.run
       imx_rateGroup1.RateGroupMemberOut[4] -> imx_uartGdsComQueue.run
+      imx_rateGroup1.RateGroupMemberOut[5] -> imx_hubComQueue.run
 
       # Rate group 2
       imx_rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> imx_rateGroup2.CycleIn
@@ -285,13 +287,50 @@ module ImxDeployment {
       imx_hub.serialOut[0] -> imx_jetsonManager.currentPwrMode
 
       # powerModeReceive: JetsonManager -> hub -> Jetson JetsonPowerModeManager
+      # JetsonManager only calls reqPwrMode_out() when the hub link is
+      # trusted (isJetsonHubLinkTrusted(): Jetson confirmed on, not awaiting
+      # first boot confirmation, no other mode-change reboot already in
+      # flight). This port is wired straight through GenericHub into
+      # imx_hubComStub.dataIn with no queue or connectivity gate in between
+      # -- calling it while that link can't be trusted trips
+      # imx_hubComStub's never-connected FW_ASSERT and crashes the whole
+      # i.MX flight software, the same crash class the reqJetsonPwrState
+      # gate below and the remoteJetsonCmdIn gate further down exist to
+      # prevent. See JM-011/JM-013 in JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqPwrMode -> imx_hub.serialIn[0]
 
       # jetsonPowerStateSend: Jetson JetsonPowerModeManager -> hub -> PowerManager
       imx_hub.serialOut[1] -> imx_jetsonManager.currentJetsonPwrState
 
       # jetsonPowerStateReceive: PowerManager -> hub -> Jetson JetsonPowerModeManager
+      # JetsonManager only calls reqJetsonPwrState_out() when the hub link is
+      # trusted (isJetsonHubLinkTrusted()): the Jetson's power state is
+      # CONFIRMED on (a real report received over this same hub link), it's
+      # not still awaiting its first boot confirmation, and no
+      # REQUEST_POWER_MODE-triggered reboot is currently in flight (a mode
+      # change leaves the cached power state ON throughout, even though the
+      # hub link itself may be down while the Jetson reboots to apply the
+      # new mode -- JM-011). This port is wired straight through GenericHub
+      # into imx_hubComStub.dataIn with no queue or connectivity gate in
+      # between -- calling it while that link can't be trusted trips
+      # imx_hubComStub's never-connected FW_ASSERT and crashes the whole
+      # i.MX flight software, the same crash class the remoteJetsonCmdIn
+      # gate below exists to prevent. See JM-006/JM-009/JM-011 in
+      # JetsonManager/docs/sdd.md.
       imx_jetsonManager.reqJetsonPwrState -> imx_hub.serialIn[1]
+
+      # localModeChangeStarted: Jetson JetsonPowerModeManager -> hub -> JetsonManager
+      # Fired when SET_POWER_MODE is issued directly against
+      # jetson_pwrModeManager (bypassing JetsonManager/FPManager entirely --
+      # see JM-014/JPSM-013/FP-022) and is about to reboot the Jetson to
+      # apply a new mode. Lets JetsonManager arm the same hub-link-distrust
+      # guard it arms for a hub-driven REQUEST_POWER_MODE, so
+      # isJetsonHubLinkTrusted() correctly reports false until the reboot
+      # completes -- closing the gap where a subsequent remote command sent
+      # mid-reboot would otherwise reach imx_hubComStub.dataIn directly and
+      # trip its never-connected FW_ASSERT (the same crash class JM-006/
+      # JM-011 exist to prevent).
+      imx_hub.serialOut[6] -> imx_jetsonManager.localModeChangeStarted
 
       # McpManager send thermal readings to DataProducer
       imx_mcpManager.mcpThermalReadOut -> imx_dataProducer.McpThermalReadingIn
@@ -310,6 +349,7 @@ module ImxDeployment {
       # JetsonManager retains command ownership; FPManager authorizes first.
       imx_jetsonManager.fpJetsonPowerAuthorize -> imx_fpManager.jetsonPowerAuthorizeIn
       imx_jetsonManager.fpJetsonPowerStateOut -> imx_fpManager.jetsonPowerStateIn
+      imx_jetsonManager.fpJetsonHubTrustedOut -> imx_fpManager.jetsonHubTrustedIn
 
       # Internal FP recovery and emergency power-off actions.
       imx_fpManager.jetsonPowerRequestOut -> imx_jetsonManager.fpJetsonPowerRequestIn
@@ -343,16 +383,38 @@ module ImxDeployment {
 
     connections send_hub {
 
-      # Frame each complete GenericHub record before passing it to TCP.
-      imx_hub.toBufferDriver -> imx_hubComAdapter.bufferIn
-      imx_hubComAdapter.bufferInReturn -> imx_hub.toBufferDriverReturn
+      # imx_hubComQueue gates every hub-bound send on imx_hubComStub's real
+      # comStatus (see the comStatus fan-out below) -- it only releases a
+      # buffer once the last known status is SUCCESS, so Svc::ComStub's
+      # never-connected FW_ASSERT is structurally unreachable from this link
+      # regardless of what any application-level logic believes about the
+      # connection. This is the same buffer hand-off imx_hubComAdapter used
+      # to do on the send side (identical default ComCfg::FrameContext
+      # construction) -- imx_hubComAdapter's bufferIn/comOut/comReturnIn
+      # ports are retired; it keeps its receive-side role below unchanged.
+      # Backstops JM-016/FP-022; see JetsonManager's SDD.
+      imx_hub.toBufferDriver -> imx_hubComQueue.bufferQueueIn[0]
+      imx_hubComQueue.bufferReturnOut[0] -> imx_hub.toBufferDriverReturn
 
-      imx_hubComAdapter.comOut -> imx_hubFramer.dataIn
-      imx_hubFramer.dataReturnOut -> imx_hubComAdapter.comReturnIn
+      imx_hubComQueue.dataOut -> imx_hubFramer.dataIn
+      imx_hubFramer.dataReturnOut -> imx_hubComQueue.dataReturnIn
 
       imx_hubFramer.dataOut -> imx_hubComStub.dataIn
       imx_hubComStub.dataReturnOut -> imx_hubFramer.dataReturnIn
-      imx_hubComStub.comStatusOut -> imx_hubFramer.comStatusIn
+
+      # Real transport-level connectivity for the imx<->Jetson hub link:
+      # SUCCESS on a genuine reconnect (drvConnected), FAILURE the first
+      # time a send actually fails. Two independent consumers need this
+      # single-connection signal -- imx_hubComQueue (the safety-critical
+      # gate above) and imx_jetsonManager (JM-016's fast, informative
+      # rejection) -- so it's routed through imx_hubComAdapter's
+      # comStatusIn/comStatusOut[2] fan-out (added for exactly this;
+      # previously comStatusOut was wired to imx_hubFramer.comStatusIn,
+      # confirmed a dead end -- FprimeFramer only re-emits it on its own
+      # comStatusOut, which nothing consumed).
+      imx_hubComStub.comStatusOut -> imx_hubComAdapter.comStatusIn
+      imx_hubComAdapter.comStatusOut[0] -> imx_hubComQueue.comStatusIn
+      imx_hubComAdapter.comStatusOut[1] -> imx_jetsonManager.hubComStatusIn
 
       imx_hubComStub.drvSendOut -> imx_hubComDriver.$send
 

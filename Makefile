@@ -186,7 +186,7 @@ build-jetson: ## Build F' for the Jetson and restart the systemd service
 
 .PHONY: jetson-setup
 .ONESHELL:
-jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel sudoers rule
+jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel/shutdown sudoers rules
 	@set -e
 
 	@if [ ! -x "$(PYTHON)" ]; then
@@ -207,6 +207,43 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 		exit 1
 	fi
 
+	@echo "Installing passwordless-sudo rules for nvpmodel and shutdown..."
+	install_sudoers_rule() {
+		RULE_NAME="$$1"
+		RULE_LINE="$$2"
+		RULE_TMP=$$(mktemp)
+		printf '%s\n' "$$RULE_LINE" > "$$RULE_TMP"
+		if ! sudo visudo -c -f "$$RULE_TMP"; then
+			echo "ERROR: Generated $$RULE_NAME sudoers rule failed validation (visudo -c). Not installing."
+			rm -f "$$RULE_TMP"
+			exit 1
+		fi
+		# Write directly as root (no local install/chown of a pre-created file --
+		# that path previously left an empty, still-correctly-permissioned file
+		# on at least one Jetson image for reasons that could not be
+		# reproduced), then verify the installed file actually has content
+		# before trusting it.
+		sudo tee "/etc/sudoers.d/$$RULE_NAME" < "$$RULE_TMP" > /dev/null
+		sudo chown root:root "/etc/sudoers.d/$$RULE_NAME"
+		sudo chmod 0440 "/etc/sudoers.d/$$RULE_NAME"
+		rm -f "$$RULE_TMP"
+		if [ "$$(sudo wc -c < "/etc/sudoers.d/$$RULE_NAME")" -eq 0 ]; then
+			echo "ERROR: /etc/sudoers.d/$$RULE_NAME was installed but is empty. Not trusting it -- aborting."
+			exit 1
+		fi
+		echo "Installed /etc/sudoers.d/$$RULE_NAME"
+	}
+
+	install_sudoers_rule fprime-nvpmodel "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel"
+	install_sudoers_rule fprime-shutdown "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /sbin/shutdown -h now"
+
+	@echo "Ensuring /etc/sudoers includes /etc/sudoers.d..."
+	if sudo grep -q "^#includedir /etc/sudoers.d" /etc/sudoers; then
+		echo "/etc/sudoers already includes /etc/sudoers.d, nothing to do."
+	else
+		echo "#includedir /etc/sudoers.d" | sudo EDITOR='tee -a' visudo
+	fi
+
 	@echo "Writing /etc/systemd/system/jetson-deployment.service..."
 	sudo tee /etc/systemd/system/jetson-deployment.service > /dev/null <<SERVICE_EOF
 	[Unit]
@@ -214,26 +251,26 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 	# Wait for network (needed to connect to the IMX hub)
 	After=network-online.target
 	Wants=network-online.target
-	
+
 	[Service]
 	Type=simple
 	User=$$JETSON_USERNAME
 	WorkingDirectory=$(PROJECT_ROOT)
-	
+
 	ExecStart=$(PROJECT_ROOT)/jetson-startup.sh
-	
+
 	# Restart on crash, but not on clean exit (exit 0)
 	Restart=on-failure
 	RestartSec=5
-	
+
 	# Give the network and fprime-gds time to be ready before retrying hard failures
 	StartLimitIntervalSec=120
 	StartLimitBurst=5
-	
+
 	# Log stdout/stderr to the journal (view with: journalctl -u jetson-deployment)
 	StandardOutput=journal
 	StandardError=journal
-	
+
 	[Install]
 	WantedBy=multi-user.target
 	SERVICE_EOF
@@ -243,26 +280,6 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 	sudo systemctl enable jetson-deployment.service
 	sudo systemctl restart jetson-deployment.service
 	systemctl status jetson-deployment.service --no-pager
-
-	@echo "Setting up passwordless sudo for nvpmodel (used for Jetson power mode changes)..."
-	NVPMODEL_TMP=$$(mktemp)
-	echo "$$JETSON_USERNAME ALL=(ALL) NOPASSWD: /usr/sbin/nvpmodel" > "$$NVPMODEL_TMP"
-	if sudo visudo -c -f "$$NVPMODEL_TMP"; then
-		sudo install -o root -g root -m 0440 "$$NVPMODEL_TMP" /etc/sudoers.d/fprime-nvpmodel
-		echo "Installed /etc/sudoers.d/fprime-nvpmodel"
-	else
-		echo "ERROR: Generated nvpmodel sudoers rule failed validation (visudo -c). Not installing."
-		rm -f "$$NVPMODEL_TMP"
-		exit 1
-	fi
-	rm -f "$$NVPMODEL_TMP"
-
-	@echo "Ensuring /etc/sudoers includes /etc/sudoers.d..."
-	if sudo grep -q "^#includedir /etc/sudoers.d" /etc/sudoers; then
-		echo "/etc/sudoers already includes /etc/sudoers.d, nothing to do."
-	else
-		echo "#includedir /etc/sudoers.d" | sudo EDITOR='tee -a' visudo
-	fi
 
 	@echo "make jetson-setup done"
 
@@ -349,6 +366,20 @@ gds-uart: ## Launch the GDS over the UART connection (GDS-Dictionary/uart-gds.sh
 .ONESHELL:
 gds-tcp: ## Launch the GDS over TCP, use 'make gds-tcp ip=<ip> port=<port>' to override the target (defaults 10.3.2.10:50000)
 	@cd GDS-Dictionary && ./tcp-gds.sh $(ip) $(port)
+
+.PHONY: requirements-check
+.ONESHELL:
+requirements-check: ## Regenerate RequirementTraceability/requirements-traceability.md from every already-built native *_ut_exe binary (run 'fprime-util build --ut' in a module's directory first to include it)
+	@set -e
+
+	@if [ ! -x "$(PYTHON)" ]; then
+		echo "ERROR: Python virtual environment not found."
+		echo "Expected: $(PYTHON)"
+		echo "Run 'make setup' first."
+		exit 1
+	fi
+
+	@$(PYTHON) RequirementTraceability/generate_requirements_report.py
 
 .PHONY: clean
 clean: ## Remove venv and reset submodules

@@ -173,6 +173,13 @@ module JetsonDeployment {
       # Jetson power state request from i.MX -> Jetson
       jetson_hub.serialOut[1] -> jetson_pwrModeManager.jetsonPowerStateReceive
 
+      # Local (non-hub) mode-change notification: JetsonPowerModeManager -> i.MX JetsonManager
+      # SET_POWER_MODE_cmdHandler's mismatch branch fires this
+      # unconditionally right before invoking nvpmodel, so the i.MX side
+      # learns about a locally-triggered reboot it would otherwise have zero
+      # visibility into (JPSM-013/JM-014/FP-022).
+      jetson_pwrModeManager.localModeChangeStarted -> jetson_hub.serialIn[6]
+
       # Jetson thermal readings to data prodcuer
       jetson_thermalManager.jetsonThermalReadOut -> jetson_hub.serialIn[5]
 

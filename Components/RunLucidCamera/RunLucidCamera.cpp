@@ -63,12 +63,12 @@ int copyImageToImx(const std::string& imagePath){
     << "'" << fullLocalPath << "' "
     << remotePath;
 
-  std::cout << "Running SCP command: " << cmd.str() << std::endl;
+  // std::cout << "Running SCP command: " << cmd.str() << std::endl;
 
   int ret = std::system(cmd.str().c_str());
 
   if (ret == -1) {
-    std::cout << "SCP failed: system() call failed\n";
+    // std::cout << "SCP failed: system() call failed\n";
     return -1;
   }
 
@@ -83,14 +83,14 @@ void SaveImage(Arena::IImage* pImage, const char* filename)
   {
 
     // convert image
-    std::cout << TAB1 << "Convert image to " << GetPixelFormatName(PIXEL_FORMAT) << "\n";
+    // std::cout << TAB1 << "Convert image to " << GetPixelFormatName(PIXEL_FORMAT) << "\n";
 
     auto pConverted = Arena::ImageFactory::Convert(
       pImage,
       PIXEL_FORMAT);
 
     // prepare image parameters
-    std::cout << TAB1 << "Prepare image parameters\n";
+    // std::cout << TAB1 << "Prepare image parameters\n";
 
     Save::ImageParams params(
       pConverted->GetWidth(),
@@ -98,7 +98,7 @@ void SaveImage(Arena::IImage* pImage, const char* filename)
       pConverted->GetBitsPerPixel());
 
     // prepare image writer
-    std::cout << TAB1 << "Prepare image writer\n";
+    // std::cout << TAB1 << "Prepare image writer\n";
 
     Save::ImageWriter writer(
       params,
@@ -111,12 +111,12 @@ void SaveImage(Arena::IImage* pImage, const char* filename)
     //   compression level can be set between 0 to 9 and the image
     //   can be created using interlacing by changing the parameters. 
 
-    std::cout << TAB1 << "Set image writer to PNG\n";
+    // std::cout << TAB1 << "Set image writer to PNG\n";
 
     writer.SetPng(".png", 0, false);
 
     // save image
-    std::cout << TAB1 << "Save image\n";
+    // std::cout << TAB1 << "Save image\n";
 
     writer << pConverted->GetData();
 
@@ -128,16 +128,16 @@ void SaveImage(Arena::IImage* pImage, const char* filename)
   {
     if (deviceInfos.size() == 1)
     {
-      std::cout << "\n"
-            << TAB1 << "Only one device detected: " << deviceInfos[0].ModelName() << TAB1 << deviceInfos[0].SerialNumber() << TAB1 << deviceInfos[0].IpAddressStr() << ".\n";
-      std::cout << TAB1 << "Automatically selecting this device.\n";
+      // std::cout << "\n"
+      //       << TAB1 << "Only one device detected: " << deviceInfos[0].ModelName() << TAB1 << deviceInfos[0].SerialNumber() << TAB1 << deviceInfos[0].IpAddressStr() << ".\n";
+      // std::cout << TAB1 << "Automatically selecting this device.\n";
       return deviceInfos[0];
     }
 
-    std::cout << "\nSelect device:\n";
+    // std::cout << "\nSelect device:\n";
     for (size_t i = 0; i < deviceInfos.size(); i++)
     {
-      std::cout << TAB1 << i + 1 << ". " << deviceInfos[i].ModelName() << TAB1 << deviceInfos[i].SerialNumber() << TAB1 << deviceInfos[i].IpAddressStr() << "\n";
+      // std::cout << TAB1 << i + 1 << ". " << deviceInfos[i].ModelName() << TAB1 << deviceInfos[i].SerialNumber() << TAB1 << deviceInfos[i].IpAddressStr() << "\n";
     }
     size_t selection = 0;
 
@@ -202,7 +202,7 @@ Arena::IDevice* pDevice;
     // flag to track when an exception has been thrown
     bool exceptionThrown = false;
 
-    std::cout << "Cpp_Save_Png";
+    // std::cout << "Cpp_Save_Png";
     // this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
     try
     {
@@ -211,11 +211,12 @@ Arena::IDevice* pDevice;
       pDevice->StartStream();
       Arena::IImage* pImage = pDevice->GetImage(2000);
 
-      std::cout << "Commence example\n\n";
+      // std::cout << "Commence example\n\n";
       //SaveImage(pImage, FILE_NAME);
       std::string filename = generatefileName();
       SaveImage(pImage, filename.c_str());
-      printf("Saved Image to: %s\n",filename.c_str());
+      // printf("Saved Image to: %s\n",filename.c_str());
+      this->log_ACTIVITY_HI_ImageSaved(Fw::LogStringArg(filename.c_str()));
 
       std::string imageDisp = "<img src={% static %}{{"+filename+"}}/>";
       const char* imageDispchar = imageDisp.c_str();
@@ -239,7 +240,7 @@ Arena::IDevice* pDevice;
       //   std::cout << "Failed to copy image to IMX.\n";
       // }
 
-      std::cout << "\nExample complete\n";
+      // std::cout << "\nExample complete\n";
 
       // clean up example
       pDevice->RequeueBuffer(pImage);
@@ -248,17 +249,20 @@ Arena::IDevice* pDevice;
     }
     catch (GenICam::GenericException& ge)
     {
-      std::cout << "\nGenICam exception thrown: " << ge.what() << "\n";
+      // std::cout << "\nGenICam exception thrown: " << ge.what() << "\n";
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ge.what()));
       exceptionThrown = true;
     }
     catch (std::exception& ex)
     {
-      std::cout << "\nStandard exception thrown: " << ex.what() << "\n";
+      // std::cout << "\nStandard exception thrown: " << ex.what() << "\n";
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ex.what()));
       exceptionThrown = true;
     }
     catch (...)
     {
-      std::cout << "\nUnexpected exception thrown\n";
+      // std::cout << "\nUnexpected exception thrown\n";
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg("Unexpected exception thrown"));
       exceptionThrown = true;
     }
 
@@ -292,7 +296,8 @@ Arena::IDevice* pDevice;
     this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Working"));
     if (devices.size() == 0)
     {
-      std::cout << "\nNo camera connected\nPress enter to complete\n";
+      // std::cout << "\nNo camera connected\nPress enter to complete\n";
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg("No camera connected"));
       // std::getchar();
       // return 0;
       this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);

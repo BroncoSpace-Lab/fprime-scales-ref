@@ -18,6 +18,27 @@ module ImxDeployment {
     constant STACK_SIZE = 64 * 1024
   }
 
+  # imx_uartGdsComQueue carries every event, every telemetry point, comStatusIn
+  # acks, and the run tick through one active-component queue -- the same
+  # workload shape as ComFprime.comQueue (sized 50 in ComFprimeConfig.fpp), not
+  # the occasional-command components Default.QUEUE_SIZE (10) is sized for. A
+  # burst of events/telemetry (e.g. a Jetson reboot re-announcing version,
+  # param, and watchdog status) can fill 10 slots and hit Os::Queue::FULL,
+  # asserting inside Svc::ComQueue and forwarding a FATAL to FPManager.
+  module UartGds {
+    constant QUEUE_SIZE = 50
+  }
+
+  # imx_hubComQueue carries the imx<->Jetson hub link's send-side buffers,
+  # comStatusIn acks, and the run tick -- much lighter traffic than
+  # imx_uartGdsComQueue's full event/telemetry stream, but still worth
+  # sizing above Default.QUEUE_SIZE (10) so a burst of nearly-simultaneous
+  # sends plus a reconnect's comStatus acks can't hit Os::Queue::FULL (see
+  # the UartGds comment above for the exact failure mode this avoids).
+  module HubQueue {
+    constant QUEUE_SIZE = 20
+  }
+
   # ----------------------------------------------------------------------
   # Active component instances
   # ----------------------------------------------------------------------
@@ -90,7 +111,17 @@ module ImxDeployment {
   # Active UART GDS downlink transport instances
 
   instance imx_uartGdsComQueue: Svc.ComQueue base id 0x5400 \
-    queue size Default.QUEUE_SIZE \
+    queue size UartGds.QUEUE_SIZE \
+    stack size Default.STACK_SIZE \
+    priority 99
+
+  # Gates all imx<->Jetson hub-bound sends on imx_hubComStub's real
+  # comStatus, so Svc::ComStub's never-connected FW_ASSERT is structurally
+  # unreachable from this link regardless of what any application-level
+  # logic believes about the connection (JM-016 backstop). See topology.fpp
+  # send_hub connections and JetsonManager's SDD.
+  instance imx_hubComQueue: Svc.ComQueue base id 0x3900 \
+    queue size HubQueue.QUEUE_SIZE \
     stack size Default.STACK_SIZE \
     priority 99
 

@@ -20,6 +20,18 @@ module Components {
             format "Error sending DP file {}, stat {}. Halting xmit." \
             throttle 10
 
+        event ImageSaved(
+                          file: string size 80 @< The saved image file
+                        ) \
+            severity activity high \
+            format "Saved image to {}"
+
+        event CameraError(
+                           reason: string size 100 @< What went wrong
+                         ) \
+            severity warning high \
+            format "Camera error: {}"
+
         async command SET_EXPOSURE(param_name: F64)
 
         async command SET_GAIN(param_name: F64)
