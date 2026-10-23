@@ -6,6 +6,7 @@ IP_ADDRESS="${1:-10.3.2.10}"
 
 cd "${SCRIPT_DIR}"
 exec fprime-gds -n \
+  --framing-selection fprime \
   --dictionary ImxDeploymentTopologyDictionary.json \
   --communication-selection ip \
   --ip-client \
