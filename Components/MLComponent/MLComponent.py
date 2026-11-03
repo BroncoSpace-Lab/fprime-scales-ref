@@ -11,6 +11,15 @@ import time
 # Removed resnet_inference since the module was removed
 # Removed the resnet_cifar100 benchmark since we dont need it at runtime and will slow the boot time
 
+def _is_model_module_name(name): #_ is internal to this file
+    """True for names shaped like '<package>.inference.<module>'.""" # docstring using """ ... """
+    parts = name.split(".") # splits a string into a list at each .
+    return(
+        len(parts) == 3
+        and parts[1] == "inference"
+        and all(part.isidentifier() for part in parts)
+    )
+
 class MLComponent(MLComponentBase):
 
     def __init__(self):
@@ -27,8 +36,20 @@ class MLComponent(MLComponentBase):
         )
 
     def SET_ML_PATH_cmdHandler(self, opCode, cmdSeq, path):
+        name = str(path)
+
+        # Check the name of the module before if gets imported, so a wrong SET_ML_PATH doesnt excecute with a validation error, instead just returns
+        if not _is_model_module_name(name):
+            self.send_cmd_response(
+                opCode,
+                cmdSeq,
+                fprime_py.Fw.CmdResponse.VALIDATION_ERROR,
+            )
+            return
+
         try:
-            self.model = importlib.import_module(str(path))
+            self.model = importlib.import_module(name)
+
         except Exception:
             self.send_cmd_response(
                 opCode,
@@ -37,7 +58,7 @@ class MLComponent(MLComponentBase):
             )
             return
 
-        self.log_ACTIVITY_HI_MLSet(str(path))
+        self.log_ACTIVITY_HI_MLSet(name)
 
         self.send_cmd_response(
             opCode,
