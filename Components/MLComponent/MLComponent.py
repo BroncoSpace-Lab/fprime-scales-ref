@@ -46,7 +46,7 @@ class MLComponent(MLComponentBase):
         )
 
     def SET_INFERENCE_PATH_cmdHandler(self, opCode, cmdSeq, path):
-        path_str = str(path)
+        path_str = os.path.abspath(str(path))
 
         if not os.path.isdir(path_str):
             self.send_cmd_response(
