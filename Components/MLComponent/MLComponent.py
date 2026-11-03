@@ -8,9 +8,8 @@ import importlib
 import os
 import time
 
-import resnet_cifar100
-import resnet_inference
-
+# Removed resnet_inference since the module was removed
+# Removed the resnet_cifar100 benchmark since we dont need it at runtime and will slow the boot time
 
 class MLComponent(MLComponentBase):
 

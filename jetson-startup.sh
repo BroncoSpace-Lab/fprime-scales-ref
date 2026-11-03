@@ -16,7 +16,8 @@ export FPRIME_SCALES_ROOT="$PROJECT_ROOT"
 
 export LD_LIBRARY_PATH="$ARENA_SDK_LIB:$ARENA_SDK_FFMPEG:$ARENA_SDK_GENICAM:${LD_LIBRARY_PATH}"
 
-export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML/resnet:${PYTHONPATH}"
+export PYTHONPATH="$PYTHON_ARTIFACT_DIR:$PROJECT_ROOT:$PROJECT_ROOT/Components/MLComponent:$PROJECT_ROOT/Components/MLComponent/Scales-ML:${PYTHONPATH}"
+
 
 # Force Python and native stdout/stderr to appear immediately in systemd logs.
 export PYTHONUNBUFFERED=1
