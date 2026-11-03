@@ -38,7 +38,7 @@ class MLComponent(MLComponentBase):
     def SET_ML_PATH_cmdHandler(self, opCode, cmdSeq, path):
         name = str(path)
 
-        # Check the name of the module before if gets imported, so a wrong SET_ML_PATH doesnt excecute with a validation error, instead just returns
+        # check the name of the file without loading it using passed list from the helper above, if its wrong, exits with a validation error
         if not _is_model_module_name(name):
             self.send_cmd_response(
                 opCode,
@@ -47,9 +47,8 @@ class MLComponent(MLComponentBase):
             )
             return
 
-        try:
-            self.model = importlib.import_module(name)
-
+        try: #if the name check passes above, now it checks the module by loading it, this is where typos that the list doesnt catch are checked.
+            module = importlib.import_module(name) # If the ML Path doesnt match, the fsw will throw a validation error
         except Exception:
             self.send_cmd_response(
                 opCode,
@@ -58,6 +57,15 @@ class MLComponent(MLComponentBase):
             )
             return
 
+        # A model module has to provide a main(folder) for MULTI_INFERENCE to call, this rejects files with no main() call
+        if not callable(getattr(module, "main", None)): # if the module has no main, return a VALIDATION ERROR to the flight software
+            self.send_cmd_response(
+                opCode,
+                cmdSeq,
+                fprime_py.Fw.CmdResponse.VALIDATION_ERROR,
+            )
+            return
+        self.model = module
         self.log_ACTIVITY_HI_MLSet(name)
 
         self.send_cmd_response(
