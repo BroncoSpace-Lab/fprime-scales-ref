@@ -325,7 +325,7 @@ You are now ready to run the demo.
 
     Click the **Download** button in the **Downlink** tab of the fprime-gds to download the zipped image folder to the host machine. You can then unzip the folder and view the images from the Jetson.
 
-2. To run ML on the images, run the `mlManager.SET_ML_PATH` command with the argument `resnet_inference`. Then, set the inference path to where the images are stored with the `mlManager.SET_INFERENCE_PATH` command using the argument `../Images`. Finally, run the ML model with the `mlManager.MULTI_INFERENCE` command. You should see the ML results in both the Jetson terminal and the Jetson fprime-gds **Events** log.
+2. To run ML on the images, run the `JetsonDeployment.jetson_mlManager.SET_ML_PATH` command with the argument `resnet.inference.pytorch`. Then, set the inference path to where the images are stored with the `JetsonDeployment.jetson_mlManager.SET_INFERENCE_PATH` command using the argument `./Images` (relative paths are resolved from the Jetson's F Prime working directory, `build-artifacts/python`). Finally, run the ML model with the `JetsonDeployment.jetson_mlManager.MULTI_INFERENCE` command. You should see the ML results in the GDS **Events** log and in the Jetson service log (`journalctl -u jetson-deployment -f`). See [To Run Scales-ML](#to-run-scales-ml) for the other available models.
 
 That's how to run the SCALES demo.
 
@@ -333,15 +333,35 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 
 # To Run Scales-ML
 
-[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/e3aa59f606e9325cd198b787543cea0341d9a19a)
+[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/c49ad8f190e4c10a08b7b1cdb475192e059cb833) holds the ML models. `jetson_mlManager` can run any of these entry points, selected with `SET_ML_PATH`:
+
+| `SET_ML_PATH` value | Model | Runtime | One-time setup |
+|---|---|---|---|
+| `resnet.inference.pytorch` | ResNet-18 (image classification) | PyTorch | None (downloads the model on first run, so needs network) |
+| `resnet.inference.tensorrt` | ResNet-18 | TensorRT | `make ml-trt-setup` |
+| `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch | None |
+| `yolo.inference.tensorrt` | YOLOv8n | TensorRT | `make ml-trt-setup MODEL=yolo` |
 
 1. Follow the setup described in the previous sections for the IMX, Jetson, and host machine.
 
-2. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with the argument `test-resnet.bin`. This sequence will:
+2. **TensorRT only:** build the engine once, on the Jetson. Run this as the user the `jetson-deployment` service runs as, **not** with `sudo`, because engines are cached per user in `~/.scales_trt_cache`:
 
-    - Set the ML path to a ResNet model.
-    - Set the inference path to a folder called `test-imagery` with example images.
+    ```bash
+    make ml-trt-setup              # ResNet
+    make ml-trt-setup MODEL=yolo   # YOLO (can take 10+ minutes)
+    ```
+
+    The script checks the prerequisites, builds the engine, and runs a test inference on `test-imagery/`. After a JetPack or TensorRT update, delete `~/.scales_trt_cache` and run it again.
+
+3. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with the argument `test-resnet.bin` (compiled from `Sequences/test-resnet.seq`). This sequence will:
+
+    - Set the ML path to `resnet.inference.pytorch`.
+    - Set the inference path to the `test-imagery` folder of example images.
     - Execute the `MULTI_INFERENCE` command to run inference on all images in that folder.
+
+    To use a different model, send the same three commands by hand with another `SET_ML_PATH` value from the table above.
+
+For how the models, the TensorRT path, and the setup script work, see [Components/MLComponent/docs/scales-ml.md](Components/MLComponent/docs/scales-ml.md).
 
 # Running After Making Changes
 
@@ -463,13 +483,18 @@ Instead of using the shortened command to connect to the GDS from the Jetson, tr
 
 ## Inferencing Error
 
-When trying to run the `MULTI_INFERENCE` command on the Jetson, you may experience an error similar to:
+When trying to run the `MULTI_INFERENCE` command on the Jetson with `resnet.inference.pytorch`, you may experience an error similar to:
 
 ```text
 '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /microsoft/resnet-18/resolve/main/preprocessor_config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0xffff3bf23450>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution'))"), '(Request ID: 6d6a5cec-e762-484c-a97a-1e1d9748bcba)')' thrown while requesting HEAD https://huggingface.co/microsoft/resnet-18/resolve/main/preprocessor_config.json
 ```
 
-Make sure the Jetson is connected to Wi-Fi and try again. This is a new issue we have encountered that we are still trying to find the root cause of, but a Wi-Fi connection fixes the issue.
+`resnet.inference.pytorch` loads the model through Hugging Face `transformers` on every `MULTI_INFERENCE`, and `transformers` contacts huggingface.co while loading. If the model isn't already in the local cache, the load fails without network access. The cache is per user (`~/.cache/huggingface`), so the model must have been downloaded as the user the `jetson-deployment` service runs as.
+
+Make sure the Jetson is connected to Wi-Fi and try again. To run without network once the model is cached:
+
+- set `HF_HUB_OFFLINE=1` in the service's environment (for example, an `export` in `jetson-startup.sh`) so the cached copy is used without contacting huggingface.co, or
+- use `resnet.inference.tensorrt`, which needs no network at run time once `make ml-trt-setup` has built the engine.
 
 ---
 

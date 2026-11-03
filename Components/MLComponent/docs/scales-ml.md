@@ -100,8 +100,12 @@ def main(folder: str) -> list[tuple[str, str]]:
 ```
 
 1. `SET_ML_PATH "<dotted.module.name>"` -- `importlib.import_module(name)`.
-   Fails if the module cannot be found on `PYTHONPATH`.
-2. `SET_INFERENCE_PATH "<folder>"` -- stores the image folder (must exist).
+   Fails if the module cannot be found on the import path. The Scales-ML
+   root is on the path through `PYTHONPATH` in `jetson-startup.sh` and
+   `add_python_paths()` in `JetsonDeployment/fsw_main.py`.
+2. `SET_INFERENCE_PATH "<folder>"` -- converts the folder to an absolute
+   path (relative paths resolve against F Prime's working directory,
+   `build-artifacts/python`), checks that it exists, and stores it.
 3. `MULTI_INFERENCE` -- calls `module.main(folder)` and emits one
    `InferenceOutput` event per returned pair.
 
@@ -137,7 +141,13 @@ child process:
   `{"ok": true, "outputs": [[file, result], ...], "stats": {...}}` or
   `{"ok": false, "error": "..."}`.
 - The parent parses that line and returns the list, or raises
-  `RuntimeError`, which `MLComponent` reports as `EXECUTION_ERROR`.
+  `RuntimeError`, which `MLComponent` reports as `EXECUTION_ERROR` (without
+  the error message; see Known issues).
+
+The underlying reason is the Python version: `fprime-venv` is built on
+Python 3.12 (`PYTHON_VERSION` in the `Makefile`), while NVIDIA ships the
+TensorRT bindings and the GPU-enabled Jetson PyTorch builds only for
+JetPack's system Python, which is a different version.
 
 Consequences:
 
@@ -221,9 +231,37 @@ file), then `runtime.build_engine` (ONNX to engine). Output goes to
 
 Tags are `microsoft--resnet-18` and `yolo--yolov8n.pt--imgsz640`. An engine
 works only on the GPU and TensorRT version that built it. YOLO builds can
-take over 10 minutes; set `TRT_BUILD_HEARTBEAT_S=60` to print progress. The
-Scales-ML README wraps this step in `make ml-trt-setup` (see
-[Integration status](#integration-status-2026-11-03)).
+take over 10 minutes; set `TRT_BUILD_HEARTBEAT_S=60` to print progress.
+
+#### `make ml-trt-setup`
+
+In this repository, [ml-trt-setup.sh](../../../ml-trt-setup.sh) at the repo
+root wraps the build:
+
+```bash
+make ml-trt-setup              # ResNet (default)
+make ml-trt-setup MODEL=yolo   # YOLO
+```
+
+Run it on the Jetson as the user the `jetson-deployment` service runs as,
+**not** with `sudo`. The cache lives in that user's home folder, so an
+engine built as anyone else is not found at run time. The script:
+
+1. Picks the model name from the same variables and defaults the entry
+   points use (`SCALES_TRT_MODEL`, `SCALES_YOLO_WEIGHTS`), so the build-time
+   and run-time cache file names match.
+2. Stops if you are not the service's user.
+3. Checks that Scales-ML is checked out; that the interpreter exists and is
+   not `fprime-venv`; that `tensorrt`, `torch`, `numpy`, `Pillow`, and the
+   model's export package import; and that `torch` can use the GPU.
+4. Runs `worker prepare` from inside `~/.scales_trt_cache`, so downloads such
+   as `yolov8n.pt` land there instead of in the repo.
+   `TRT_BUILD_HEARTBEAT_S` defaults to 60 here.
+5. Runs the model's `tensorrt` entry point on `test-imagery/` as a smoke
+   test.
+
+Existing cache files are reused, not rebuilt. After a JetPack or TensorRT
+update, or a model change, delete `~/.scales_trt_cache` first.
 
 ### Model adapters
 
@@ -425,35 +463,57 @@ Summary:
 2. In `<name>/inference/trt_adapter.py`, implement `tag`, `export_onnx`,
    `preprocess`, `postprocess`.
 3. In `<name>/inference/tensorrt.py`, set `ADAPTER` and `MODEL`.
-4. Build the engine with `worker prepare`, then test from the command line:
-   `/usr/bin/python3 -m <name>.inference.tensorrt <image_folder>`.
+4. Build the engine with `make ml-trt-setup MODEL=<name>` (after adding a
+   `case` branch, below) or `worker prepare`, then test from the command
+   line: `/usr/bin/python3 -m <name>.inference.tensorrt <image_folder>`.
 5. Select it with `SET_ML_PATH "<name>.inference.tensorrt"`.
 
 For PyTorch only, write `<name>/inference/pytorch.py` with `main(folder)` and
 skip the engine build.
 
-## Integration status (2026-11-03)
+In this repository, two steps of the Scales-ML README are different:
+
+- **`scripts/jetson-python.sh`** is not needed. That script, from another
+  branch's build layout, copies model folders into the build output. Here
+  the Scales-ML root is on the import path, so a new `<name>/` package is
+  importable as soon as it exists.
+- **`scripts/ml_trt_setup.sh`** is [ml-trt-setup.sh](../../../ml-trt-setup.sh)
+  at the repo root. To support `make ml-trt-setup MODEL=<name>`, add a
+  `<name>)` branch to its `case` block that sets `NAME` (using the same
+  variable and default as `<name>/inference/tensorrt.py`) and `EXPORT_DEP`
+  (the package `export_onnx` imports).
+
+## Integration status (updated 2026-11-03)
 
 The Scales-ML refactor (`51b067e`, merged as `c49ad8f`) deleted
-`resnet/resnet_inference.py` and introduced dotted module names. The F Prime
-side of this repository has not been updated yet. With the current
-`PYTHONPATH`, none of the new module names resolve; adding `Scales-ML/`
-resolves all of them.
+`resnet/resnet_inference.py` and introduced dotted module names. The
+F Prime side has been ported on `lucadev`, adapting the integration in
+commit `09a1b56` on `origin/tanyadev` to this branch's build layout:
 
-| Item | Location | Problem | Change needed |
-|---|---|---|---|
-| Stale import | [MLComponent.py](../MLComponent.py) line 12 | `import resnet_inference` -- module deleted, so `MLComponent` fails to import | Remove the line |
-| Search path | [jetson-startup.sh](../../../jetson-startup.sh) line 19 | `PYTHONPATH` includes `Scales-ML/resnet` but not `Scales-ML/` | Add `$PROJECT_ROOT/Components/MLComponent/Scales-ML` |
-| Sequences | `Sequences/run-ml.seq`, `test-resnet.seq`, `demo.seq` | `SET_ML_PATH "resnet_inference"` | Use `resnet.inference.pytorch` or `resnet.inference.tensorrt` |
-| Engine build | `Makefile` | `make ml-trt-setup` (referenced by the Scales-ML README) does not exist | Port `scripts/ml_trt_setup.sh` from commit `09a1b56` on `origin/tanyadev`; it targets the older `build-python-fprime-aarch64-linux` layout |
-| Docs | [sdd.md](sdd.md) (model table, MLM-005), root `README.md` | Reference `resnet_inference.py` | Update |
+| Item | Change | Status |
+|---|---|---|
+| Stale imports | Removed `import resnet_inference` and `import resnet_cifar100` from [MLComponent.py](../MLComponent.py) | Done |
+| Search path | [jetson-startup.sh](../../../jetson-startup.sh) (`PYTHONPATH`) and [fsw_main.py](../../../JetsonDeployment/fsw_main.py) (`add_python_paths()`) add `Scales-ML/` instead of `Scales-ML/resnet/` | Done |
+| Sequences | `run-ml.seq`, `test-resnet.seq`, `demo.seq` use `resnet.inference.pytorch`; `test-resnet.seq` path fixed to `../../test-imagery` | Done. All `.bin` files were removed from git; recompile them with the merged dictionary |
+| Engine build | [ml-trt-setup.sh](../../../ml-trt-setup.sh) and `make ml-trt-setup` | Done |
+| `SET_INFERENCE_PATH` | Stores an absolute path | Done |
+| Docs | Root `README.md`, [sdd.md](sdd.md), this page | Done |
+| Hardware test | On the Jetson: run all four entry points; compare PyTorch and TensorRT labels and FPS; check the `device:` line in the journal | **Pending** |
 
-Remove this section once these are resolved.
+Still open (see Known issues): an error event for `MULTI_INFERENCE`
+failures, and restricting `SET_ML_PATH` to `<package>.inference.<module>`
+names.
+
+Update or remove this section after the hardware test.
 
 ## Known issues
 
 | File | Issue | Effect |
 |---|---|---|
+| `MLComponent.py`, `SET_ML_PATH_cmdHandler` | Accepts any importable name. Experiment scripts without a `__main__` guard run code on import: `resnet.resnet_training_hg`, `phi3.ph3`, `yolo.camera`, `yolo.camera_torch`, `hugging_face.misc.audio`, `nannyml.estimator_test` | A mistyped command can start a training run, load a language model, or block on the camera. `yolo.camera` calls `exit()` when there is no camera, which `except Exception` does not catch. Fix: accept only `<package>.inference.<module>` names. |
+| `MLComponent.py`, `MULTI_INFERENCE_cmdHandler` | Bare `except Exception:` discards the error message | The operator sees only `EXECUTION_ERROR`. Reproduce the run by hand to find the cause. Proper fix: an error event (changes the dictionary). |
+| `requirements-ml.txt` | `torch` for `fprime-venv` comes from PyPI, whose ARM builds generally don't support the Jetson's GPU (unverified) | `resnet.inference.pytorch` may run on the CPU. Check `device:` in its timing report in the journal. |
+| `resnet/inference/pytorch.py` | Loads the model through Hugging Face on every `MULTI_INFERENCE` | Needs network unless the model is cached for the service user; see the root README's troubleshooting section (`HF_HUB_OFFLINE=1`) |
 | `scales_trt/runtime.py`, `run()` | The input is copied on PyTorch's default CUDA stream, but the engine runs on a separate stream with no dependency between them | The engine can occasionally read the input before the copy finishes, giving a wrong result. Fix: call `sess.stream.wait_stream(torch.cuda.current_stream())` before executing. |
 | `scales_trt/worker.py` | `--fp16` argument is parsed but unused | Precision is controlled only by `TRT_FP16` |
 | `nannyml/*` | ResNet-152 predicts ImageNet indices (0-999) but is scored against CIFAR-100 labels (0-99). Saved tables have 1,000 probability columns; CBPE is configured for 100. | Accuracy figures and CBPE estimates are not meaningful. Use a CIFAR-100-trained model. |
@@ -476,5 +536,7 @@ Remove this section once these are resolved.
    step.
 5. `scales_trt/worker.py`, `fprime_wrap.py`, `resnet/inference/tensorrt.py` --
    the TensorRT call path.
-6. `yolo/inference/trt_adapter.py` -- detection postprocessing.
-7. The Scales-ML README -- adding a model.
+6. [ml-trt-setup.sh](../../../ml-trt-setup.sh) -- how an engine gets built
+   and checked on the Jetson.
+7. `yolo/inference/trt_adapter.py` -- detection postprocessing.
+8. The Scales-ML README -- adding a model (with the differences noted above).
