@@ -37,7 +37,10 @@ if PROJECT_ROOT is None:
 
 PYTHON_ARTIFACT_DIR = FSW_MAIN_DIR
 ML_COMPONENT_DIR = os.path.join(PROJECT_ROOT, "Components", "MLComponent")
-RESNET_DIR = os.path.join(ML_COMPONENT_DIR, "Scales-ML", "resnet")
+# Scales-ML root, so model packages import by dotted name
+# (e.g. resnet.inference.pytorch, scales_trt.worker). Matches PYTHONPATH in
+# jetson-startup.sh.
+SCALES_ML_DIR = os.path.join(ML_COMPONENT_DIR, "Scales-ML")
 
 
 # ----------------------------------------------------------------------
@@ -49,7 +52,7 @@ def add_python_paths():
         PYTHON_ARTIFACT_DIR,
         PROJECT_ROOT,
         ML_COMPONENT_DIR,
-        RESNET_DIR,
+        SCALES_ML_DIR,
     ]
 
     for path in reversed(paths):
@@ -150,7 +153,7 @@ def fsw_main():
         print("[INFO] PROJECT_ROOT:", PROJECT_ROOT, flush=True)
         print("[INFO] PYTHON_ARTIFACT_DIR:", PYTHON_ARTIFACT_DIR, flush=True)
         print("[INFO] ML_COMPONENT_DIR:", ML_COMPONENT_DIR, flush=True)
-        print("[INFO] RESNET_DIR:", RESNET_DIR, flush=True)
+        print("[INFO] SCALES_ML_DIR:", SCALES_ML_DIR, flush=True)
 
         print_available_bindings()
 
