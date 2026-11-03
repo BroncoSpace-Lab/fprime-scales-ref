@@ -283,6 +283,11 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 
 	@echo "make jetson-setup done"
 
+.PHONY: ml-trt-setup
+ml-trt-setup: ## One-time TensorRT engine build on the Jetson (run as the service user, not sudo). 'make ml-trt-setup MODEL=yolo' for YOLO
+	@bash ./ml-trt-setup.sh
+
+
 .PHONY: data-products
 .ONESHELL:
 data-products:
