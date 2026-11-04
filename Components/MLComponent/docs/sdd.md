@@ -47,14 +47,21 @@ component: despite the command's name and its `.fpp` doc comment ("Set the
 file path for the ML model"), the string you give `SET_ML_PATH` is not a
 filesystem path at all. It's a **Python module name**.
 
-[MLComponent.py:29-46](../MLComponent.py) shows exactly what happens:
+[MLComponent.py:38-75](../MLComponent.py) shows exactly what happens:
 
 ```python
 def SET_ML_PATH_cmdHandler(self, opCode, cmdSeq, path):
+    name = str(path)
+    if not _is_model_module_name(name):           # 1. shape of the name only
+        ...VALIDATION_ERROR...
     try:
-        self.model = importlib.import_module(str(path))
+        module = importlib.import_module(name)     # 2. load the module
     except Exception:
         ...VALIDATION_ERROR...
+    if not callable(getattr(module, "main", None)):  # 3. is it a model?
+        ...VALIDATION_ERROR...
+    self.model = module
+    ...MLSet event, OK...
 ```
 
 `importlib.import_module(name)` is the same call Python's own `import name`
@@ -62,11 +69,23 @@ statement uses internally. It only succeeds if `name` is something Python
 can already find on `sys.path` -- it does not search the filesystem for a
 file matching the string you typed, and it will happily accept a name that
 doesn't look like a path at all (`resnet.inference.pytorch`, not
-`/home/.../resnet/inference/pytorch.py`). If it succeeds, whatever module object
-comes back is stored as `self.model` and an `MLSet` event is logged; if it
-raises for any reason (typo, module not on the path, import-time error
-inside the module itself), the command is rejected with `VALIDATION_ERROR`
-and nothing is stored.
+`/home/.../resnet/inference/pytorch.py`).
+
+The handler runs three checks in order, and each catches something the one
+before it can't. All three reject with `VALIDATION_ERROR`, and a rejection
+leaves the previously selected model in place:
+
+| Check | Looks at | Catches |
+|---|---|---|
+| 1. `_is_model_module_name(name)` ([MLComponent.py:14-21](../MLComponent.py)) | Only the text: it must be `<package>.inference.<module>` | Any name that isn't a model entry point, such as `resnet.resnet_training_hg`. Nothing is imported, so nothing runs |
+| 2. `importlib.import_module(name)` | The actual file, which it loads | An allowed name with no such file (e.g. a typo), or a module that crashes while loading |
+| 3. `callable(getattr(module, "main", None))` | The loaded module | A module that loads but isn't a model, such as `resnet.inference.trt_adapter` |
+
+Check 1 is the safety check: importing a module runs its top-level code, so
+a bad name has to be rejected *before* the import. See "Why `SET_ML_PATH`
+only accepts `<package>.inference.<module>`" under "Adding a New Model".
+Only when all three pass is the module stored as `self.model`, an `MLSet`
+event logged, and `OK` returned.
 
 Because `self.model` is a live Python module reference, whatever it points
 to is exactly what `MULTI_INFERENCE` will later call `.main()` on -- see
@@ -85,7 +104,7 @@ def SET_INFERENCE_PATH_cmdHandler(self, opCode, cmdSeq, path):
         ...VALIDATION_ERROR...
     self.path = path_str
 ```
-([MLComponent.py:48-66](../MLComponent.py))
+([MLComponent.py:77-95](../MLComponent.py))
 
 `os.path.abspath()` first turns a relative argument into an absolute path,
 resolved against F Prime's working directory on the Jetson
@@ -121,7 +140,7 @@ def MULTI_INFERENCE_cmdHandler(self, opCode, cmdSeq):
             self.log_ACTIVITY_HI_InferenceOutput(str(file), str(classification))
             time.sleep(0.1)
 ```
-([MLComponent.py:68-99](../MLComponent.py))
+([MLComponent.py:97-128](../MLComponent.py))
 
 This is a hard, undocumented-elsewhere interface contract: whatever module
 you select with `SET_ML_PATH` **must** define a top-level function
@@ -163,7 +182,8 @@ points run in a subprocess, and how the TensorRT path works, is covered in
 The rest of `Scales-ML` (`mnist/`, `depth/`, `nannyml/`, `phi3/`, and the
 scripts directly in `resnet/` such as `resnet_cifar100.py` and
 `resnet_fps.py`) is experiment code that does not follow this contract --
-but see the caution under "Adding a New Model" about selecting it anyway.
+and `SET_ML_PATH` rejects it by name (see "Why `SET_ML_PATH` only accepts
+`<package>.inference.<module>`").
 
 ### Why `CLEAR_INFERENCE_PATH` doesn't also clear the model
 
@@ -171,7 +191,7 @@ but see the caution under "Adding a New Model" about selecting it anyway.
 def CLEAR_INFERENCE_PATH_cmdHandler(self, opCode, cmdSeq):
     self.path = None
 ```
-([MLComponent.py:101-107](../MLComponent.py))
+([MLComponent.py:130-136](../MLComponent.py))
 
 This resets `self.path` only. `self.model` (the imported module from
 `SET_ML_PATH`) is untouched. That's a deliberate asymmetry worth calling out
@@ -190,6 +210,11 @@ true at once: the module has to be *importable by name* when
 described above.
 
 ### 1. Make the module importable
+
+The module's name must have the form `<package>.inference.<module>`, or
+`SET_ML_PATH` rejects it before importing (see "Why `SET_ML_PATH` only
+accepts `<package>.inference.<module>`" below). So a new model lives at
+`Scales-ML/<package>/inference/<module>.py`.
 
 `importlib.import_module("mymodel.inference.pytorch")` only succeeds if a
 directory on `sys.path` contains `mymodel/inference/pytorch.py`, with an
@@ -261,24 +286,29 @@ component fail to load at startup, so both pre-imports were removed. Models
 are now imported only when `SET_ML_PATH` selects them, which also keeps
 `torch` and `transformers` out of flight-software startup.)
 
-### Caution: `SET_ML_PATH` can import any Scales-ML script
+### Why `SET_ML_PATH` only accepts `<package>.inference.<module>`
 
-Because the whole Scales-ML root is importable, `SET_ML_PATH` accepts the
+Because the whole Scales-ML root is importable, Python can import the
 dotted name of *any* script in it, not just the four entry points.
 Importing a module runs its top-level code, and several experiment scripts
 have no `if __name__ == "__main__":` guard:
 
-| Name | What importing it does |
+| Name | What importing it would do |
 |---|---|
-| `resnet.resnet_training_hg` | Starts a ResNet-50 training run, then uploads the model to Hugging Face |
-| `phi3.ph3` | Loads the Phi-3.5 language model (several GB) and generates text |
-| `yolo.camera`, `yolo.camera_torch` | Loads YOLO and opens the USB camera in an endless display loop. With no camera it calls `exit()`, which the handler's `except Exception` does not catch |
-| `hugging_face.misc.audio` | Downloads a speech dataset and a model |
-| `nannyml.estimator_test` | Reads data files from hard-coded paths |
+| `resnet.resnet_training_hg` | Start a ResNet-50 training run, then upload the model to Hugging Face |
+| `phi3.ph3` | Load the Phi-3.5 language model (several GB) and generate text |
+| `yolo.camera`, `yolo.camera_torch` | Load YOLO and open the USB camera in an endless display loop. With no camera it calls `exit()`, which the handler's `except Exception` does not catch |
+| `hugging_face.misc.audio` | Download a speech dataset and a model |
+| `nannyml.estimator_test` | Read data files from hard-coded paths |
 
-Proposed fix (not implemented): have `SET_ML_PATH_cmdHandler` accept only
-names of the form `<package>.inference.<module>`, which every entry point
-follows and no experiment script does.
+To prevent this, `_is_model_module_name()` checks the name's shape *before*
+anything is imported: exactly three dot-separated parts, the middle one
+`inference`, each a valid Python identifier. Every entry point follows this
+shape and no experiment script does, so all of the names above are
+rejected with `VALIDATION_ERROR` without running any of their code. The
+check is a pattern, not a list, so a new model that follows the
+`<package>/inference/<module>.py` layout is accepted with no change to
+`MLComponent.py`.
 
 ## Operational Notes: why there's no dropdown for these paths in GDS
 
@@ -364,13 +394,20 @@ sequenceDiagram
     participant MLC as MLComponent
 
     Op->>MLC: SET_ML_PATH("resnet.inference.pytorch")
-    MLC->>MLC: importlib.import_module("resnet.inference.pytorch")
-    alt import succeeds
-        MLC->>MLC: self.model = <module>
-        MLC-->>Op: MLSet event
-        MLC-->>Op: cmdResponse OK
-    else import fails (bad name, not on sys.path, error inside module)
-        MLC-->>Op: cmdResponse VALIDATION_ERROR
+    MLC->>MLC: _is_model_module_name(name)
+    alt name is not package.inference.module
+        MLC-->>Op: cmdResponse VALIDATION_ERROR (nothing imported)
+    else name shape OK
+        MLC->>MLC: importlib.import_module(name)
+        alt import fails (no such file, error inside module)
+            MLC-->>Op: cmdResponse VALIDATION_ERROR
+        else module has no callable main()
+            MLC-->>Op: cmdResponse VALIDATION_ERROR
+        else all checks pass
+            MLC->>MLC: self.model = module
+            MLC-->>Op: MLSet event
+            MLC-->>Op: cmdResponse OK
+        end
     end
 ```
 
@@ -401,11 +438,12 @@ sequenceDiagram
 
 ## Operating Rules
 
-1. `SET_ML_PATH`'s argument is resolved with `importlib.import_module()` --
-   it is a Python module name that must already be importable, not a
-   filesystem path. Success stores the module as `self.model` and logs
-   `MLSet`; failure of any kind returns `VALIDATION_ERROR` and leaves
-   `self.model` unchanged.
+1. `SET_ML_PATH`'s argument is a Python module name, not a filesystem path.
+   It must have the form `<package>.inference.<module>` (checked before
+   importing), must import with `importlib.import_module()`, and the
+   module must define a callable `main`. Success stores the module as
+   `self.model` and logs `MLSet`; failure of any kind returns
+   `VALIDATION_ERROR` and leaves `self.model` unchanged.
 2. `SET_INFERENCE_PATH`'s argument is converted to an absolute path with
    `os.path.abspath()` (relative paths resolve against F Prime's working
    directory, `build-artifacts/python`), then validated with
@@ -472,7 +510,7 @@ are non-`None` -- see Operating Rules.
 
 | Name | Description | Failure modes |
 |---|---|---|
-| `SET_ML_PATH` | Selects the model to use, by Python module name, via `importlib.import_module()`. Logs `MLSet` on success. | `VALIDATION_ERROR` if the name can't be imported (typo, not on `sys.path`, or an error inside the module itself). |
+| `SET_ML_PATH` | Selects the model to use, by Python module name of the form `<package>.inference.<module>`, via `importlib.import_module()`. Logs `MLSet` on success. | `VALIDATION_ERROR` if the name doesn't have that form (checked before importing), can't be imported (typo, not on `sys.path`, or an error inside the module itself), or the module has no callable `main`. |
 | `SET_INFERENCE_PATH` | Selects the dataset directory `MULTI_INFERENCE` will run against. Converted to an absolute path (relative to `build-artifacts/python`), then validated with `os.path.isdir()`. Logs `InferenceSet` on success. | `VALIDATION_ERROR` if the given string is not an existing directory. |
 | `MULTI_INFERENCE` | Runs `self.model.main(self.path)` and logs one `InferenceOutput` event per `(filename, classification)` result, 0.1s apart. | `VALIDATION_ERROR` if a model and/or dataset path hasn't been set yet; `EXECUTION_ERROR` if `main()` raises (the exception's message is not reported). |
 | `CLEAR_INFERENCE_PATH` | Resets the selected dataset directory (`self.path = None`). Does **not** clear the selected model. | None -- always returns `OK`. |
@@ -531,3 +569,4 @@ this document.
 | --- | Initial Draft |
 | 2026-07-31 | Full rewrite: documented the actual implemented behavior in `MLComponent.py` (in particular, that `SET_ML_PATH` selects a Python module by name via `importlib.import_module`, not a filesystem path -- correcting the previous draft's description). Added "Adding a New Model" (the `main(folder_path)` contract and the `sys.path`/`add_python_paths()` mechanism that governs which scripts are importable), an "Operational Notes" section answering why GDS can't show a dropdown for these commands today, class/sequence diagrams, filled-in Port Descriptions/Component States/Commands/Events/Telemetry/Requirements tables, and an honest "no unit tests exist yet" Unit Tests section. Documentation-only; no functional changes. | Luca Lanzillotta |
 | 2026-11-03 | Updated for the Scales-ML refactor (`c49ad8f`): model modules are now selected by dotted package name (`resnet.inference.pytorch` etc.), with the Scales-ML root on the import path in both `jetson-startup.sh` and `fsw_main.py`; replaced the model table with the four current entry points; rewrote "Adding a New Model"; documented that `SET_INFERENCE_PATH` stores an absolute path, that `EXECUTION_ERROR` discards the exception message, and that `SET_ML_PATH` can import experiment scripts that run code on import; updated MLM-005. | Luca Lanzillotta |
+| 2026-11-03 | `SET_ML_PATH` now rejects names that aren't `<package>.inference.<module>` before importing them, and modules without a callable `main` after importing them, so experiment scripts that run code on import can no longer be selected. Updated the `SET_ML_PATH` description, Adding a New Model, the `SET_ML_PATH` sequence diagram, Operating Rules, the Commands table, and handler line references. | Luca Lanzillotta |

@@ -99,10 +99,13 @@ def main(folder: str) -> list[tuple[str, str]]:
     # one (filename, result) pair per .png/.jpg/.jpeg file in folder
 ```
 
-1. `SET_ML_PATH "<dotted.module.name>"` -- `importlib.import_module(name)`.
-   Fails if the module cannot be found on the import path. The Scales-ML
-   root is on the path through `PYTHONPATH` in `jetson-startup.sh` and
-   `add_python_paths()` in `JetsonDeployment/fsw_main.py`.
+1. `SET_ML_PATH "<package>.inference.<module>"` -- checks the name's shape
+   **before** importing (importing runs the module's code), then
+   `importlib.import_module(name)`, then checks the module has a callable
+   `main`. Any failed check returns `VALIDATION_ERROR` and keeps the
+   previous model. The Scales-ML root is on the import path through
+   `PYTHONPATH` in `jetson-startup.sh` and `add_python_paths()` in
+   `JetsonDeployment/fsw_main.py`.
 2. `SET_INFERENCE_PATH "<folder>"` -- converts the folder to an absolute
    path (relative paths resolve against F Prime's working directory,
    `build-artifacts/python`), checks that it exists, and stores it.
@@ -471,6 +474,10 @@ Summary:
 For PyTorch only, write `<name>/inference/pytorch.py` with `main(folder)` and
 skip the engine build.
 
+Keep the `<name>/inference/<module>.py` layout and a top-level `main`:
+`SET_ML_PATH` only accepts names of the form `<package>.inference.<module>`
+whose module defines `main`.
+
 In this repository, two steps of the Scales-ML README are different:
 
 - **`scripts/jetson-python.sh`** is not needed. That script, from another
@@ -500,9 +507,12 @@ commit `09a1b56` on `origin/tanyadev` to this branch's build layout:
 | Docs | Root `README.md`, [sdd.md](sdd.md), this page | Done |
 | Hardware test | On the Jetson: run all four entry points; compare PyTorch and TensorRT labels and FPS; check the `device:` line in the journal | **Pending** |
 
+Also done: `SET_ML_PATH` only accepts `<package>.inference.<module>` names
+with a callable `main` (see [sdd.md](sdd.md)), so experiment scripts that
+run code on import can't be selected.
+
 Still open (see Known issues): an error event for `MULTI_INFERENCE`
-failures, and restricting `SET_ML_PATH` to `<package>.inference.<module>`
-names.
+failures.
 
 Update or remove this section after the hardware test.
 
@@ -510,7 +520,6 @@ Update or remove this section after the hardware test.
 
 | File | Issue | Effect |
 |---|---|---|
-| `MLComponent.py`, `SET_ML_PATH_cmdHandler` | Accepts any importable name. Experiment scripts without a `__main__` guard run code on import: `resnet.resnet_training_hg`, `phi3.ph3`, `yolo.camera`, `yolo.camera_torch`, `hugging_face.misc.audio`, `nannyml.estimator_test` | A mistyped command can start a training run, load a language model, or block on the camera. `yolo.camera` calls `exit()` when there is no camera, which `except Exception` does not catch. Fix: accept only `<package>.inference.<module>` names. |
 | `MLComponent.py`, `MULTI_INFERENCE_cmdHandler` | Bare `except Exception:` discards the error message | The operator sees only `EXECUTION_ERROR`. Reproduce the run by hand to find the cause. Proper fix: an error event (changes the dictionary). |
 | `requirements-ml.txt` | `torch` for `fprime-venv` comes from PyPI, whose ARM builds generally don't support the Jetson's GPU (unverified) | `resnet.inference.pytorch` may run on the CPU. Check `device:` in its timing report in the journal. |
 | `resnet/inference/pytorch.py` | Loads the model through Hugging Face on every `MULTI_INFERENCE` | Needs network unless the model is cached for the service user; see the root README's troubleshooting section (`HF_HUB_OFFLINE=1`) |

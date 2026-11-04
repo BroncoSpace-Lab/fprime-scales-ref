@@ -342,6 +342,8 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 | `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch | None |
 | `yolo.inference.tensorrt` | YOLOv8n | TensorRT | `make ml-trt-setup MODEL=yolo` |
 
+`SET_ML_PATH` only accepts names of the form `<model>.inference.<runtime>`. Any other name is rejected with `VALIDATION_ERROR` without being loaded.
+
 1. Follow the setup described in the previous sections for the IMX, Jetson, and host machine.
 
 2. **TensorRT only:** build the engine once, on the Jetson. Run this as the user the `jetson-deployment` service runs as, **not** with `sudo`, because engines are cached per user in `~/.scales_trt_cache`:
