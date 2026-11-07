@@ -97,6 +97,7 @@ void teardownTopology(const TopologyState& state) {
     freeThreads(state);
 
     // Other task clean-up.
+    comDriver.terminate();
     comDriver.stop();
     (void)comDriver.join();
 
