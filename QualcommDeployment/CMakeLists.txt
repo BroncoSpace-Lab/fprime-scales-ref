@@ -11,6 +11,7 @@
 # Topology and Components
 ###
 
+add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/SubtopologyConfig/")
 add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/Top/")
 
 # Add custom components to this specific deployment here
