@@ -184,27 +184,86 @@ build-jetson: ## Build F' for the Jetson and restart the systemd service
 
 	@echo "make build-jetson Done"
 
+# Sub-make via a plain variable: under .ONESHELL a literal $(MAKE) in the recipe
+# would make "make -n jetson-setup" execute the whole recipe instead of printing it.
+SUBMAKE = $(MAKE)
+JETSON_USER ?=
+ML_MODELS ?= resnet yolo
+
+.PHONY: setup-jetson
+setup-jetson: jetson-setup ## Alias for jetson-setup
+
 .PHONY: jetson-setup
 .ONESHELL:
-jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd service, and nvpmodel/shutdown sudoers rules
+jetson-setup: ## ONE-COMMAND Jetson setup: system packages, fprime-venv, Arena SDK, JetPack/CUDA, ml-venv, TensorRT engines + self-test, systemd service. Options: JETSON_USER=<user> ML_MODELS="resnet yolo"
 	@set -e
-
-	@if [ ! -x "$(PYTHON)" ]; then
-		echo "ERROR: Python virtual environment not found."
-		echo "Expected: $(PYTHON)"
-		echo "Run 'make setup' first."
+	if [ "$$(id -u)" -eq 0 ]; then
+		echo "ERROR: run 'make jetson-setup' as the user the flight software runs as, not with sudo (it calls sudo itself)."
 		exit 1
 	fi
+	echo "Setting up everything this Jetson needs. You will be asked for your sudo password once."
+	sudo -v
 
-	@echo "Installing Jetson-specific (ML) Python dependencies..."
-	fprime-venv/bin/pip install -r requirements-ml.txt
+	echo ""
+	echo "==> [1/5] System packages for building F' (Python 3.12, JRE, git-lfs, compilers)"
+	PKGS=""
+	for p in python3.12 python3.12-venv python3.12-dev default-jre git git-lfs build-essential curl openssh-client software-properties-common; do
+		dpkg-query -W -f='$${Status}' "$$p" 2>/dev/null | grep -q "install ok installed" || PKGS="$$PKGS $$p"
+	done
+	if [ -n "$$PKGS" ]; then
+		if ! apt-cache policy python3.12 2>/dev/null | grep -q "Candidate: [0-9]"; then
+			echo "Adding the deadsnakes PPA for Python 3.12..."
+			sudo apt-get install -y software-properties-common
+			sudo add-apt-repository -y ppa:deadsnakes/ppa
+		fi
+		sudo apt-get update
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $$PKGS
+	else
+		echo "    OK already installed"
+	fi
 
-	@printf "Enter the username the jetson-deployment service should run as: "
-	read -r JETSON_USERNAME
+	echo ""
+	echo "==> [2/5] F' Python environment (fprime-venv) and submodules"
+	if [ ! -x "$(PYTHON)" ]; then
+		$(SUBMAKE) --no-print-directory setup
+	elif [ ! -f Components/MLComponent/Scales-ML/scales_trt/worker.py ] || [ ! -f lib/fprime/CMakeLists.txt ]; then
+		git submodule update --init --recursive
+	else
+		echo "    OK $(PYTHON) exists and submodules are checked out"
+	fi
 
+	echo ""
+	echo "==> [3/5] LUCID Arena SDK and GigE camera network tuning"
+	if [ -d lib/ArenaSDK/lib ] && [ -d lib/ArenaSDK/GenICam ]; then
+		echo "    OK lib/ArenaSDK already extracted"
+	else
+		$(SUBMAKE) --no-print-directory arena-init
+	fi
+	# A 3.2 MP frame is ~3 MB of UDP; the stock 208 KB socket buffer drops
+	# packets, which shows up as streaked/incomplete frames. LUCID recommends 32 MB.
+	if [ "$$(sysctl -n net.core.rmem_max)" -lt 33554432 ]; then
+		printf 'net.core.rmem_max=33554432\nnet.core.rmem_default=33554432\n' | sudo tee /etc/sysctl.d/60-scales-gige-camera.conf >/dev/null
+		sudo sysctl -q -p /etc/sysctl.d/60-scales-gige-camera.conf
+		echo "    OK UDP receive buffers raised to 32 MB (/etc/sysctl.d/60-scales-gige-camera.conf)"
+	else
+		echo "    OK UDP receive buffers already >= 32 MB"
+	fi
+
+	echo ""
+	echo "==> [4/5] GPU / ML stack (JetPack, cuDSS, ml-venv, model cache, TensorRT engines, self-test)"
+	ML_MODELS="$(ML_MODELS)" bash ./jetson-ml-setup.sh
+
+	echo ""
+	echo "==> [5/5] jetson-deployment systemd service and sudoers rules"
+	JETSON_USERNAME="$(JETSON_USER)"
 	if [ -z "$$JETSON_USERNAME" ]; then
-		echo "ERROR: Username cannot be empty."
-		exit 1
+		printf "Enter the username the jetson-deployment service should run as [%s]: " "$$(id -un)"
+		read -r JETSON_USERNAME || true
+		JETSON_USERNAME="$${JETSON_USERNAME:-$$(id -un)}"
+	fi
+	if [ "$$JETSON_USERNAME" != "$$(id -un)" ]; then
+		echo "WARNING: the service will run as '$$JETSON_USERNAME', but ml-venv's model cache and TensorRT engines"
+		echo "         were set up for '$$(id -un)'. Re-run 'make jetson-setup' as '$$JETSON_USERNAME'."
 	fi
 
 	@echo "Installing passwordless-sudo rules for nvpmodel and shutdown..."
@@ -275,13 +334,28 @@ jetson-setup: ## One-time Jetson OS setup: ML deps, jetson-deployment systemd se
 	WantedBy=multi-user.target
 	SERVICE_EOF
 
-	@echo "Enabling and starting jetson-deployment.service..."
+	@echo "Enabling jetson-deployment.service..."
 	sudo systemctl daemon-reload
 	sudo systemctl enable jetson-deployment.service
-	sudo systemctl restart jetson-deployment.service
-	systemctl status jetson-deployment.service --no-pager
+	if ls build-artifacts/python/fprime_py*.so >/dev/null 2>&1; then
+		sudo systemctl restart jetson-deployment.service
+		systemctl status jetson-deployment.service --no-pager || true
+	else
+		echo "F' is not built yet; the service will start after 'make build-jetson'."
+	fi
 
-	@echo "make jetson-setup done"
+	echo ""
+	echo "make jetson-setup done. Next: 'make build-jetson' builds and starts the flight software."
+	echo "Re-check the GPU stack any time with 'make ml-check'."
+
+.PHONY: ml-setup
+ml-setup: ## Only the GPU/ML part of jetson-setup (JetPack, cuDSS, ml-venv, model cache, TensorRT engines, self-test). ML_MODELS="resnet yolo"
+	@ML_MODELS="$(ML_MODELS)" bash ./jetson-ml-setup.sh
+
+.PHONY: ml-check
+ml-check: ## Verify CUDA + TensorRT in ml-venv and run the ResNet accuracy self-test on test-imagery/
+	@PYTHONPATH="$(PROJECT_ROOT)/Components/MLComponent/Scales-ML" ml-venv/bin/python -m scales_trt.cuda_check
+	@PYTHONPATH="$(PROJECT_ROOT)/Components/MLComponent/Scales-ML" HF_HUB_OFFLINE=1 ml-venv/bin/python -m resnet.inference.selftest test-imagery
 
 .PHONY: ml-trt-setup
 ml-trt-setup: ## One-time TensorRT engine build on the Jetson (run as the service user, not sudo). 'make ml-trt-setup MODEL=yolo' for YOLO

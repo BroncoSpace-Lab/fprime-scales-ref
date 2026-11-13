@@ -26,3 +26,4 @@ fpp-loc-map.json
 GDS-Dictionary/*.xml
 GDS-Dictionary/*.json
 JetsonDeployment/__pycache__
+/ml-venv/

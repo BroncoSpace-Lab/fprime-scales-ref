@@ -31,6 +31,33 @@
 
 #define EXPOSURE_TIME 5000.0
 
+// Image-quality defaults applied by SETUP_CAMERA. Chosen on the testbench
+// PHX032S-C (BayerRG8) so frames look like the ordinary sRGB photos ResNet-18
+// was trained on: gamma 1.0 (the camera default) gives dark, linear images;
+// gamma 0.5 with auto-exposure target 50 gave mean ~123/255 with <0.2% clipping.
+#define DEFAULT_GAMMA "0.5"
+#define DEFAULT_TARGET_BRIGHTNESS "50"
+
+// SAVE_PNG retries until it gets a frame with no lost GigE packets.
+#define CAPTURE_TIMEOUT_MS 3000
+#define CAPTURE_MAX_ATTEMPTS 30
+
+// Set a GenICam node from a string, if this camera model has it and it is
+// writable. Returns false (never throws) so one missing node doesn't abort setup.
+static bool trySetNode(GenApi::INodeMap* nodeMap, const char* name, const char* value)
+{
+  try {
+    GenApi::CNodePtr node = nodeMap->GetNode(name);
+    if (!node || !GenApi::IsWritable(node)) {
+      return false;
+    }
+    GenApi::CValuePtr(node)->FromString(value);
+    return true;
+  } catch (GenICam::GenericException&) {
+    return false;
+  }
+}
+
 const std::string IMX_IP_ADDRESS = "10.3.2.10";
 const std::string jetson_base_path = "/home/scales/fprime-scales-ref/build-artifacts/python/";
 // file name
@@ -163,8 +190,8 @@ void SaveImage(Arena::IImage* pImage, const char* filename)
     return deviceInfos[0];
   }
 
-Arena::ISystem* pSystem;
-Arena::IDevice* pDevice;
+Arena::ISystem* pSystem = nullptr;
+Arena::IDevice* pDevice = nullptr;
 
 // namespace Components {
 
@@ -183,8 +210,12 @@ Arena::IDevice* pDevice;
     ~RunLucidCamera()
 
   {
-    pSystem->DestroyDevice(pDevice);
-    Arena::CloseSystem(pSystem);
+    if (pSystem != nullptr) {
+      if (pDevice != nullptr) {
+        pSystem->DestroyDevice(pDevice);
+      }
+      Arena::CloseSystem(pSystem);
+    }
   }
 
   // ----------------------------------------------------------------------
@@ -202,14 +233,41 @@ Arena::IDevice* pDevice;
     // flag to track when an exception has been thrown
     bool exceptionThrown = false;
 
-    // std::cout << "Cpp_Save_Png";
-    // this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+    if (pDevice == nullptr) {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg("Camera not set up: send SETUP_CAMERA first"));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
+    }
+
     try
     {
-      
-
       pDevice->StartStream();
-      Arena::IImage* pImage = pDevice->GetImage(2000);
+
+      // The first buffer after StartStream can be stale, and on a lossy GigE
+      // link (the testbench negotiates 100 Mb/s half duplex) many frames arrive
+      // with missing packets, which show up as horizontal streaks of garbage
+      // rows. Discard the first frame, then keep the first complete one.
+      pDevice->RequeueBuffer(pDevice->GetImage(CAPTURE_TIMEOUT_MS));
+      Arena::IImage* pImage = nullptr;
+      int incomplete = 0;
+      for (int attempt = 0; attempt < CAPTURE_MAX_ATTEMPTS; attempt++) {
+        pImage = pDevice->GetImage(CAPTURE_TIMEOUT_MS);
+        if (!pImage->IsIncomplete()) {
+          break;
+        }
+        incomplete++;
+        if (attempt + 1 < CAPTURE_MAX_ATTEMPTS) {
+          pDevice->RequeueBuffer(pImage);
+          pImage = nullptr;
+        }
+      }
+      if (incomplete >= CAPTURE_MAX_ATTEMPTS) {
+        this->log_WARNING_HI_CameraError(Fw::LogStringArg(
+          "No complete frame in 30 tries (packet loss); saved an INCOMPLETE frame"));
+      } else if (incomplete > 0) {
+        std::string msg = "Dropped " + std::to_string(incomplete) + " incomplete frame(s) before capture";
+        this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(msg.c_str()));
+      }
 
       // std::cout << "Commence example\n\n";
       //SaveImage(pImage, FILE_NAME);
@@ -271,9 +329,11 @@ Arena::IDevice* pDevice;
     // std::getchar();
 
     if (exceptionThrown) {
+      // Leave the device idle so the next SAVE_PNG can StartStream again
+      try { pDevice->StopStream(); } catch (...) {}
       this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
       return;
-    } 
+    }
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
     return;
 
@@ -287,31 +347,69 @@ Arena::IDevice* pDevice;
         U32 cmdSeq
     )
   {
-    // TODO
-    // prepare example
-    pSystem = Arena::OpenSystem();
-    pSystem->UpdateDevices(100);
-    std::vector<Arena::DeviceInfo> devices = pSystem->GetDevices();
-    //works here
-    this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Working"));
-    if (devices.size() == 0)
+    if (pDevice != nullptr) {
+      // Arena allows one open system per process; re-sending is harmless
+      this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Camera already set up"));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
+      return;
+    }
+    try
     {
-      // std::cout << "\nNo camera connected\nPress enter to complete\n";
-      this->log_WARNING_HI_CameraError(Fw::LogStringArg("No camera connected"));
-      // std::getchar();
-      // return 0;
+      if (pSystem == nullptr) {
+        pSystem = Arena::OpenSystem();
+      }
+      // A camera that was just released can take a moment to re-enumerate
+      std::vector<Arena::DeviceInfo> devices;
+      for (int attempt = 0; attempt < 5 && devices.empty(); attempt++) {
+        pSystem->UpdateDevices(1000);
+        devices = pSystem->GetDevices();
+      }
+      if (devices.size() == 0)
+      {
+        this->log_WARNING_HI_CameraError(Fw::LogStringArg("No camera connected"));
+        this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+        return;
+      }
+      Arena::DeviceInfo selectedDevice = SelectDevice(devices);
+      pDevice = pSystem->CreateDevice(selectedDevice);
+      std::string found = "Camera " + std::string(selectedDevice.ModelName().c_str()) + " " +
+                          std::string(selectedDevice.SerialNumber().c_str()) + " at " +
+                          std::string(selectedDevice.IpAddressStr().c_str());
+      this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(found.c_str()));
+
+      // Transport: negotiate the largest packet size, re-request lost packets,
+      // and hand SAVE_PNG the newest frame instead of a stale queued one.
+      GenApi::INodeMap* stream = pDevice->GetTLStreamNodeMap();
+      Arena::SetNodeValue<bool>(stream, "StreamAutoNegotiatePacketSize", true);
+      Arena::SetNodeValue<bool>(stream, "StreamPacketResendEnable", true);
+      trySetNode(stream, "StreamBufferHandlingMode", "NewestOnly");
+
+      // Image quality for ML: auto exposure + auto white balance, sRGB-like
+      // gamma. Nodes missing on other camera models are skipped.
+      GenApi::INodeMap* nm = pDevice->GetNodeMap();
+      int applied = 0;
+      applied += trySetNode(nm, "ExposureAuto", "Continuous");
+      applied += trySetNode(nm, "BalanceWhiteEnable", "1");
+      applied += trySetNode(nm, "BalanceWhiteAuto", "Continuous");
+      applied += trySetNode(nm, "GammaEnable", "1");
+      applied += trySetNode(nm, "Gamma", DEFAULT_GAMMA);
+      applied += trySetNode(nm, "TargetBrightness", DEFAULT_TARGET_BRIGHTNESS);
+      std::string msg = "Image defaults applied: " + std::to_string(applied) + "/6 (gamma " DEFAULT_GAMMA
+                        ", target " DEFAULT_TARGET_BRIGHTNESS ")";
+      this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg(msg.c_str()));
+    }
+    catch (GenICam::GenericException& ge)
+    {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ge.what()));
       this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
       return;
     }
-    Arena::DeviceInfo selectedDevice = SelectDevice(devices);
-    // this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Working 1"));
-    pDevice = pSystem->CreateDevice(selectedDevice);
-    this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Working 2"));
-    // enable stream auto negotiate packet size
-    Arena::SetNodeValue<bool>(pDevice->GetTLStreamNodeMap(), "StreamAutoNegotiatePacketSize", true);
-
-    // enable stream packet resend
-    Arena::SetNodeValue<bool>(pDevice->GetTLStreamNodeMap(), "StreamPacketResendEnable", true);
+    catch (std::exception& ex)
+    {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ex.what()));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
+    }
 
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
   }
@@ -323,33 +421,40 @@ Arena::IDevice* pDevice;
         F64 param_name
     )
   {
-    // TODO
-    Arena::SetNodeValue<GenICam::gcstring>(
-      pDevice->GetNodeMap(),
-      "ExposureAuto",
-      "Off");
-
-    double exposureTime = param_name;
-
-    GenApi::CFloatPtr pExposureTime = pDevice->GetNodeMap()->GetNode("ExposureTime");
-
-    if (exposureTime < pExposureTime->GetMin())
-    {
-      exposureTime = pExposureTime->GetMin();
+    if (pDevice == nullptr) {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg("Camera not set up: send SETUP_CAMERA first"));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
     }
-  
-    if (exposureTime > pExposureTime->GetMax())
+    try
     {
-      exposureTime = pExposureTime->GetMax();
+      Arena::SetNodeValue<GenICam::gcstring>(
+        pDevice->GetNodeMap(),
+        "ExposureAuto",
+        "Off");
+
+      double exposureTime = param_name;
+
+      GenApi::CFloatPtr pExposureTime = pDevice->GetNodeMap()->GetNode("ExposureTime");
+
+      if (exposureTime < pExposureTime->GetMin())
+      {
+        exposureTime = pExposureTime->GetMin();
+      }
+
+      if (exposureTime > pExposureTime->GetMax())
+      {
+        exposureTime = pExposureTime->GetMax();
+      }
+
+      pExposureTime->SetValue(exposureTime);
     }
-
-    pExposureTime->SetValue(exposureTime);
-
-    // std::string message = "Set Exposure Time" << exposureTime;
-    // F64 fswExposureTime = exposureTime;
-
-    // this->log_ACTIVITY_HI_DebugLogEvent(this->exposureTime);
-
+    catch (GenICam::GenericException& ge)
+    {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ge.what()));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
+    }
 
     this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
   }
@@ -361,14 +466,29 @@ Arena::IDevice* pDevice;
         F64 param_name
     )
   {
+    if (pDevice == nullptr) {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg("Camera not set up: send SETUP_CAMERA first"));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
+    }
+    try
+    {
+      Arena::SetNodeValue<GenICam::gcstring>(
+        pDevice->GetNodeMap(),
+        "GainAuto",
+        "Off");
 
-    Arena::SetNodeValue<GenICam::gcstring>(
-      pDevice->GetNodeMap(),
-      "GainAuto",
-      "Off");
-
-    Arena::SetNodeValue<GenICam::gcstring>(pDevice->GetNodeMap(), "ConversionGain", "High");
+      Arena::SetNodeValue<GenICam::gcstring>(pDevice->GetNodeMap(), "ConversionGain", "High");
+    }
+    catch (GenICam::GenericException& ge)
+    {
+      this->log_WARNING_HI_CameraError(Fw::LogStringArg(ge.what()));
+      this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::EXECUTION_ERROR);
+      return;
+    }
 
     this->log_ACTIVITY_HI_DebugLogEvent(Fw::LogStringArg("Set Gain To High"));
-  
+    // Previously missing: without a response the command (and any sequence
+    // containing it) waited until timeout.
+    this->cmdResponse_out(opCode, cmdSeq, Fw::CmdResponse::OK);
   }

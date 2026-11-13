@@ -194,7 +194,27 @@ These steps are only required if changes have been made to ImxDeployment. Otherw
 <details>
 <summary><strong>Jetson Setup</strong></summary>
 
-1. On the Jetson, follow the directions above to generate and build JetsonDeployment.
+1. **One command sets up the whole Jetson.** On the Jetson (JetPack 6.1 or newer, L4T R36.4+), as the user the flight software will run as (**not** with `sudo`; it asks for your sudo password once):
+
+    ```bash
+    git clone --recurse-submodules https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
+    cd fprime-scales-ref
+    make jetson-setup          # same as: make setup-jetson
+    ```
+
+    It is safe to re-run; every step checks first and skips what is already done:
+
+    | Step | What it installs or does |
+    |---|---|
+    | 1 | System packages: Python 3.12 (deadsnakes PPA if needed), JRE, git-lfs, compilers |
+    | 2 | `fprime-venv` and submodules (runs `make setup` if the venv is missing) |
+    | 3 | LUCID Arena SDK (`make arena-init` if needed) and 32 MB UDP receive buffers for the GigE camera |
+    | 4 | GPU/ML via `jetson-ml-setup.sh`: checks the JetPack version; installs `nvidia-jetpack` (CUDA 12.6, cuDNN 9, TensorRT 10) and NVIDIA's cuDSS; creates `ml-venv` (Python 3.10 with NVIDIA's CUDA build of PyTorch); caches the model weights; verifies CUDA; builds the ResNet and YOLO TensorRT engines; runs an accuracy self-test |
+    | 5 | `jetson-deployment` systemd service and the nvpmodel/shutdown sudoers rules |
+
+    Options: `JETSON_USER=<name>` skips the username prompt; `ML_MODELS=resnet` builds only the ResNet engine (the YOLO engine takes 10+ minutes). `make ml-setup` re-runs only step 4, and `make ml-check` re-verifies CUDA and model accuracy at any time.
+
+    Why a second Python? F´ runs in `fprime-venv` (Python 3.12), but NVIDIA publishes CUDA-enabled PyTorch and TensorRT for JetPack 6 only for Python 3.10. Inference therefore runs in a child process under `ml-venv`; see `Components/MLComponent/Scales-ML/docs/inference-pipeline.md`.
 
 2. Make sure the IP of the IMX is set in `JetsonDeployment/Top/JetsonDeploymentTopology.cpp` and matches the IP of the IMX:
 
@@ -337,23 +357,16 @@ Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1X
 
 | `SET_ML_PATH` value | Model | Runtime | One-time setup |
 |---|---|---|---|
-| `resnet.inference.pytorch` | ResNet-18 (image classification) | PyTorch | None (downloads the model on first run, so needs network) |
-| `resnet.inference.tensorrt` | ResNet-18 | TensorRT | `make ml-trt-setup` |
-| `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch | None |
-| `yolo.inference.tensorrt` | YOLOv8n | TensorRT | `make ml-trt-setup MODEL=yolo` |
+| `resnet.inference.pytorch` | ResNet-18 (image classification) | PyTorch on CUDA | `make jetson-setup` |
+| `resnet.inference.tensorrt` | ResNet-18 | TensorRT FP16 (fastest) | `make jetson-setup` |
+| `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch on CUDA | `make jetson-setup` |
+| `yolo.inference.tensorrt` | YOLOv8n | TensorRT FP16 | `make jetson-setup` |
 
-`SET_ML_PATH` only accepts names of the form `<model>.inference.<runtime>`. Any other name is rejected with `VALIDATION_ERROR` without being loaded.
+All four run on the GPU in `ml-venv`, offline, using the weights and engines that `make jetson-setup` cached. ResNet results include the model's confidence, e.g. `cello.jpg is an image of a cello, violoncello (99.7%)`. `SET_ML_PATH` only accepts names of the form `<model>.inference.<runtime>`. Any other name is rejected with `VALIDATION_ERROR` without being loaded.
 
 1. Follow the setup described in the previous sections for the IMX, Jetson, and host machine.
 
-2. **TensorRT only:** build the engine once, on the Jetson. Run this as the user the `jetson-deployment` service runs as, **not** with `sudo`, because engines are cached per user in `~/.scales_trt_cache`:
-
-    ```bash
-    make ml-trt-setup              # ResNet
-    make ml-trt-setup MODEL=yolo   # YOLO (can take 10+ minutes)
-    ```
-
-    The script checks the prerequisites, builds the engine, and runs a test inference on `test-imagery/`. After a JetPack or TensorRT update, delete `~/.scales_trt_cache` and run it again.
+2. Optional: check the GPU stack and model accuracy at any time with `make ml-check`. Rebuild a single TensorRT engine with `make ml-trt-setup` (ResNet) or `make ml-trt-setup MODEL=yolo`; after a JetPack or TensorRT update, delete `~/.scales_trt_cache` and run `make ml-setup`.
 
 3. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with the argument `test-resnet.bin` (compiled from `Sequences/test-resnet.seq`). This sequence will:
 
@@ -491,12 +504,15 @@ When trying to run the `MULTI_INFERENCE` command on the Jetson with `resnet.infe
 '(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /microsoft/resnet-18/resolve/main/preprocessor_config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0xffff3bf23450>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution'))"), '(Request ID: 6d6a5cec-e762-484c-a97a-1e1d9748bcba)')' thrown while requesting HEAD https://huggingface.co/microsoft/resnet-18/resolve/main/preprocessor_config.json
 ```
 
-`resnet.inference.pytorch` loads the model through Hugging Face `transformers` on every `MULTI_INFERENCE`, and `transformers` contacts huggingface.co while loading. If the model isn't already in the local cache, the load fails without network access. The cache is per user (`~/.cache/huggingface`), so the model must have been downloaded as the user the `jetson-deployment` service runs as.
+Inference now runs with `HF_HUB_OFFLINE=1` (set by `jetson-startup.sh` and the ML worker), using the weights `make jetson-setup` cached; online checks used to add about 80 s to every `MULTI_INFERENCE`. If you see the error above, or `... is not in the Hugging Face cache ...`, the model was never cached for the user the service runs as (the cache is per user, `~/.cache/huggingface`). Run `make ml-setup` as that user.
 
-Make sure the Jetson is connected to Wi-Fi and try again. To run without network once the model is cached:
+For any `MULTI_INFERENCE` `EXECUTION_ERROR`, the full reason is in the service log: `journalctl -u jetson-deployment -f`. A `CUDA unavailable` message there means the GPU stack is broken; run `make ml-check`, then `make ml-setup`.
 
-- set `HF_HUB_OFFLINE=1` in the service's environment (for example, an `export` in `jetson-startup.sh`) so the cached copy is used without contacting huggingface.co, or
-- use `resnet.inference.tensorrt`, which needs no network at run time once `make ml-trt-setup` has built the engine.
+## Streaked or Washed-Out Camera Images
+
+Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` now retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived. Check the camera link with `ethtool enP8p1s0`: it should report `Speed: 1000Mb/s` and `Duplex: Full`. 100 Mb/s or half duplex points to the cable, switch, or PoE injector. `make jetson-setup` also raises the kernel's UDP receive buffers, which the camera needs.
+
+A blurry image is a lens-focus problem; adjust the focus ring. Classification accuracy depends heavily on a sharp, well-exposed image of a centered object that is one of the 1,000 ImageNet classes.
 
 ---
 

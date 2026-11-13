@@ -1,5 +1,14 @@
 # Scales-ML Repository Guide
 
+> **Superseded for the flight inference path (2026-11-13).** The inference
+> pipeline, the CUDA setup (`make jetson-setup`, `ml-venv`), ResNet-18
+> internals, and adding a model are now documented inside the submodule:
+> `Scales-ML/README.md` and `Scales-ML/docs/` (`inference-pipeline.md`,
+> `resnet-18.md`, `adding-a-model.md`). Statements below about running torch in
+> `fprime-venv`, the `/usr/bin/python3` TensorRT interpreter, bilinear
+> preprocessing, and the CUDA stream race are out of date. The experiments
+> section below is still accurate.
+
 `Components/MLComponent/Scales-ML/` is a git submodule
 ([BroncoSpace-Lab/Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/c49ad8f190e4c10a08b7b1cdb475192e059cb833))
 holding the machine-learning code for SCALES. It contains two kinds of code:

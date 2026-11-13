@@ -25,7 +25,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" # Sets the absolute path of
 ML="$ROOT/Components/MLComponent/Scales-ML"
 
 MODEL="${MODEL:-resnet}" # Set shell variable MODEL to MODEL, if it isnt set use default resnet
-PY="${SCALES_TRT_PYTHON:-/usr/bin/python3}" # Python that runs TensorRT; Set PY to SCALES_TRT_PYTHON, which if unset ":-", use the default value being /usr/bin/python3
+# Python that runs TensorRT: SCALES_TRT_PYTHON if set, else the ml-venv made by
+# `make jetson-setup` (Python 3.10 + NVIDIA's CUDA torch + JetPack TensorRT),
+# else JetPack's system Python.
+if [ -n "${SCALES_TRT_PYTHON:-}" ]; then
+    PY="$SCALES_TRT_PYTHON"
+elif [ -x "$ROOT/ml-venv/bin/python" ]; then
+    PY="$ROOT/ml-venv/bin/python"
+else
+    PY=/usr/bin/python3
+fi
 export SCALES_TRT_PYTHON="$PY"   # Export SCALES_TRT_PYTHON as a global variable to the Shell Variable PY; # pass the same Python to programs this script starts
 export TRT_FP16="${TRT_FP16:-1}" # Engine precision: 1 = FP16 (default), 0 = FP32. Read by the Python worker, remember export passes to child processes
 export TRT_BUILD_HEARTBEAT_S="${TRT_BUILD_HEARTBEAT_S:-60}"
@@ -61,7 +70,7 @@ fi
 [ -d "$ML/scales_trt" ] || die "Scales-ML not found at $ML (run: git submodule update --init)" # -d means is a directory, || if -d returns false, or with die "..."
 
 # checks if python is installed in the system
-command -v "$PY" >/dev/null || die "$PY not found (set SCALES_TRT_PYTHON to the Jetson's system Python)"
+command -v "$PY" >/dev/null || die "$PY not found. Run 'make jetson-setup' first."
 
 # checks if the prefix is the venv version of python3 or the actual system version
 PY_PREFIX="$("$PY" -c 'import sys; print(sys.prefix)')"
@@ -74,7 +83,7 @@ done
 
 # let user know that CUDA deps are not installed, torch must be able to use the GPU
 "$PY" -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)" \
-    || die "torch in $PY cannot use the GPU (install NVIDIA's Jetson PyTorch build)"
+    || die "torch in $PY cannot use the GPU. Run 'make jetson-setup' (installs JetPack, cuDSS and NVIDIA's Jetson torch into ml-venv)."
 
 # Let Python find scales_trt/, resnet/ and yolo/ inside Scales-ML.
 # :+ appends ":<old value>" only if PYTHONPATH already had one.

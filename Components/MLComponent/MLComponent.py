@@ -6,7 +6,9 @@ from MLComponentBaseAc import MLComponentBase
 
 import importlib
 import os
+import sys
 import time
+import traceback
 
 # Removed resnet_inference since the module was removed
 # Removed the resnet_cifar100 benchmark since we dont need it at runtime and will slow the boot time
@@ -106,6 +108,10 @@ class MLComponent(MLComponentBase):
         try:
             self.outputs = self.model.main(self.path)
         except Exception:
+            # The F´ response can't carry the reason; put it in the journal
+            # (journalctl -u jetson-deployment) so the operator can see it.
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
             self.send_cmd_response(
                 opCode,
                 cmdSeq,

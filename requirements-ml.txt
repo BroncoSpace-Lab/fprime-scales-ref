@@ -1,5 +1,10 @@
-torch==2.12.1
-transformers==5.12.1
-datasets==5.0.0
-pillow==12.2.0
-ultralytics==8.4.75
+# Intentionally empty: fprime-venv (Python 3.12) needs no ML packages.
+#
+# F´'s MLComponent only imports the thin Scales-ML entry points, which hand the
+# work to a child process under ml-venv (Python 3.10). That's the only Python
+# for which NVIDIA ships CUDA-enabled torch and TensorRT on JetPack 6. PyPI's
+# aarch64 torch (previously pinned here) is a CUDA 13 build that silently falls
+# back to the CPU on the Jetson.
+#
+# The GPU requirements live in Components/MLComponent/Scales-ML/requirements-jetson.txt
+# and are installed by `make jetson-setup` (or `make ml-setup`).
