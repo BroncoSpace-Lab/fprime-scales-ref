@@ -520,7 +520,9 @@ Details are in [tools/lucid-live-view/README.md](tools/lucid-live-view/README.md
 
 ## Streaked or Washed-Out Camera Images
 
-Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` now retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived. Check the camera link with `ethtool enP8p1s0`: it should report `Speed: 1000Mb/s` and `Duplex: Full`. 100 Mb/s or half duplex points to the cable, switch, or PoE injector. `make jetson-setup` also raises the kernel's UDP receive buffers, which the camera needs.
+Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` now retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived. Check the camera link with `cat /sys/class/net/enP8p1s0/speed /sys/class/net/enP8p1s0/duplex`: it should report `1000` and `full`. At gigabit the camera streams about 33 fps with no incomplete frames; at 100 Mb/s half duplex nearly every frame loses packets. `make jetson-setup` also raises the kernel's UDP receive buffers, which the camera needs.
+
+If every device on the 10.3.2.x network shows 100 Mb/s half duplex, check the bench switch (Microchip KSZ9896C) strap DIP switches. **All strap switches must be OFF** (ON pulls a strap low). With `LED2_1` ON the switch uses "Fast Link-up": auto-negotiation is off and every port is forced to 100 Mb/s, so the devices fall back to half duplex. Turn it OFF and reset or power-cycle the switch; the straps are only read at reset. See Table 3-3 of the KSZ9896C datasheet (DS00002390C). This was fixed on 2026-11-13; since then the Jetson, IMX and ground PC all link at 1000/full.
 
 A blurry image is a lens-focus problem; adjust the focus ring. Classification accuracy depends heavily on a sharp, well-exposed image of a centered object that is one of the 1,000 ImageNet classes.
 

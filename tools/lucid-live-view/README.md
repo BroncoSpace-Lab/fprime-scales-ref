@@ -95,6 +95,18 @@ link reset. Merely viewing or streaming (this viewer, ArenaView play) never
 changes the IP; only Force IP and the IP configuration settings do. Once the
 persistent IP is set (done on 2026-11-13), this shouldn't recur.
 
+## Lots of INCOMPLETE frames?
+
+At gigabit full duplex the camera streams about 33 fps with 0% incomplete
+frames. If the overlay shows most frames incomplete at about 3 fps, the link has
+dropped to 100 Mb/s half duplex. Check with
+`cat /sys/class/net/<iface>/speed /sys/class/net/<iface>/duplex`.
+
+On the testbench the cause was the bench switch (Microchip KSZ9896C): its
+`LED2_1` strap DIP switch was ON, selecting "Fast Link-up" (no
+auto-negotiation, forced 100BASE-TX). **All strap switches must be OFF**, then
+reset the switch. Details are in the root README's troubleshooting section.
+
 ## Sharing the camera with the flight software
 
 Only one program can control the camera at a time.

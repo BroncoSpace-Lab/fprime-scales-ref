@@ -244,9 +244,10 @@ Arena::IDevice* pDevice = nullptr;
       pDevice->StartStream();
 
       // The first buffer after StartStream can be stale, and on a lossy GigE
-      // link (the testbench negotiates 100 Mb/s half duplex) many frames arrive
-      // with missing packets, which show up as horizontal streaks of garbage
-      // rows. Discard the first frame, then keep the first complete one.
+      // link (e.g. the bench switch strapped to 100 Mb/s, which forces peers
+      // to half duplex) frames arrive with missing packets, which show up as
+      // horizontal streaks of garbage rows. Discard the first frame, then keep
+      // the first complete one.
       pDevice->RequeueBuffer(pDevice->GetImage(CAPTURE_TIMEOUT_MS));
       Arena::IImage* pImage = nullptr;
       int incomplete = 0;
