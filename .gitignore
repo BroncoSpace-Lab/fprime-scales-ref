@@ -27,3 +27,6 @@ GDS-Dictionary/*.xml
 GDS-Dictionary/*.json
 JetsonDeployment/__pycache__
 /ml-venv/
+
+# Arena SDK writes an empty persist.json to the working directory
+persist.json

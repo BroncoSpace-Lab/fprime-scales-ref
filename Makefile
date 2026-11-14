@@ -357,6 +357,105 @@ ml-check: ## Verify CUDA + TensorRT in ml-venv and run the ResNet accuracy self-
 	@PYTHONPATH="$(PROJECT_ROOT)/Components/MLComponent/Scales-ML" ml-venv/bin/python -m scales_trt.cuda_check
 	@PYTHONPATH="$(PROJECT_ROOT)/Components/MLComponent/Scales-ML" HF_HUB_OFFLINE=1 ml-venv/bin/python -m resnet.inference.selftest test-imagery
 
+# ---------------------------------------------------------------------------
+# LUCID camera live viewer (tools/lucid-live-view): focus the lens, frame objects.
+# Run on the machine whose screen you'll watch (normally the x86-64 ground PC).
+ARENA_X64 ?= $(HOME)/ArenaSDK-x64/ArenaSDK_Linux_x64
+ARENA_X64_TARBALL ?= $(HOME)/Downloads/ArenaSDK_*Linux_x64.tar.gz
+# On x86-64 point the tool at the x64 SDK; on the Jetson it uses lib/ArenaSDK
+CAMERA_VIEWER_ARENA := $(if $(filter aarch64,$(shell uname -m)),,ARENA=$(ARENA_X64))
+flight ?= 0
+args ?=
+
+.PHONY: camera-viewer-setup
+.ONESHELL:
+camera-viewer-setup: ## One-time setup of the camera live viewer on this machine: OpenCV, Arena SDK (x64: from ~/Downloads/ArenaSDK_*Linux_x64.tar.gz), build
+	@set -e
+	echo "==> [1/3] Build packages (g++, make, pkg-config, libopencv-dev)"
+	PKGS=""
+	for p in g++ make pkg-config libopencv-dev; do
+		dpkg-query -W -f='$${Status}' "$$p" 2>/dev/null | grep -q "install ok installed" || PKGS="$$PKGS $$p"
+	done
+	if [ -n "$$PKGS" ]; then
+		sudo apt-get update
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $$PKGS
+	else
+		echo "    OK already installed"
+	fi
+
+	echo "==> [2/3] LUCID Arena SDK"
+	if [ "$$(uname -m)" = "aarch64" ]; then
+		if [ -d lib/ArenaSDK/lib ]; then echo "    OK using the repo's ARM64 SDK (lib/ArenaSDK)"; else $(SUBMAKE) --no-print-directory arena-init; fi
+	else
+		SDK="$(ARENA_X64)"
+		if [ -f "$$SDK/include/Arena/ArenaApi.h" ]; then
+			echo "    OK found $$SDK"
+		else
+			TARBALL=$$(ls -t $(ARENA_X64_TARBALL) 2>/dev/null | head -1)
+			if [ -z "$$TARBALL" ]; then
+				echo "ERROR: Arena SDK for Linux x64 not found at $$SDK and no $(ARENA_X64_TARBALL)."
+				echo "       Download it from LUCID's Downloads Hub (thinklucid.com, login required) into ~/Downloads, then re-run."
+				exit 1
+			fi
+			echo "    extracting $$TARBALL"
+			mkdir -p "$$(dirname "$$SDK")"
+			tar -xzf "$$TARBALL" -C "$$(dirname "$$SDK")"
+			[ -f "$$SDK/include/Arena/ArenaSDK.h" ] || [ -f "$$SDK/include/Arena/ArenaApi.h" ] || { echo "ERROR: $$TARBALL did not unpack to $$SDK"; exit 1; }
+		fi
+		if ldconfig -p | grep -q "libarena.so "; then
+			echo "    OK SDK libraries registered with the loader"
+		else
+			echo "    registering SDK libraries (LUCID's Arena_SDK_Linux_x64.conf; declining its optional .NET install)"
+			(cd "$$SDK" && echo n | sudo sh Arena_SDK_Linux_x64.conf >/dev/null)
+		fi
+	fi
+
+	echo "==> [3/3] Building tools/lucid-live-view"
+	$(SUBMAKE) --no-print-directory -C tools/lucid-live-view $(CAMERA_VIEWER_ARENA)
+	echo ""
+	echo "camera-viewer-setup done. Run: make camera-view   (or: make camera-view flight=1)"
+
+.PHONY: camera-view
+.ONESHELL:
+camera-view: ## Live camera view for focusing/framing. 'flight=1' applies SETUP_CAMERA image settings; 'args="..."' passes options (args=--help). Close it before SETUP_CAMERA
+	@set -e
+	VIEWER=tools/lucid-live-view/lucid_live_view
+	if [ ! -x "$$VIEWER" ]; then
+		echo "Viewer not built yet. Run: make camera-viewer-setup"
+		exit 1
+	fi
+	$(SUBMAKE) --no-print-directory -s -C tools/lucid-live-view $(CAMERA_VIEWER_ARENA)
+	VIEW_ARGS="$(args)"
+	if [ "$(flight)" = "1" ]; then VIEW_ARGS="--flight-settings $$VIEW_ARGS"; fi
+	if [ -z "$$DISPLAY" ] && [ -z "$$WAYLAND_DISPLAY" ]; then
+		# Started over SSH: show the window on this machine's desktop session
+		export DISPLAY=:0
+		XA=$$(ls /run/user/$$(id -u)/.mutter-Xwaylandauth.* 2>/dev/null | head -1)
+		if [ -n "$$XA" ]; then export XAUTHORITY="$$XA"; fi
+		echo "No display in this shell; opening the window on this machine's desktop (:0)."
+	fi
+	exec "$$VIEWER" $$VIEW_ARGS
+
+# Camera IP: the flight software (Jetson 10.3.2.13/24) expects the camera at 10.3.2.4.
+ip ?= 10.3.2.4
+mask ?= 255.255.255.0
+gateway ?= 0.0.0.0
+serial ?=
+
+.PHONY: camera-ip-show
+.ONESHELL:
+camera-ip-show: ## Show the LUCID camera's model, serial, MAC and current IP (read-only)
+	@set -e
+	$(SUBMAKE) --no-print-directory -s -C tools/lucid-live-view lucid_set_ip $(CAMERA_VIEWER_ARENA)
+	tools/lucid-live-view/lucid_set_ip --show
+
+.PHONY: camera-set-ip
+.ONESHELL:
+camera-set-ip: ## Give the camera a PERSISTENT static IP (default ip=10.3.2.4 mask=255.255.255.0 gateway=0.0.0.0) so it survives restarts; fixes 169.254.x.x fallback
+	@set -e
+	$(SUBMAKE) --no-print-directory -s -C tools/lucid-live-view lucid_set_ip $(CAMERA_VIEWER_ARENA)
+	tools/lucid-live-view/lucid_set_ip --ip "$(ip)" --mask "$(mask)" --gateway "$(gateway)" $(if $(serial),--serial "$(serial)")
+
 .PHONY: ml-trt-setup
 ml-trt-setup: ## One-time TensorRT engine build on the Jetson (run as the service user, not sudo). 'make ml-trt-setup MODEL=yolo' for YOLO
 	@bash ./ml-trt-setup.sh

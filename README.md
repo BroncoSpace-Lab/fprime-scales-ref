@@ -508,6 +508,16 @@ Inference now runs with `HF_HUB_OFFLINE=1` (set by `jetson-startup.sh` and the M
 
 For any `MULTI_INFERENCE` `EXECUTION_ERROR`, the full reason is in the service log: `journalctl -u jetson-deployment -f`. A `CUDA unavailable` message there means the GPU stack is broken; run `make ml-check`, then `make ml-setup`.
 
+## Camera Not Found / Wrong Camera IP
+
+If `jetson_lucidCamera.SETUP_CAMERA` reports `No camera connected` or fails to open the camera, check its address with `make camera-ip-show` (read-only). The flight software expects **10.3.2.4/24**. A camera that restarted without a persistent IP comes back on a self-assigned `169.254.x.x` address that the 10.3.2.x machines can't reach. Restore a persistent 10.3.2.4 with:
+
+```bash
+make camera-set-ip
+```
+
+Details are in [tools/lucid-live-view/README.md](tools/lucid-live-view/README.md). To watch the live camera feed for focusing and framing, run `make camera-viewer-setup` once on the ground PC, then `make camera-view`.
+
 ## Streaked or Washed-Out Camera Images
 
 Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` now retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived. Check the camera link with `ethtool enP8p1s0`: it should report `Speed: 1000Mb/s` and `Duplex: Full`. 100 Mb/s or half duplex points to the cable, switch, or PoE injector. `make jetson-setup` also raises the kernel's UDP receive buffers, which the camera needs.
