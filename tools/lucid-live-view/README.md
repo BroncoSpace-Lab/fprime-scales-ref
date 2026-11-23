@@ -52,7 +52,7 @@ desktop session on `:0`.
 
 ## Camera IP address (set it back to 10.3.2.4)
 
-The flight software on the Jetson (10.3.2.13/24) expects the camera at
+The flight software on the Jetson (10.3.2.12/24) expects the camera at
 **10.3.2.4/24**. The testbench camera is a PHX032S-C, serial 222401887, MAC
 `1c:0f:af:03:61:7e`.
 

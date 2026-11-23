@@ -1,535 +1,345 @@
-# fprime-scales-ref F' Project
+# SCALES Flight Software
 
-Welcome to the Space Compartmentalized Autonomous Learning and Edge computing System!
+Flight software reference project for the **Space Compartmentalized Autonomous Learning and Edge computing System (SCALES)**, built on NASA's [F´](https://fprime.jpl.nasa.gov) framework.
 
-This README explains how to set up the SCALES development environment and run the SCALES demo.
+[Video demo](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1XDO) · [Full documentation](https://scales-docs.readthedocs.io/en/latest/)
 
-Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1XDO)!
+**Contents:** [System overview](#system-overview) · [Prerequisites](#prerequisites) · [Setup](#setup) · [Run the demo](#run-the-demo) · [Sequences](#sequences) · [Machine learning](#machine-learning) · [Rebuild after changes](#rebuild-after-changes) · [Make targets](#make-targets) · [Troubleshooting](#troubleshooting)
 
-Check out our [docs page](https://scales-docs.readthedocs.io/en/latest/)!
+## System overview
 
-## Software Architecture
+```mermaid
+flowchart LR
+    GDS["Ground PC<br/>F´ GDS"]
+    IMX["SCALES Compute Module (i.MX 8X)<br/>ImxDeployment"]
+    JET["Jetson AGX Orin<br/>JetsonDeployment + ML"]
+    CAM["LUCID GigE camera"]
 
-<div style="text-align: center;">
-    <img src="docs/Images/scales-fsw-arch.png" alt="SCALES flight software architecture" width="1000" margin="center">
-</div>
+    GDS <-->|"TCP :50000<br/>(UART fallback)"| IMX
+    IMX <-->|"F´ hub<br/>TCP :50500"| JET
+    CAM -->|"GigE Vision"| JET
+```
 
-## Development Environment
+The ground system talks only to the IMX. The IMX forwards Jetson commands over the F´ hub and relays Jetson events, telemetry, and files back to the ground.
 
-We recommend using the following development environment:
+| Device | Address | Runs | Built on |
+|---|---|---|---|
+| Ground PC | `10.3.2.13` | F´ GDS | n/a |
+| IMX | `10.3.2.10` (`eth0`), `10.3.2.11` (`eth1`) | `ImxDeployment` (starts on boot) | Ground PC (cross-compiled) |
+| Jetson | `10.3.2.12` | `JetsonDeployment` (`jetson-deployment` systemd service) | Jetson (native) |
+| Camera | `10.3.2.4` | LUCID GigE camera | n/a |
 
-- Ubuntu 22.04 host machine
+The custom BSP preconfigures both IMX addresses and includes a startup-enabled `ImxDeployment`. The `Makefile`, deployment topologies, and GDS scripts use `10.3.2.10` to reach the IMX.
+
+## Prerequisites
+
+**Hardware.** Set up each board with its guide first:
+
+- [SCALES Compute Module](https://scales-docs.readthedocs.io/en/latest/imx8x_merger/)
+- [Peripheral board](https://scales-docs.readthedocs.io/en/latest/peripheral_board/)
+- [Jetson AGX Orin](https://scales-docs.readthedocs.io/en/latest/nvidia_jetson_orin_agx/)
+
+> **Watchdog warning:** If the watchdog solder pads on the back of the Compute Module are soldered, both the IMX and the Jetson must have reference deployments installed. The Jetson's watchdog pin (GPIO27, Pin 15) must also be wired, or the Jetson will be power-cycled about every 32 seconds. Power the Jetson from its USB-C cable for first-time setup, and move to the DF11-to-DC-jack connector afterward.
+
+**Ground PC:**
+
+- Ubuntu 22.04
+- Manual IPv4 address `10.3.2.13` with subnet mask `255.255.255.0`
 - Python 3.12
-- Git LFS:
-  - [amd64 host machine installer](https://git-lfs.com/)
-  - [arm64 Jetson installer](https://github.com/git-lfs/git-lfs/releases/download/v3.7.0/git-lfs-linux-arm64-v3.7.0.tar.gz)
-- IMX8X BSP set up on your host machine. See the [IMX8X BSP setup guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/).
+- [Git LFS](https://git-lfs.com/)
+- [IMX8X SDK](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/), installed at `/opt/ampliphy-vendor/5.0.4-devel`
+- This repository cloned to `~/fprime-scales-ref`, because `make build-jetson` copies the Jetson dictionary to that path
 
-## Setup SCALES
+**Jetson:**
 
-It is recommended that you set up all custom hardware according to the guides below. Once all devices are working according to the recommended setup guides, you may continue setting up your development environment.
+- NVIDIA Jetson AGX Orin Developer Kit flashed with JetPack 6.2.2. `make jetson-setup` rejects versions older than 6.1 and JetPack 7.
+- Ethernet port set to manual IPv4 address `10.3.2.12` with subnet mask `255.255.255.0`
+- Internet access over Wi-Fi during setup
 
-<a id="hardware-setup"></a>
-<details>
-<summary><strong>Hardware Setup</strong></summary>
+## Setup
 
-### SCALES Compute Module
+Do these steps in order. They only need to be done once.
 
-The SCALES Compute Module serves as the central processing unit of the system. This module contains an F' framework application that includes the software architecture and flight software components.
+### 1. Set up the ground PC
 
-- [Setup Guide](https://scales-docs.readthedocs.io/en/latest/imx8x_merger/)
+```bash
+git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git ~/fprime-scales-ref
+cd ~/fprime-scales-ref
+make setup main
+source fprime-venv/bin/activate
+```
 
-### Peripheral Board
+### 2. Build and deploy the IMX
 
-The peripheral board provides connectivity to various peripherals, such as sensors, actuators, and communication interfaces.
+The IMX toolchain reads three environment variables. Add them to `/etc/environment`, then restart the computer:
 
-- [Setup Guide](https://scales-docs.readthedocs.io/en/latest/peripheral_board/)
+```text
+IMX_C_COMPILER="/opt/ampliphy-vendor/5.0.4-devel/sysroots/x86_64-phytecsdk-linux/usr/bin/aarch64-phytec-linux/aarch64-phytec-linux-gcc"
+IMX_CXX_COMPILER="/opt/ampliphy-vendor/5.0.4-devel/sysroots/x86_64-phytecsdk-linux/usr/bin/aarch64-phytec-linux/aarch64-phytec-linux-g++"
+IMX_ROOT_PATH="/opt/ampliphy-vendor"
+```
 
-### Jetson Orin AGX
+After the restart, build, copy the binary to the IMX, and reboot it:
 
-The Jetson is a powerful AI computer that runs the F' software on top of the Linux operating system.
+```bash
+cd ~/fprime-scales-ref
+source fprime-venv/bin/activate
+make build-imx8x
+```
 
-- [Setup Guide](https://scales-docs.readthedocs.io/en/latest/nvidia_jetson_orin_agx/)
+### 3. Set up the Jetson
 
-</details>
-
-Use the commands below in a terminal to clone and set up the repository on both your Linux host machine, which should have the IMX8X SDK installed, and the Nvidia Jetson Orin AGX.
-
-Before proceeding, make sure you have [Git LFS](https://git-lfs.com/) installed. Also, make sure to source `fprime-venv` before continuing development.
+Run this on the Jetson as the user the flight software will run as. Do **not** use `sudo`; the script asks for your password once.
 
 ```bash
 git clone https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
 cd fprime-scales-ref
-make setup
-source fprime-venv/bin/activate
+make jetson-setup
 ```
 
-## How to Build ImxDeployment
+On a fresh clone, this installs Python 3.12 and Git LFS and runs `make setup` and `make arena-init` for you. It is safe to re-run, because each step skips work that is already done:
 
-To generate and build for the IMX, you need to have the build environment set up on your machine. Refer to the [IMX SDK setup guide](https://scales-docs.readthedocs.io/en/latest/imx_yocto_bsp/#building-the-bsp) for instructions. Once that setup is complete, you may continue.
+| Step | What it does |
+|---|---|
+| 1 | Installs system packages: Python 3.12, JRE, Git LFS, compilers |
+| 2 | Creates `fprime-venv` and checks out submodules |
+| 3 | Installs the LUCID Arena SDK and raises UDP receive buffers to 32 MB for the camera |
+| 4 | Installs the GPU stack and `ml-venv`, caches model weights, builds TensorRT engines, and runs an accuracy self-test |
+| 5 | Installs the `jetson-deployment` service and the `nvpmodel`/`shutdown` sudoers rules |
 
-**On the Linux host machine**, generate ImxDeployment:
+Options:
 
-```bash
-fprime-util generate imx8x -f
-```
-
-Build ImxDeployment:
-
-```bash
-fprime-util build imx8x
-```
-
-Once your deployment has built, copy the binary over the existing `ImxDeployment` on the IMX. You can use `scp` to copy the binary over the peripheral board network with a command similar to the one below.
-
-**On the Linux host machine:**
-
-```bash
-scp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip-of-imx>:/tmp/
-```
-
-**On the IMX:**
-
-```bash
-# From within /root
-mv /tmp/ImxDeployment .
-reboot now
-```
-
-On the next boot, the new ImxDeployment will be loaded as a system service and run on boot.
-
-Since a deployment has been generated, ensure that its dictionary is copied to `fprime-scales-ref/GDSDictionary` so that once you have the Jetson dictionary, you can merge both dictionaries and run the GDS.
-
-**On the Linux host machine**, copy the IMX dictionary to the `GDSDictionary` folder:
-
-```bash
-cp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/dict/ImxTopologyDictionary.json fprime-scales-ref/GDSDictionary
-```
-
-If the deployment has been copied to the IMX and you want to test the IMX alone with the GDS, navigate to the `GDSDictionary` folder and run:
-
-```bash
-./test-imx-only.sh
-```
-
-This will start the GDS with only the IMX dictionary. You should see a browser window open, and the GDS icon on the far right should turn from a red X to a green dot.
-
-> **Note:** If you have added or changed sequences, you can recompile them using the dictionaries and copy them over to `/root` on the IMX. The sequences needed to run the demo come prepackaged in the SCALES Compute Module BSP.
-
-## How to Build JetsonDeployment
-
-**First-time setup only:** Set up the Arena SDK for the Ethernet camera. Run this command **on the Jetson**:
-
-```bash
-make arena-init
-```
+- `JETSON_USER=<name>` skips the username prompt.
+- `ML_MODELS=resnet` builds only the ResNet engine. The YOLO engine takes more than 10 minutes.
 
 <details>
-<summary><strong>Note: Running without the Ethernet camera</strong></summary>
+<summary><strong>Why are there two Python environments?</strong></summary>
 
-If you are running this without the Ethernet camera, you can skip this step. Just make sure to comment out the following lines:
-
-- [RunLucidCamera in Components/CMakeLists.txt](https://github.com/BroncoSpace-Lab/fprime-scales-ref/blob/4d7539bd00343ee9b80e19f95b4a6aae525610b0/Components/CMakeLists.txt#L4)
-- [`add_fprime_subdirectory("${CMAKE_CURRENT_LIST_DIR}/ArenaSDK/")` in /lib/CMakeLists.txt](https://github.com/BroncoSpace-Lab/fprime-scales-ref/blob/4d7539bd00343ee9b80e19f95b4a6aae525610b0/lib/CMakeLists.txt#L1)
+F´ runs in `fprime-venv` (Python 3.12), but NVIDIA publishes CUDA-enabled PyTorch and TensorRT for JetPack 6 only for Python 3.10. Inference therefore runs in a child process under `ml-venv`. See the [inference pipeline docs](Components/MLComponent/Scales-ML/docs/inference-pipeline.md).
 
 </details>
 
-You must generate and build JetsonDeployment on the Jetson. Cross-compilation for `aarch64-linux` has not been set up yet.
+### 4. Build the Jetson deployment
 
-**On the Jetson**, you should be able to generate and build JetsonDeployment. From within `fprime-scales-ref`, source your F' environment:
+On the Jetson:
 
 ```bash
 source fprime-venv/bin/activate
-```
-
-You should now be able to generate and build JetsonDeployment with the commands below:
-
-```bash
-fprime-util generate aarch64-linux -f
 make build-jetson
 ```
 
-The `make build-jetson` command will restart the system service with the new deployment and create a linked folder for the camera images.
+This builds the deployment, asks for your ground PC username, copies the Jetson dictionary to the ground PC, and restarts the service. The ground PC must be reachable, or the build stops before the restart.
 
-# Run the SCALES Demo
-
-<a id="imx-setup"></a>
 <details>
-<summary><strong>IMX Setup</strong></summary>
+<summary><strong>Building without the camera</strong></summary>
 
-These steps are only required if changes have been made to ImxDeployment. Otherwise, the binary on the IMX should already be fine.
+Remove the camera from the build before running `make build-jetson`:
 
-1. Follow the instructions above to build ImxDeployment on the host machine.
-
-2. Make sure you are able to ping both the host machine and the Jetson from the IMX. Then, copy the ImxDeployment binary from the host machine to the IMX.
-
-    **On the host machine:**
-
-    ```bash
-    scp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip-of-imx>:/tmp/
-    ```
-
-    **On the IMX, from `/root`:**
-
-    ```bash
-    mv /tmp/ImxDeployment .
-    reboot now
-    ```
-
-3. Copy the binary files for the sequences to the IMX:
-
-    ```bash
-    scp fprime-scales-ref/Sequences/save-png.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/batch-send-img.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/snap-n-save.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/Zip-n-send-img.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/test-resnet.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/demo.bin root@<ip-of-imx>:/root
-    scp fprime-scales-ref/Sequences/run-ml.bin root@<ip-of-imx>:/root
-    ```
+1. In `Components/CMakeLists.txt`, comment out the `RunLucidCamera` line.
+2. In `lib/CMakeLists.txt`, comment out the `ArenaSDK` line.
+3. In `JetsonDeployment/Top/instances.fpp`, remove the `jetson_lucidCamera` instance.
+4. In `JetsonDeployment/Top/topology.fpp`, remove `instance jetson_lucidCamera` and the `jetson_lucidCamera.sendFile` connection.
 
 </details>
 
-<a id="jetson-setup"></a>
-<details>
-<summary><strong>Jetson Setup</strong></summary>
+### 5. Merge dictionaries and install sequences
 
-1. **One command sets up the whole Jetson.** On the Jetson (JetPack 6.1 or newer, L4T R36.4+), as the user the flight software will run as (**not** with `sudo`; it asks for your sudo password once):
-
-    ```bash
-    git clone --recurse-submodules https://github.com/BroncoSpace-Lab/fprime-scales-ref.git
-    cd fprime-scales-ref
-    make jetson-setup          # same as: make setup-jetson
-    ```
-
-    It is safe to re-run; every step checks first and skips what is already done:
-
-    | Step | What it installs or does |
-    |---|---|
-    | 1 | System packages: Python 3.12 (deadsnakes PPA if needed), JRE, git-lfs, compilers |
-    | 2 | `fprime-venv` and submodules (runs `make setup` if the venv is missing) |
-    | 3 | LUCID Arena SDK (`make arena-init` if needed) and 32 MB UDP receive buffers for the GigE camera |
-    | 4 | GPU/ML via `jetson-ml-setup.sh`: checks the JetPack version; installs `nvidia-jetpack` (CUDA 12.6, cuDNN 9, TensorRT 10) and NVIDIA's cuDSS; creates `ml-venv` (Python 3.10 with NVIDIA's CUDA build of PyTorch); caches the model weights; verifies CUDA; builds the ResNet and YOLO TensorRT engines; runs an accuracy self-test |
-    | 5 | `jetson-deployment` systemd service and the nvpmodel/shutdown sudoers rules |
-
-    Options: `JETSON_USER=<name>` skips the username prompt; `ML_MODELS=resnet` builds only the ResNet engine (the YOLO engine takes 10+ minutes). `make ml-setup` re-runs only step 4, and `make ml-check` re-verifies CUDA and model accuracy at any time.
-
-    Why a second Python? F´ runs in `fprime-venv` (Python 3.12), but NVIDIA publishes CUDA-enabled PyTorch and TensorRT for JetPack 6 only for Python 3.10. Inference therefore runs in a child process under `ml-venv`; see `Components/MLComponent/Scales-ML/docs/inference-pipeline.md`.
-
-2. Make sure the IP of the IMX is set in `JetsonDeployment/Top/JetsonDeploymentTopology.cpp` and matches the IP of the IMX:
-
-    ```cpp
-    // line 37
-    const char* IMX_HUB_IP_ADDRESS = "10.3.2.10";
-    ```
-
-3. Rebuild JetsonDeployment:
-
-    ```bash
-    make build-jetson
-    ```
-
-4. **First-time setup only:** Make a folder with a symbolic link to where the camera images are saved. This ensures that the paths for commands in the fprime-gds are not too long.
-
-    ```bash
-    sudo ln -s ~/fprime-scales-ref/build-python-fprime-aarch64-linux/Images/ ./Images
-    ```
-
-    The `Images` folder will be created in your root directory.
-
-</details>
-
-<a id="host-setup"></a>
-<details>
-<summary><strong>Host Setup</strong></summary>
-
-1. Open another terminal on the host machine, enter the repository directory, and source your environment:
-
-    ```bash
-    cd fprime-scales-ref
-    source fprime-venv/bin/activate
-    ```
-
-2. Copy the ImxDeployment dictionary to the `GDS-Dictionary` folder on the host machine:
-
-    ```bash
-    cp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyDictionary.json fprime-scales-ref/GDS-Dictionary/.
-    ```
-
-3. Copy the JetsonDeployment dictionary from the Jetson to the host machine:
-
-    ```bash
-    scp <jetson-name>@<jetson-ip>:fprime-scales-ref/build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyDictionary.json fprime-scales-ref/GDS-Dictionary/.
-    ```
-
-4. Combine the GDS dictionaries with the `merge-automate.sh` script:
-
-    ```bash
-    cd GDS-Dictionary
-    ./merge-automate.sh
-    ```
-
-    This will generate `GDSDictionary.json`, which contains both the IMX and Jetson dictionaries merged into one file.
-
-</details>
-
-You are now ready to run the demo.
-
-## Running the Demo
-
-1. After you finish setting up the demo in the previous section, navigate to the `GDS-Dictionary` folder **on the host machine** and run the fprime-gds:
-
-    ```bash
-    ./run-gds.sh
-    ```
-
-2. **On the IMX**, the ImxDeployment binary should be running as a system service. You should see a green dot on the fprime-gds and `Accepted client` in the IMX terminal.
-
-    If the system service is stopped for any reason, you can run:
-
-    ```bash
-    ./ImxDeployment -a 0.0.0.0 -p 50000
-    ```
-
-3. **On the Jetson**, navigate to the project root directory and run:
-
-    ```bash
-    make build-jetson
-    ```
-
-    This will restart the system service and run the deployment. Alternatively, if you have stopped the service for any reason, you can run the deployment from within `fprime-scales-ref` by first sourcing `fprime-venv`, then running:
-
-    ```bash
-    ./jetson-startup.sh
-    ```
-
-    This command runs JetsonDeployment through its Python implementation and connects to the IMX's fprime-gds using the hub pattern. To exit the Python environment, press `Ctrl + C`.
-
-4. **On the host machine**, use the fprime-gds to run `jetson_cmdDisp.CMD_NO_OP` to test the connection with the Jetson. Do the same for the IMX with `imx_cmdDisp.CMD_NO_OP`. You should see that both events completed in the **Events** tab of the GDS.
-
-5. Once the camera is connected and the camera light is flashing green, run the `jetson_lucidCamera.SETUP_CAMERA` command to verify the connection through fprime.
-
-6. To take a picture with the camera, run the `imx_cmdSeq.CS_RUN` command in the fprime-gds with the argument `demo.bin`. This will take a picture with the camera, downlink it to the IMX, and then downlink it again to the host machine. You can download the image from the **Downlink** tab in the GDS.
-
-    This sequence will also run a ResNet ML model to identify what is in the image. The output will be displayed in the **Events** tab of the GDS. Images are deleted from the Jetson after the `demo.bin` sequence concludes. Repeat this step if you want to take more images.
-
-    <div style="text-align: center;">
-        <img src="docs/Images/run_seq.png" alt="fprime-gds sequence command" width="600" margin="center">
-    </div>
-
-    This sequence will trigger the images from the Jetson to be downlinked to the IMX, and then downlinked again from the IMX to the host machine. Check the **Downlink** tab in the GDS to see the images.
-
-    <div style="text-align: center;">
-        <img src="docs/Images/image_downlink.png" alt="Downlink view" width="600" margin="center">
-    </div>
-
-    Click the **Download** button in the **Downlink** tab of the fprime-gds to download the zipped image folder to the host machine. You can then unzip the folder and view the images from the Jetson.
-
-### Alternative Commands
-
-1. To send a batch of images from the Jetson to the host machine, run a sequence on the IMX using the `imx_cmdSeq.CS_RUN` command in the fprime-gds with the `fileName` argument `send.bin`. The command string is as follows:
-
-    ```text
-    imx_cmdSeq.CS_RUN, "send.bin", BLOCK
-    ```
-
-    <div style="text-align: center;">
-        <img src="docs/Images/run_seq.png" alt="fprime-gds sequence command" width="600" margin="center">
-    </div>
-
-    This sequence will trigger the images from the Jetson to be zipped into a smaller file, downlinked to the IMX, and then downlinked again from the IMX to the host machine.
-
-    <div style="text-align: center;">
-        <img src="docs/Images/image_downlink.png" alt="Downlink view" width="600" margin="center">
-    </div>
-
-    Click the **Download** button in the **Downlink** tab of the fprime-gds to download the zipped image folder to the host machine. You can then unzip the folder and view the images from the Jetson.
-
-2. To run ML on the images, run the `JetsonDeployment.jetson_mlManager.SET_ML_PATH` command with the argument `resnet.inference.pytorch`. Then, set the inference path to where the images are stored with the `JetsonDeployment.jetson_mlManager.SET_INFERENCE_PATH` command using the argument `./Images` (relative paths are resolved from the Jetson's F Prime working directory, `build-artifacts/python`). Finally, run the ML model with the `JetsonDeployment.jetson_mlManager.MULTI_INFERENCE` command. You should see the ML results in the GDS **Events** log and in the Jetson service log (`journalctl -u jetson-deployment -f`). See [To Run Scales-ML](#to-run-scales-ml) for the other available models.
-
-That's how to run the SCALES demo.
-
-Watch our video demo on [YouTube](https://youtu.be/-g3Wv_fr9r8?si=2xow8_22aNjE1XDO)! Some minor changes have been implemented since the video was created, but the core process remains the same.
-
-# To Run Scales-ML
-
-[Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML/tree/c49ad8f190e4c10a08b7b1cdb475192e059cb833) holds the ML models. `jetson_mlManager` can run any of these entry points, selected with `SET_ML_PATH`:
-
-| `SET_ML_PATH` value | Model | Runtime | One-time setup |
-|---|---|---|---|
-| `resnet.inference.pytorch` | ResNet-18 (image classification) | PyTorch on CUDA | `make jetson-setup` |
-| `resnet.inference.tensorrt` | ResNet-18 | TensorRT FP16 (fastest) | `make jetson-setup` |
-| `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch on CUDA | `make jetson-setup` |
-| `yolo.inference.tensorrt` | YOLOv8n | TensorRT FP16 | `make jetson-setup` |
-
-All four run on the GPU in `ml-venv`, offline, using the weights and engines that `make jetson-setup` cached. ResNet results include the model's confidence, e.g. `cello.jpg is an image of a cello, violoncello (99.7%)`. `SET_ML_PATH` only accepts names of the form `<model>.inference.<runtime>`. Any other name is rejected with `VALIDATION_ERROR` without being loaded.
-
-1. Follow the setup described in the previous sections for the IMX, Jetson, and host machine.
-
-2. Optional: check the GPU stack and model accuracy at any time with `make ml-check`. Rebuild a single TensorRT engine with `make ml-trt-setup` (ResNet) or `make ml-trt-setup MODEL=yolo`; after a JetPack or TensorRT update, delete `~/.scales_trt_cache` and run `make ml-setup`.
-
-3. In the fprime-gds, run the `imx_cmdSeq.CS_RUN` command with the argument `test-resnet.bin` (compiled from `Sequences/test-resnet.seq`). This sequence will:
-
-    - Set the ML path to `resnet.inference.pytorch`.
-    - Set the inference path to the `test-imagery` folder of example images.
-    - Execute the `MULTI_INFERENCE` command to run inference on all images in that folder.
-
-    To use a different model, send the same three commands by hand with another `SET_ML_PATH` value from the table above.
-
-For how the models, the TensorRT path, and the setup script work, see [Components/MLComponent/docs/scales-ml.md](Components/MLComponent/docs/scales-ml.md).
-
-# Running After Making Changes
-
-If you make changes to ImxDeployment or JetsonDeployment, rebuild the respective deployment and repeat the steps to merge the dictionaries.
-
-## Updates to JetsonDeployment
-
-1. Rebuild JetsonDeployment. Run this on the Jetson:
-
-    ```bash
-    make build-jetson
-    ```
-
-2. Open another terminal on the host machine, enter the repository directory, and source your environment:
-
-    ```bash
-    cd fprime-scales-ref
-    source fprime-venv/bin/activate
-    ```
-
-3. Copy the ImxDeployment dictionary to the `GDS-Dictionary` folder on the host machine:
-
-    ```bash
-    cp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/dict/ImxDeploymentTopologyDictionary.json fprime-scales-ref/GDS-Dictionary/.
-    ```
-
-4. Copy the JetsonDeployment dictionary from the Jetson to the host machine:
-
-    ```bash
-    scp <jetson-name>@<jetson-ip>:fprime-scales-ref/build-artifacts/aarch64-linux/JetsonDeployment/dict/JetsonDeploymentTopologyDictionary.json fprime-scales-ref/GDS-Dictionary/.
-    ```
-
-5. Combine the GDS dictionaries with the `merge-automate.sh` script:
-
-    ```bash
-    cd GDS-Dictionary
-    ./merge-automate.sh
-    ```
-
-    This will generate `GDSDictionary.json`, which contains both the IMX and Jetson dictionaries merged into one file.
-
-## Updates to ImxDeployment
-
-1. Rebuild ImxDeployment:
-
-    ```bash
-    fprime-util build imx8x
-    ```
-
-2. Use the following command to SSH into the IMX:
-
-    ```bash
-    ssh root@<ip-of-imx>
-    ```
-
-3. Copy the ImxDeployment binary from the host machine to the IMX. Run this command on the host machine:
-
-    ```bash
-    scp fprime-scales-ref/build-artifacts/imx8x/ImxDeployment/bin/ImxDeployment root@<ip-of-imx>:/tmp/
-    ```
-
-    **On the IMX, from within `/root`:**
-
-    ```bash
-    mv /tmp/ImxDeployment .
-    reboot now
-    ```
-
-4. Combine the GDS dictionaries with the `merge-automate.sh` script. Run this command on the host machine. If you also updated JetsonDeployment, make sure to follow the directions above before attempting this step:
-
-    ```bash
-    cd GDS-Dictionary
-    ./merge-automate.sh
-    ```
-
-5. Connect to the fprime-gds.
-
-    **On the host machine**, navigate to the `GDS-Dictionary` folder and run the fprime-gds:
-
-    ```bash
-    ./run-gds.sh
-    ```
-
-    **On the IMX**, run the ImxDeployment binary if the service is not already running. You should see a green dot on the fprime-gds and `Accepted client` in the IMX terminal.
-
-    If the service is stopped or disabled, you can run ImxDeployment with:
-
-    ```bash
-    ./ImxDeployment -a 0.0.0.0 -p 50000
-    ```
-
-    **On the Jetson**, navigate to the `build-python-fprime-aarch64-linux` directory to run the fprime-gds using Python.
-
-    If you have made changes to JetsonDeployment but have not stopped or disabled the system service, run:
-
-    ```bash
-    make build-jetson
-    ```
-
-    If you have disabled or stopped the system service, you will have to either re-enable it or run JetsonDeployment from `fprime-scales-ref` using:
-
-    ```bash
-    ./jetson-startup.sh
-    ```
-
-# Troubleshooting
-
-When trying to run the SCALES demo, you may encounter a few issues.
-
-## Hanging/Crashing During Downlink
-
-This can happen if there is an existing file on the IMX named `image.png` from a previous incomplete run of the demo. Delete the `image.png` file from the IMX with `rm image.png`, then try running the demo again.
-
-This may also be due to an issue with the `Images/` folder on the Jetson. Return to step 4 in [Jetson Setup](#jetson-setup) to make sure the `Images/` folder is set up correctly.
-
-## fprime-gds Crashes on Jetson When Trying to Connect
-
-Instead of using the shortened command to connect to the GDS from the Jetson, try entering the Python environment first. Then, run `import python_extension` and `python_extension.main()` one at a time.
-
-## Inferencing Error
-
-When trying to run the `MULTI_INFERENCE` command on the Jetson with `resnet.inference.pytorch`, you may experience an error similar to:
-
-```text
-'(MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /microsoft/resnet-18/resolve/main/preprocessor_config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0xffff3bf23450>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution'))"), '(Request ID: 6d6a5cec-e762-484c-a97a-1e1d9748bcba)')' thrown while requesting HEAD https://huggingface.co/microsoft/resnet-18/resolve/main/preprocessor_config.json
-```
-
-Inference now runs with `HF_HUB_OFFLINE=1` (set by `jetson-startup.sh` and the ML worker), using the weights `make jetson-setup` cached; online checks used to add about 80 s to every `MULTI_INFERENCE`. If you see the error above, or `... is not in the Hugging Face cache ...`, the model was never cached for the user the service runs as (the cache is per user, `~/.cache/huggingface`). Run `make ml-setup` as that user.
-
-For any `MULTI_INFERENCE` `EXECUTION_ERROR`, the full reason is in the service log: `journalctl -u jetson-deployment -f`. A `CUDA unavailable` message there means the GPU stack is broken; run `make ml-check`, then `make ml-setup`.
-
-## Camera Not Found / Wrong Camera IP
-
-If `jetson_lucidCamera.SETUP_CAMERA` reports `No camera connected` or fails to open the camera, check its address with `make camera-ip-show` (read-only). The flight software expects **10.3.2.4/24**. A camera that restarted without a persistent IP comes back on a self-assigned `169.254.x.x` address that the 10.3.2.x machines can't reach. Restore a persistent 10.3.2.4 with:
+On the ground PC, merge the IMX and Jetson dictionaries into `GDS-Dictionary/GDSDictionary.json`:
 
 ```bash
-make camera-set-ip
+make gds-setup
 ```
 
-Details are in [tools/lucid-live-view/README.md](tools/lucid-live-view/README.md). To watch the live camera feed for focusing and framing, run `make camera-viewer-setup` once on the ground PC, then `make camera-view`.
+Compile the sequences against the merged dictionary and copy them to the IMX:
 
-## Streaked or Washed-Out Camera Images
+```bash
+for seq in Sequences/*.seq; do fprime-seqgen "$seq" -d GDS-Dictionary/GDSDictionary.json; done
+make cpseq
+```
 
-Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` now retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived. Check the camera link with `cat /sys/class/net/enP8p1s0/speed /sys/class/net/enP8p1s0/duplex`: it should report `1000` and `full`. At gigabit the camera streams about 33 fps with no incomplete frames; at 100 Mb/s half duplex nearly every frame loses packets. `make jetson-setup` also raises the kernel's UDP receive buffers, which the camera needs.
+The compiled `.bin` files depend on your dictionary, so don't commit them.
 
-If every device on the 10.3.2.x network shows 100 Mb/s half duplex, check the bench switch (Microchip KSZ9896C) strap DIP switches. **All strap switches must be OFF** (ON pulls a strap low). With `LED2_1` ON the switch uses "Fast Link-up": auto-negotiation is off and every port is forced to 100 Mb/s, so the devices fall back to half duplex. Turn it OFF and reset or power-cycle the switch; the straps are only read at reset. See Table 3-3 of the KSZ9896C datasheet (DS00002390C). This was fixed on 2026-11-13; since then the Jetson, IMX and ground PC all link at 1000/full.
+## Run the demo
 
-A blurry image is a lens-focus problem; adjust the focus ring. Classification accuracy depends heavily on a sharp, well-exposed image of a centered object that is one of the 1,000 ImageNet classes.
+1. **Start the GDS on the ground PC:**
 
----
+    ```bash
+    source fprime-venv/bin/activate
+    make gds-tcp
+    ```
 
-This project was auto-generated by the F' utility tool.
+    The GDS opens in a browser at `127.0.0.1:5000`. The connection icon at the far right turns from a red X to a green dot.
 
-F' is a component-driven framework that enables rapid development and deployment of spaceflight and other embedded software applications.
+2. **Confirm that both deployments are running.** Both start on boot.
 
-**Please visit the F' website:** https://fprime.jpl.nasa.gov.
+    - IMX: if the GDS stays disconnected, run `./ImxDeployment -a 0.0.0.0 -p 50000` from `/root`. You should see `Accepted client`.
+    - Jetson: check with `systemctl status jetson-deployment`, and restart with `sudo systemctl restart jetson-deployment`.
+
+3. **Test both links.** Send these commands from the GDS **Commanding** tab and look for their completion in the **Events** tab:
+
+    ```text
+    imx_CdhCore.cmdDisp.CMD_NO_OP
+    jetson_CdhCore.cmdDisp.CMD_NO_OP
+    ```
+
+4. **Connect the camera.** When the camera light is flashing green, send:
+
+    ```text
+    JetsonDeployment.jetson_lucidCamera.SETUP_CAMERA
+    ```
+
+5. **Run the demo sequence.** Send `ImxDeployment.imx_cmdSeq.CS_RUN` with these arguments:
+
+    | Argument | Value |
+    |---|---|
+    | `fileName` | `demo.bin` |
+    | `block` | `BLOCK` |
+
+    The sequence takes a picture, sends it from the Jetson through the IMX to the ground, classifies it with ResNet-18, and deletes the images from the Jetson.
+
+6. **View the results.** The classification appears in the **Events** tab. Download `image.png` from the **Downlink** tab. Repeat step 5 to take more pictures.
+
+## Sequences
+
+Run any of these with `ImxDeployment.imx_cmdSeq.CS_RUN`:
+
+| Sequence | What it does |
+|---|---|
+| `demo.bin` | Captures and downlinks an image, runs ResNet (TensorRT), then deletes the Jetson's images |
+| `save-png.bin`, `snap-n-save.bin` | Captures and downlinks an image |
+| `run-ml.bin` | Runs ResNet (PyTorch) on the images saved on the Jetson |
+| `test-resnet.bin` | Runs ResNet (PyTorch) on the example images in `test-imagery/` |
+| `batch-send-img.bin` | Compresses the Jetson's images and downlinks them as `Images.tgz` |
+| `Zip-n-send-img.bin` | Legacy version of `batch-send-img.bin`. It reads `/Images`, which setup no longer creates |
+
+## Machine learning
+
+The models live in the [Scales-ML](https://github.com/BroncoSpace-Lab/Scales-ML) submodule. All of them run on the GPU in `ml-venv`, offline, using the weights and engines cached by `make jetson-setup`.
+
+| `SET_ML_PATH` value | Model | Runtime |
+|---|---|---|
+| `resnet.inference.pytorch` | ResNet-18 (classification) | PyTorch on CUDA |
+| `resnet.inference.tensorrt` | ResNet-18 (classification) | TensorRT FP16 (fastest) |
+| `yolo.inference.pytorch` | YOLOv8n (object detection) | PyTorch on CUDA |
+| `yolo.inference.tensorrt` | YOLOv8n (object detection) | TensorRT FP16 |
+
+To run a model by hand, send these three commands:
+
+```text
+JetsonDeployment.jetson_mlManager.SET_ML_PATH        resnet.inference.pytorch
+JetsonDeployment.jetson_mlManager.SET_INFERENCE_PATH ./Images
+JetsonDeployment.jetson_mlManager.MULTI_INFERENCE
+```
+
+Relative paths resolve from `build-artifacts/python` on the Jetson. Results appear in the GDS **Events** tab and the service log (`journalctl -u jetson-deployment -f`), for example `cello.jpg is an image of a cello, violoncello (99.7%)`.
+
+`SET_ML_PATH` only accepts names of the form `<model>.inference.<runtime>`. Anything else returns `VALIDATION_ERROR` without being loaded.
+
+Maintenance commands, run on the Jetson:
+
+```bash
+make ml-check                  # Verify CUDA and model accuracy
+make ml-setup                  # Re-run the GPU/ML setup
+make ml-trt-setup              # Rebuild the ResNet TensorRT engine
+make ml-trt-setup MODEL=yolo   # Rebuild the YOLO TensorRT engine
+```
+
+After a JetPack or TensorRT update, delete `~/.scales_trt_cache` and run `make ml-setup`. For design details, see [the Scales-ML integration docs](Components/MLComponent/docs/scales-ml.md).
+
+## Rebuild after changes
+
+**If you changed `JetsonDeployment`,** run this on the Jetson:
+
+```bash
+make build-jetson
+```
+
+**If you changed `ImxDeployment`,** run this on the ground PC:
+
+```bash
+make build-imx8x
+```
+
+Add `nogen` to either command to skip CMake generation when no build files changed.
+
+**After either rebuild,** wait for the device to come back up. Then update the ground PC and restart the GDS:
+
+```bash
+make gds-setup
+for seq in Sequences/*.seq; do fprime-seqgen "$seq" -d GDS-Dictionary/GDSDictionary.json; done
+make cpseq
+make gds-tcp
+```
+
+## Make targets
+
+Run `make help` for the full list.
+
+| Target | Run on | Purpose |
+|---|---|---|
+| `setup` | Ground PC | Create `fprime-venv` and install dependencies |
+| `build-imx8x` | Ground PC | Build, deploy, and reboot the IMX |
+| `gds-setup` | Ground PC | Merge the IMX and Jetson dictionaries |
+| `cpseq` | Ground PC | Copy compiled sequences to the IMX |
+| `gds-tcp` | Ground PC | Start the GDS over TCP (`127.0.0.1:5000`). Add `ip=10.3.2.11` to use the IMX's `eth1` |
+| `gds-uart` | Ground PC | Start the backup GDS over UART (`/dev/ttyUSB0`, `127.0.0.1:5001`) |
+| `data-products` | Ground PC | Decode `~/Downloads/*.fdp` into `DataProducts/decoded/` |
+| `requirements-check` | Ground PC | Regenerate the requirements traceability report |
+| `jetson-setup` | Jetson | Run the full Jetson setup |
+| `build-jetson` | Jetson | Build, send the dictionary, and restart the service |
+| `ml-setup`, `ml-check`, `ml-trt-setup` | Jetson | Manage the GPU/ML stack |
+| `camera-viewer-setup`, `camera-view` | Either | Set up and open the [live camera viewer](tools/lucid-live-view/README.md) |
+| `camera-ip-show`, `camera-set-ip` | Either | Read or restore the camera's persistent IP |
+
+## Troubleshooting
+
+### Downlink hangs or crashes
+
+A leftover `image.png` from an incomplete run can block the transfer. Delete it on the IMX, then run the demo again:
+
+```bash
+rm /root/image.png
+```
+
+Also confirm that `build-artifacts/python/Images` exists on the Jetson. `make build-jetson` creates it.
+
+### GDS can't reach the IMX over TCP
+
+If the network link is down, use `make gds-uart`. Only one GDS can send commands at a time, and the IMX gives UART command authority after TCP has been down for 10 seconds. Once TCP has been stable for 2 seconds, send `ImxDeployment.imx_gdsCmdAuthMux.SWITCH_TO_TCP` to switch back.
+
+### `MULTI_INFERENCE` fails
+
+The full reason is in the service log:
+
+```bash
+journalctl -u jetson-deployment -f
+```
+
+- **`huggingface.co ... Max retries exceeded` or `is not in the Hugging Face cache`:** the model was never cached for the service user. Inference runs offline, and the cache is per user. Run `make ml-setup` as that user.
+- **`CUDA unavailable`:** the GPU stack is broken. Run `make ml-check`, then `make ml-setup`.
+
+### Camera not found
+
+If `SETUP_CAMERA` reports `No camera connected` or can't open the camera:
+
+1. Close the live viewer, because only one program can control the camera at a time.
+2. Run `make camera-ip-show`. The camera should be at `10.3.2.4/24`.
+3. If it shows a `169.254.x.x` address, restore its persistent IP with `make camera-set-ip`.
+
+See the [camera tool docs](tools/lucid-live-view/README.md) for details.
+
+### Streaked or washed-out images
+
+Horizontal lines of garbage pixels mean GigE packets were lost. `SAVE_PNG` retries until it gets a complete frame and logs `Dropped N incomplete frame(s)`, or a `CameraError` warning if none arrived.
+
+Check the camera link on the Jetson. It should report `1000` and `full`:
+
+```bash
+cat /sys/class/net/enP8p1s0/speed /sys/class/net/enP8p1s0/duplex
+```
+
+If every device on the network shows 100 Mb/s half duplex, check the strap DIP switches on the bench switch (Microchip KSZ9896C). **All strap switches must be OFF.** With `LED2_1` ON, the switch forces every port to 100 Mb/s. Turn it OFF and power-cycle the switch, because the straps are only read at reset. See Table 3-3 of the KSZ9896C datasheet (DS00002390C).
+
+### Blurry images or poor classification
+
+Adjust the lens focus ring, using `make camera-view` to help. ResNet accuracy depends on a sharp, well-exposed, centered object from one of the 1,000 ImageNet classes.

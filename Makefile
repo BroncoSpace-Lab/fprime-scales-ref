@@ -436,8 +436,8 @@ camera-view: ## Live camera view for focusing/framing. 'flight=1' applies SETUP_
 	fi
 	exec "$$VIEWER" $$VIEW_ARGS
 
-# Camera IP: the flight software (Jetson 10.3.2.13/24) expects the camera at 10.3.2.4.
-ip ?= 10.3.2.4
+# Camera IP: the flight software (Jetson 10.3.2.12/24) expects the camera at 10.3.2.4.
+camera-set-ip: ip ?= 10.3.2.4
 mask ?= 255.255.255.0
 gateway ?= 0.0.0.0
 serial ?=
@@ -539,6 +539,9 @@ gds-setup: ## Generate the merged dictionary, deploy the IMX binary, and reboot 
 .ONESHELL:
 gds-uart: ## Launch the GDS over the UART connection (GDS-Dictionary/uart-gds.sh)
 	@cd GDS-Dictionary && ./uart-gds.sh
+
+gds-tcp: ip ?= 10.3.2.10
+gds-tcp: port ?= 50000
 
 .PHONY: gds-tcp
 .ONESHELL:
